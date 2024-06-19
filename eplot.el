@@ -88,30 +88,53 @@
       ;; number, or two numbers (in which case the first number is a
       ;; date or a time).  Labels can be introduced with a # char.
       (while (re-search-forward
-	      "^\\([0-9]+\\)[ \t]+\\(\\([0-9]+\\)[ \t]+\\)?\\(#\\(.*\\)"
+	      "^\\([0-9.]+\\)[ \t]+\\(\\([0-9.]+\\)[ \t]+\\)?\\(#\\(.*\\)"
 	      nil t)
-	(let ((v1 (match-string 1))
+	(let ((v1 (string-to-number (match-string 1)))
 	      (v2 (match-string 3))
 	      (label (match-string 5)))
 	  (cond
 	   ((and v2 label)
-	    (push (list v1 v2 label) values))
+	    (push (list :x v1 :value (string-to-number v2) :label label)
+		  values))
 	   (v2
-	    (push (list v1 v2) values))
+	    (push (list :x v1 :value (string-to-number v2)) values))
 	   (t
-	    (push v1 values))))
+	    (push (list :value v1) values))))
 	(push (cons :values (nreverse values)) data))
       data)))
 
+(defun eplot--vn (type data &optional default)
+  (if-let ((value (cdr (assq type data))))
+      (string-to-number value)
+    default))
+
+(defun eplot--vs (type data &optional default)
+  (or (cdr (assq type data)) default))
+
 (defun eplot--render (data)
-  (let* ((width (or (cdr (assq 'width data))
-		    (window-pixel-width (get-buffer-window "*eplot*"))))
-	 (height (or (cdr (assq 'height data))
-		     (window-pixel-height (get-buffer-window "*eplot*"))))
+  (let* ((width (eplot--vn 'width data
+			   (window-pixel-width
+			    (get-buffer-window "*eplot*"))))
+	 (height (eplot--vn 'height data
+			    (window-pixel-height
+			     (get-buffer-window "*eplot*"))))
+	 (margin-left (eplot--vn 'margin-left 100))
+	 (margin-right (eplot--vn 'margin-right 10))
+	 (margin-top (eplot--vn 'margin-top 10))
+	 (margin-bottom (eplot--vn 'margin-bottom 100))
 	 (svg (svg-create width height))
-	 (axes-color (or (cdr (assq 'axes-color data)) "black")))
+	 (axes-color (eplot--vs 'axes-color data "black")))
+    ;; Add background.
     (svg-rectangle svg 0 0 width height
-		   :fill (or (cdr (assq 'background-color data)) "white"))
+		   :fill (eplot--vs 'background-color data "white"))
+    ;; Draw axes.
+    (svg-line svg margin-left margin-top margin-left
+	      (+ (- height margin-bottom) 10)
+	      :stroke axes-color)
+    (svg-line svg (- margin-left 10) (- height margin-bottom)
+	      (- width margin-right) (- height margin-bottom)
+	      :stroke axes-color)
     ))
 
 (provide 'eplot)
