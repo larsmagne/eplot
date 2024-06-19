@@ -144,6 +144,7 @@
 	 (margin-right (* factor (eplot--vn 'margin-right data 20)))
 	 (margin-top (* factor (eplot--vn 'margin-top data 50)))
 	 (margin-bottom (* factor (eplot--vn 'margin-bottom data 100)))
+	 (style (intern (eplot--vs 'style data "bar")))
 	 (svg (svg-create width height))
 	 (font (eplot--vs 'font data "futural"))
 	 (font-size (eplot--vn 'font data (* factor 20)))
@@ -199,12 +200,15 @@
       (cl-loop for elem in values
 	       for x from 0
 	       for label = (or (plist-get elem :label)
-			       (format "%s" (1+ x)))
+			       (format "%s" x))
+	       for px = (if (memq style '(impulse bar))
+			    (+ margin-left (* x stride) (/ stride 2))
+			  (+ margin-left (* x stride)))
 	       do
 	       (svg-line svg
-			 (+ margin-left (* x stride) (/ stride 2))
+			 px
 			 (- height margin-bottom)
-			 (+ margin-left (* x stride) (/ stride 2))
+			 px
 			 (+ (- height margin-bottom) 10)
 			 :stroke legend-color)
 	       (svg-text svg label
@@ -212,35 +216,30 @@
 			 :text-anchor "middle"
 			 :font-size font-size
 			 :fill legend-color
-			 :x (+ margin-left (* x stride) (/ stride 2))
+			 :x px
 			 :y (+ (- height margin-bottom)
 			       (* factor 30))))
-      (cl-loop for val in vals
-	       for x from 0
-	       for py = (- (- height margin-bottom)
-			   (* (/ (* 1.0 val) max)
-			      (- height margin-bottom margin-top)))
-	       do
-	       (svg-line svg
-			 (+ margin-left (* x stride))
-			 (- height margin-bottom)
-			 (+ margin-left (* x stride))
-			 py
-			 :stroke color)
-	       (svg-line svg
-			 (+ margin-left (* x stride))
-			 py
-			 (+ margin-left (* x stride) stride)
-			 py
-			 :stroke color)
-	       (svg-line svg
-			 (+ margin-left (* x stride) stride)
-			 py
-			 (+ margin-left (* x stride) stride)
-			 (- height margin-bottom)
-			 :stroke color))
-      
-      )
+      (cl-loop
+       for val in vals
+       for x from 0
+       for py = (- (- height margin-bottom)
+		   (* (/ (* 1.0 val) max)
+		      (- height margin-bottom margin-top)))
+       for px = (+ margin-left (* x stride))
+       do
+       (cl-case style
+	 (bar
+	  (svg-rectangle svg
+			 px py
+			 stride (- height margin-bottom py)
+			 :stroke color
+			 :fill "black"))
+	 (impulse
+	  (svg-line svg
+		    (+ px (/ stride 2)) py
+		    (+ px (/ stride 2)) (- height margin-bottom)
+		    :stroke color))
+	 )))
 
     
     (let ((image-scaling-factor 1))
