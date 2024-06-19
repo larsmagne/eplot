@@ -27,7 +27,8 @@
   :lighter " eplot")
 
 (defvar-keymap eplot-minor-mode-map
-  "C-c C-c" #'eplot-update-view-buffer)
+  "C-c C-c" #'eplot-update-view-buffer
+  "H-l" #'eplot-eval-and-update)
 
 (define-derived-mode eplot-mode special-mode "eplot"
   "Major mode for displaying eplots.")
@@ -65,6 +66,14 @@
 	  (setq-local eplot--data-buffer data-buffer)
 	  (eplot--render data))))))
 
+(defun eplot-eval-and-update ()
+  "Helper command when developing."
+  (interactive nil emacs-lisp-mode)
+  (save-some-buffers t)
+  (elisp-eval-buffer)
+  (eval-defun nil)
+  (eplot-update-view-buffer))
+
 (defun eplot-update ()
   "Update the plot in the current buffer."
   (interactive)
@@ -99,16 +108,18 @@
 	      nil t)
 	(let ((v1 (string-to-number (match-string 1)))
 	      (v2 (match-string 3))
-	      (label (match-string 5)))
+	      (label (substring-no-properties (match-string 5))))
 	  (cond
 	   ((and v2 label)
-	    (push (list :x v1 :value (string-to-number v2) :label label)
+	    (push (list :value v1 :x (string-to-number v2) :label label)
 		  values))
 	   (v2
-	    (push (list :x v1 :value (string-to-number v2)) values))
+	    (push (list :value v1 :x (string-to-number v2)) values))
+	   (label
+	    (push (list :value v1 :label label) values))
 	   (t
-	    (push (list :value v1) values))))
-	(push (cons :values (nreverse values)) data))
+	    (push (list :value v1) values)))))
+      (push (cons :values (nreverse values)) data)
       data)))
 
 (defun eplot--vn (type data &optional default)
@@ -132,7 +143,7 @@
 	 (margin-left (* factor (eplot--vn 'margin-left data 50)))
 	 (margin-right (* factor (eplot--vn 'margin-right data 20)))
 	 (margin-top (* factor (eplot--vn 'margin-top data 50)))
-	 (margin-bottom (* factor (eplot--vn 'margin-bottom data 50)))
+	 (margin-bottom (* factor (eplot--vn 'margin-bottom data 100)))
 	 (svg (svg-create width height))
 	 (font (eplot--vs 'font data "futural"))
 	 (font-size (eplot--vn 'font data (* factor 20)))
@@ -165,7 +176,7 @@
 		:font-size font-size
 		:fill legend-color
 		:x (+ margin-left (/ (- width margin-left margin-right) 2))
-		:y (+ (* factor 4) (- height (/ margin-bottom 2)))))
+		:y (+ (* factor 4) (- height (/ margin-bottom 4)))))
     (when-let ((label (eplot--vs 'y-label data)))
       (svg-text svg label
 		:font-family font
@@ -177,6 +188,41 @@
 			(+ (/ margin-left 2) (* 7 factor))
 			(+ margin-top
 			   (/ (- height margin-bottom margin-top) 2)))))
+    ;; Analyze values.
+    (when-let* ((values (cdr (assq :values data)))
+		(vals (seq-map (lambda (v) (plist-get v :value)) values))
+		(min (seq-min vals))
+		(max (seq-max vals))
+		(stride (/ (- width margin-left margin-right)
+			   (length vals))))
+      (cl-loop for val in vals
+	       for x from 0
+	       for py = (- (- height margin-bottom)
+			   (* (/ (* 1.0 val) max)
+			      (- height margin-bottom margin-top)))
+	       do
+	       (svg-line svg
+			 (+ margin-left (* x stride))
+			 (- height margin-bottom)
+			 (+ margin-left (* x stride))
+			 py
+			 :stroke color)
+	       (svg-line svg
+			 (+ margin-left (* x stride))
+			 py
+			 (+ margin-left (* x stride) stride)
+			 py
+			 :stroke color)
+	       (svg-line svg
+			 (+ margin-left (* x stride) stride)
+			 py
+			 (+ margin-left (* x stride) stride)
+			 (- height margin-bottom)
+			 :stroke color))
+      
+      )
+
+    
     (let ((image-scaling-factor 1))
       (svg-insert-image svg))
     ))
