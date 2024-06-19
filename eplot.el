@@ -195,6 +195,26 @@
 		(max (seq-max vals))
 		(stride (/ (- width margin-left margin-right)
 			   (length vals))))
+      ;; Make ticks.
+      (cl-loop for elem in values
+	       for x from 0
+	       for label = (or (plist-get elem :label)
+			       (format "%s" (1+ x)))
+	       do
+	       (svg-line svg
+			 (+ margin-left (* x stride) (/ stride 2))
+			 (- height margin-bottom)
+			 (+ margin-left (* x stride) (/ stride 2))
+			 (+ (- height margin-bottom) 10)
+			 :stroke legend-color)
+	       (svg-text svg label
+			 :font-family font
+			 :text-anchor "middle"
+			 :font-size font-size
+			 :fill legend-color
+			 :x (+ margin-left (* x stride) (/ stride 2))
+			 :y (+ (- height margin-bottom)
+			       (* factor 30))))
       (cl-loop for val in vals
 	       for x from 0
 	       for py = (- (- height margin-bottom)
