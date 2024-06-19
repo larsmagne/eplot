@@ -104,19 +104,21 @@
       ;; number, or two numbers (in which case the first number is a
       ;; date or a time).  Labels can be introduced with a # char.
       (while (re-search-forward
-	      "^\\([0-9.]+\\)[ \t]+\\(\\([0-9.]+\\)[ \t]+\\)?\\(#\\(.*\\)\\)"
+	      "^\\([0-9.]+\\)\\([ \t]+\\([0-9.]+\\)\\)?\\([ \t]+#\\(.*\\)\\)?"
 	      nil t)
 	(let ((v1 (string-to-number (match-string 1)))
 	      (v2 (match-string 3))
-	      (label (substring-no-properties (match-string 5))))
+	      (label (match-string 5)))
 	  (cond
 	   ((and v2 label)
-	    (push (list :value v1 :x (string-to-number v2) :label label)
+	    (push (list :value v1 :x (string-to-number v2)
+			:label (substring-no-properties label))
 		  values))
 	   (v2
 	    (push (list :value v1 :x (string-to-number v2)) values))
 	   (label
-	    (push (list :value v1 :label label) values))
+	    (push (list :value v1 :label (substring-no-properties label))
+		  values))
 	   (t
 	    (push (list :value v1) values)))))
       (push (cons :values (nreverse values)) data)
@@ -140,14 +142,14 @@
 			    (* (window-pixel-height
 				(get-buffer-window "*eplot*" t))
 			       0.9)))
-	 (margin-left (* factor (eplot--vn 'margin-left data 50)))
-	 (margin-right (* factor (eplot--vn 'margin-right data 20)))
-	 (margin-top (* factor (eplot--vn 'margin-top data 50)))
-	 (margin-bottom (* factor (eplot--vn 'margin-bottom data 100)))
-	 (style (intern (eplot--vs 'style data "bar")))
+	 (margin-left (* factor (eplot--vn 'margin-left data 20)))
+	 (margin-right (* factor (eplot--vn 'margin-right data 10)))
+	 (margin-top (* factor (eplot--vn 'margin-top data 20)))
+	 (margin-bottom (* factor (eplot--vn 'margin-bottom data 20)))
+	 (style (intern (eplot--vs 'style data "line")))
 	 (svg (svg-create width height))
 	 (font (eplot--vs 'font data "futural"))
-	 (font-size (eplot--vn 'font data (* factor 20)))
+	 (font-size (eplot--vn 'font data (* factor 12)))
 	 (color (eplot--vs 'color data "black"))
 	 (axes-color (eplot--vs 'axes-color data color))
 	 (legend-color (eplot--vs 'legend-color data axes-color)))
@@ -157,10 +159,12 @@
     ;; Draw axes.
     (svg-line svg margin-left margin-top margin-left
 	      (+ (- height margin-bottom) 10)
-	      :stroke axes-color)
+	      :stroke axes-color
+	      :stroke-width 2)
     (svg-line svg (- margin-left 10) (- height margin-bottom)
 	      (- width margin-right) (- height margin-bottom)
-	      :stroke axes-color)
+	      :stroke axes-color
+	      :stroke-width 2)
     ;; Title and legends.
     (when-let ((title (eplot--vs 'title data)))
       (svg-text svg title
@@ -195,7 +199,10 @@
 		(min (seq-min vals))
 		(max (seq-max vals))
 		(stride (/ (- width margin-left margin-right)
-			   (length vals))))
+			   ;; Fenceposting impulse/bar vs everything else.
+			   (if (memq style '(impulse bar))
+			       (length vals)
+			     (1- (length vals))))))
       ;; Make ticks.
       (cl-loop for elem in values
 	       for x from 0
@@ -209,7 +216,7 @@
 			 px
 			 (- height margin-bottom)
 			 px
-			 (+ (- height margin-bottom) 10)
+			 (+ (- height margin-bottom) (* factor 5))
 			 :stroke legend-color)
 	       (svg-text svg label
 			 :font-family font
@@ -218,12 +225,14 @@
 			 :fill legend-color
 			 :x px
 			 :y (+ (- height margin-bottom)
-			       (* factor 30))))
+			       (* 16 factor))))
       (cl-loop
+       with lpy
+       with lpx
        for val in vals
        for x from 0
        for py = (- (- height margin-bottom)
-		   (* (/ (* 1.0 val) max)
+		   (* (/ (- (* 1.0 val) min) (- max min))
 		      (- height margin-bottom margin-top)))
        for px = (+ margin-left (* x stride))
        do
@@ -239,7 +248,21 @@
 		    (+ px (/ stride 2)) py
 		    (+ px (/ stride 2)) (- height margin-bottom)
 		    :stroke color))
-	 )))
+	 (point
+	  (svg-line svg px py (1+ px) (1+ py)
+		    :stroke color))
+	 (line
+	  (when lpx
+	    (svg-line svg lpx lpy px py
+		      :stroke color)))
+	 (circle)
+	 (cross)
+	 (filled-square)
+	 (triangle)
+	 (box)
+	 )
+       (setq lpy py
+	     lpx px)))
 
     
     (let ((image-scaling-factor 1))
