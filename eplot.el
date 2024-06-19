@@ -23,7 +23,8 @@
 (require 'cl-lib)
 
 (define-minor-mode eplot-minor-mode
-  "Minor mode to issue commands from an eplot data buffer.")
+  "Minor mode to issue commands from an eplot data buffer."
+  :lighter " eplot")
 
 (defvar-keymap eplot-minor-mode-map
   "C-c C-c" #'eplot-update-view-buffer)
@@ -45,18 +46,24 @@
 (defun eplot-update-view-buffer ()
   "Update the eplot view buffer based on the current data buffer."
   (interactive)
-  (let ((data (eplot--parse-buffer))
-	(data-buffer (current-buffer)))
-    (save-current-buffer
-      (if (get-buffer-window "*eplot*" t)
-	  (set-buffer "*eplot*")
-	(pop-to-buffer "*eplot*"))
-      (let ((inhibit-read-only t))
-	(erase-buffer)
-	(unless (eq major-mode 'eplot-mode)
-	  (eplot-mode))
-	(setq-local eplot--data-buffer data-buffer)
-	(eplot--render data)))))
+  ;; This is mainly useful during implementation.
+  (if (and (eq major-mode 'emacs-lisp-mode)
+	   (get-buffer-window "*eplot*" t))
+      (with-current-buffer "*eplot*"
+	(eplot-update))
+    ;; Normal case.
+    (let ((data (eplot--parse-buffer))
+	  (data-buffer (current-buffer)))
+      (save-current-buffer
+	(if (get-buffer-window "*eplot*" t)
+	    (set-buffer "*eplot*")
+	  (pop-to-buffer "*eplot*"))
+	(let ((inhibit-read-only t))
+	  (erase-buffer)
+	  (unless (eq major-mode 'eplot-mode)
+	    (eplot-mode))
+	  (setq-local eplot--data-buffer data-buffer)
+	  (eplot--render data))))))
 
 (defun eplot-update ()
   "Update the plot in the current buffer."
@@ -88,7 +95,7 @@
       ;; number, or two numbers (in which case the first number is a
       ;; date or a time).  Labels can be introduced with a # char.
       (while (re-search-forward
-	      "^\\([0-9.]+\\)[ \t]+\\(\\([0-9.]+\\)[ \t]+\\)?\\(#\\(.*\\)"
+	      "^\\([0-9.]+\\)[ \t]+\\(\\([0-9.]+\\)[ \t]+\\)?\\(#\\(.*\\)\\)"
 	      nil t)
 	(let ((v1 (string-to-number (match-string 1)))
 	      (v2 (match-string 3))
@@ -113,18 +120,25 @@
   (or (cdr (assq type data)) default))
 
 (defun eplot--render (data)
-  (let* ((width (eplot--vn 'width data
-			   (window-pixel-width
-			    (get-buffer-window "*eplot*"))))
+  (let* ((factor (image-compute-scaling-factor))
+	 (width (eplot--vn 'width data
+			   (* (window-pixel-width
+			       (get-buffer-window "*eplot*" t))
+			      0.9)))
 	 (height (eplot--vn 'height data
-			    (window-pixel-height
-			     (get-buffer-window "*eplot*"))))
-	 (margin-left (eplot--vn 'margin-left 100))
-	 (margin-right (eplot--vn 'margin-right 10))
-	 (margin-top (eplot--vn 'margin-top 10))
-	 (margin-bottom (eplot--vn 'margin-bottom 100))
+			    (* (window-pixel-height
+				(get-buffer-window "*eplot*" t))
+			       0.9)))
+	 (margin-left (* factor (eplot--vn 'margin-left data 50)))
+	 (margin-right (* factor (eplot--vn 'margin-right data 20)))
+	 (margin-top (* factor (eplot--vn 'margin-top data 50)))
+	 (margin-bottom (* factor (eplot--vn 'margin-bottom data 50)))
 	 (svg (svg-create width height))
-	 (axes-color (eplot--vs 'axes-color data "black")))
+	 (font (eplot--vs 'font data "futural"))
+	 (font-size (eplot--vn 'font data (* factor 20)))
+	 (color (eplot--vs 'color data "black"))
+	 (axes-color (eplot--vs 'axes-color data color))
+	 (legend-color (eplot--vs 'legend-color data axes-color)))
     ;; Add background.
     (svg-rectangle svg 0 0 width height
 		   :fill (eplot--vs 'background-color data "white"))
@@ -135,6 +149,36 @@
     (svg-line svg (- margin-left 10) (- height margin-bottom)
 	      (- width margin-right) (- height margin-bottom)
 	      :stroke axes-color)
+    ;; Title and legends.
+    (when-let ((title (eplot--vs 'title data)))
+      (svg-text svg title
+		:font-family font
+		:text-anchor "middle"
+		:font-size font-size
+		:fill legend-color
+		:x (+ margin-left (/ (- width margin-left margin-right) 2))
+		:y (+ (* factor 10) (/ margin-top 2))))
+    (when-let ((label (eplot--vs 'x-label data)))
+      (svg-text svg label
+		:font-family font
+		:text-anchor "middle"
+		:font-size font-size
+		:fill legend-color
+		:x (+ margin-left (/ (- width margin-left margin-right) 2))
+		:y (+ (* factor 4) (- height (/ margin-bottom 2)))))
+    (when-let ((label (eplot--vs 'y-label data)))
+      (svg-text svg label
+		:font-family font
+		:text-anchor "middle"
+		:font-size font-size
+		:fill legend-color
+		:transform
+		(format "translate(%s,%s) rotate(-90)"
+			(+ (/ margin-left 2) (* 7 factor))
+			(+ margin-top
+			   (/ (- height margin-bottom margin-top) 2)))))
+    (let ((image-scaling-factor 1))
+      (svg-insert-image svg))
     ))
 
 (provide 'eplot)
