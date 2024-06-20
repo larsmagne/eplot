@@ -1,0 +1,14 @@
+Title: Movies And Their Grades
+X-Label: Grade
+Y-Label: Movies
+Background-Color: #101010
+Color: white
+Style: line
+
+8   #☐
+29  #⚀
+123 #⚁
+132 #⚂
+198 #⚃
+162 #⚄
+71  #⚅
