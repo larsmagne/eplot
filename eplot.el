@@ -291,7 +291,7 @@
 			    :y (+ (- height margin-bottom)
 				  font-size 2)))
       ;; Make Y ticks.
-      (let* ((ideal (e/ ys font-size))
+      (let* ((ideal (1+ (ceiling (e/ ys font-size))))
 	     factor val-factor series)
 	(if (> ideal (length y-ticks))
 	    (setq factor 0.1
@@ -314,20 +314,22 @@
 		 for py = (- (- height margin-bottom)
 			     (* (/ (- (* 1.0 y) min) (- max min))
 				ys))
-		 do (svg-line svg margin-left py
-			      (- margin-left 3) py
-			      :stroke-color axes-color)
-		 (svg-line svg margin-left py
-			   (- width margin-right) py
-			   :stroke-color grid-color)
-		 when (zerop (e% y factor))
-		 do (svg-text svg (format "%s" y)
+		 do
+		 (when (< py (- height margin-bottom))
+		   (svg-line svg margin-left py
+			     (- margin-left 3) py
+			     :stroke-color axes-color)
+		   (svg-line svg margin-left py
+			     (- width margin-right) py
+			     :stroke-color grid-color)
+		   (when (zerop (e% y factor))
+		     (svg-text svg (format "%s" y)
 			      :font-family font
 			      :text-anchor "end"
 			      :font-size font-size
 			      :fill legend-color
 			      :x (- margin-left 4)
-			      :y (+ py (/ font-size 2) -2))))
+			      :y (+ py (/ font-size 2) -2))))))
       
       ;; Draw axes.
       (svg-line svg margin-left margin-top margin-left
@@ -476,9 +478,10 @@
     (cl-loop for file in (directory-files "." t "chart.*.txt")
 	     for i from 0
 	     when (and (cl-plusp i)
-		       (zerop (% i 2)))
+		       (zerop (% i 3)))
 	     do (insert "\n\n")
-	     do (eplot-parse-and-insert file)
+	     do (let ((image-scaling-factor 1.57))
+		  (eplot-parse-and-insert file))
 	     (insert " "))))
 
 (defun eplot-parse-and-insert (file)
