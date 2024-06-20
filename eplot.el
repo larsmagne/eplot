@@ -150,6 +150,8 @@
 	 (svg (svg-create width height))
 	 (font (eplot--vs 'font data "futural"))
 	 (font-size (eplot--vn 'font data (* factor 12)))
+	 (xs (- width margin-left margin-right))
+	 (ys (- height margin-top margin-bottom))
 	 (color (eplot--vs 'color data "black"))
 	 (axes-color (eplot--vs 'axes-color data color))
 	 (legend-color (eplot--vs 'legend-color data axes-color)))
@@ -194,38 +196,41 @@
 			(+ margin-top
 			   (/ (- height margin-bottom margin-top) 2)))))
     ;; Analyze values.
-    (when-let* ((values (cdr (assq :values data)))
-		(vals (seq-map (lambda (v) (plist-get v :value)) values))
-		(min (seq-min vals))
-		(max (seq-max vals))
-		(stride (/ (- width margin-left margin-right)
-			   ;; Fenceposting impulse/bar vs everything else.
-			   (if (memq style '(impulse bar))
-			       (length vals)
-			     (1- (length vals))))))
+    (let* ((values (cdr (assq :values data)))
+	   (vals (seq-map (lambda (v) (plist-get v :value)) values))
+	   (min (seq-min vals))
+	   (max (seq-max vals))
+	   (whole (memq style '(impulse bar)))
+	   (stride (/ xs
+		      ;; Fenceposting impulse/bar vs everything else.
+		      (if (memq style '(impulse bar))
+			  (length vals)
+			(1- (length vals)))))
+	   ;; This is how often we should output labels on the ticks.
+	   (step (ceiling (e/ (length values) (e/ width 70)))))
       ;; Make ticks.
-      (cl-loop for elem in values
-	       for x from 0
-	       for label = (or (plist-get elem :label)
-			       (format "%s" x))
+      (cl-loop for x in (eplot--get-ticks 0 (length values) ys whole)
+	       for label = (if whole
+			       (plist-get (elt values x) :label)
+			     (format "%s" x))
 	       for px = (if (memq style '(impulse bar))
 			    (+ margin-left (* x stride) (/ stride 2))
 			  (+ margin-left (* x stride)))
-	       do
-	       (svg-line svg
-			 px
-			 (- height margin-bottom)
-			 px
-			 (+ (- height margin-bottom) (* factor 5))
-			 :stroke legend-color)
-	       (svg-text svg label
-			 :font-family font
-			 :text-anchor "middle"
-			 :font-size font-size
-			 :fill legend-color
-			 :x px
-			 :y (+ (- height margin-bottom)
-			       (* 16 factor))))
+	       do (svg-line svg
+			    px
+			    (- height margin-bottom)
+			    px
+			    (+ (- height margin-bottom) (* factor 5))
+			    :stroke legend-color)
+	       when (zerop (% x step))
+	       do (svg-text svg label
+			    :font-family font
+			    :text-anchor "middle"
+			    :font-size font-size
+			    :fill legend-color
+			    :x px
+			    :y (+ (- height margin-bottom)
+				  (* 16 factor))))
       (cl-loop
        with lpy
        with lpx
@@ -233,7 +238,7 @@
        for x from 0
        for py = (- (- height margin-bottom)
 		   (* (/ (- (* 1.0 val) min) (- max min))
-		      (- height margin-bottom margin-top)))
+		      ys))
        for px = (+ margin-left (* x stride))
        do
        (cl-case style
@@ -286,13 +291,15 @@
 
 (defun eplot--get-ticks (min max height &optional whole)
   (let* ((diff (abs (- min max)))
-	 (factor (expt 10 (eplot--decimal-digits diff)))
 	 (even (car (eplot--pleasing-numbers (* (e/ diff height) 10))))
+	 (factor (max (expt 10 (eplot--decimal-digits even))
+		      (expt 10 (eplot--decimal-digits diff))))
 	 (fmin (* min factor))
-	 (feven (* factor even))
+	 (feven (truncate (* factor even)))
 	 start)
     (when whole
-      (setq even (max 1 even)))
+      (setq even 1
+	    feven factor))
 
     (setq start
 	  (cond
