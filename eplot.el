@@ -86,8 +86,9 @@
 (defun eplot--parse-buffer ()
   (save-excursion
     (goto-char (point-min))
+    ;; First headers.
     (let ((data nil)
-	  type value values)
+	  type value data-file)
       (while (looking-at "\\([^ :]+\\):\\(.*\\)")
 	(setq type (intern (downcase (match-string 1)))
 	      value (string-trim (match-string 2)))
@@ -96,33 +97,46 @@
 	(while (looking-at "[ \t]+\\(.*\\)")
 	  (setq value (concat value " " (string-trim (match-string 1))))
 	  (forward-line 1))
-	(push (cons type value) data))
-      ;; Skip past separator lines.
-      (while (looking-at "[ \t]*\n")
-	(forward-line 1))
-      ;; Now we come to the data.  The data is typically either just a
-      ;; number, or two numbers (in which case the first number is a
-      ;; date or a time).  Labels can be introduced with a # char.
-      (while (re-search-forward
-	      "^\\([0-9.]+\\)\\([ \t]+\\([0-9.]+\\)\\)?\\([ \t]+#\\(.*\\)\\)?"
-	      nil t)
-	(let ((v1 (string-to-number (match-string 1)))
-	      (v2 (match-string 3))
-	      (label (match-string 5)))
-	  (cond
-	   ((and v2 label)
-	    (push (list :value v1 :x (string-to-number v2)
-			:label (substring-no-properties label))
-		  values))
-	   (v2
-	    (push (list :value v1 :x (string-to-number v2)) values))
-	   (label
-	    (push (list :value v1 :label (substring-no-properties label))
-		  values))
-	   (t
-	    (push (list :value v1) values)))))
-      (push (cons :values (nreverse values)) data)
+	;; The data may be external.
+	(if (eq type 'data)
+	    (setq data-file value)
+	  (push (cons type value) data)))
+      ;; Then the values.
+      (push (cons :values (if data-file
+			      (with-temp-buffer
+				(insert-file-contents data-file)
+				(eplot--parse-values))
+			    (eplot--parse-values)))
+	    data)
       data)))
+
+(defun eplot--parse-values ()
+  (let ((values nil))
+    ;; Skip past separator lines.
+    (while (looking-at "[ \t]*\n")
+      (forward-line 1))
+    ;; Now we come to the data.  The data is typically either just a
+    ;; number, or two numbers (in which case the first number is a
+    ;; date or a time).  Labels can be introduced with a # char.
+    (while (re-search-forward
+	    "^\\([0-9.]+\\)\\([ \t]+\\([0-9.]+\\)\\)?\\([ \t]+#\\(.*\\)\\)?"
+	    nil t)
+      (let ((v1 (string-to-number (match-string 1)))
+	    (v2 (match-string 3))
+	    (label (match-string 5)))
+	(cond
+	 ((and v2 label)
+	  (push (list :value v1 :x (string-to-number v2)
+		      :label (substring-no-properties label))
+		values))
+	 (v2
+	  (push (list :value v1 :x (string-to-number v2)) values))
+	 (label
+	  (push (list :value v1 :label (substring-no-properties label))
+		values))
+	 (t
+	  (push (list :value v1) values)))))
+    (nreverse values)))
 
 (defun eplot--vn (type data &optional default)
   (if-let ((value (cdr (assq type data))))
@@ -157,19 +171,31 @@
 	 (color (eplot--vs 'color data "black"))
 	 (axes-color (eplot--vs 'axes-color data color))
 	 (grid-color (eplot--vs 'grid-color data "#e0e0e0"))
-	 (legend-color (eplot--vs 'legend-color data axes-color)))
+	 (legend-color (eplot--vs 'legend-color data axes-color))
+	 (values (cdr (assq :values data))))
     ;; Add background.
     (svg-rectangle svg 0 0 width height
 		   :fill (eplot--vs 'background-color data "white"))
+    (when-let ((frame-color (eplot--vs 'frame-color data)))
+      (svg-rectangle svg 0 0 width height
+		     :fill frame-color)
+      (svg-rectangle svg margin-left margin-top
+		     xs ys
+		     :fill (eplot--vs 'background-color data "white")))
+    (when-let ((border-color (eplot--vs 'border-color data)))
+      (svg-rectangle svg 0 0 width height
+		     :stroke-width (eplot--vn 'border-width data 1)
+		     :fill "none"
+		     :stroke-color border-color))
     ;; Title and legends.
     (when-let ((title (eplot--vs 'title data)))
       (svg-text svg title
 		:font-family font
 		:text-anchor "middle"
 		:font-size font-size
-		:fill legend-color
+		:fill (eplot--vs 'title-color data legend-color)
 		:x (+ margin-left (/ (- width margin-left margin-right) 2))
-		:y (+ 10 (/ margin-top 2))))
+		:y (+ 3 (/ margin-top 2))))
     (when-let ((label (eplot--vs 'x-label data)))
       (svg-text svg label
 		:font-family font
@@ -190,10 +216,9 @@
 			(+ margin-top
 			   (/ (- height margin-bottom margin-top) 2)))))
     ;; Analyze values.
-    (let* ((values (cdr (assq :values data)))
-	   (vals (seq-map (lambda (v) (plist-get v :value)) values))
-	   (min (seq-min vals))
-	   (max (seq-max vals))
+    (let* ((vals (seq-map (lambda (v) (plist-get v :value)) values))
+	   (min (if vals (seq-min vals) 0))
+	   (max (if vals (seq-max vals) 0))
 	   (whole (memq style '(impulse bar)))
 	   (stride (e/ xs
 		       ;; Fenceposting impulse/bar vs everything else.
@@ -259,7 +284,9 @@
 	    (setq val-factor (car (eplot--pleasing-numbers
 				   (e/ (- max min) 100)
 				   series)))))
-	(setq spacing (abs (- (elt ticks 1) (elt ticks 0))))
+	(setq spacing (if (length> ticks 1)
+			  (abs (- (elt ticks 1) (elt ticks 0)))
+			0))
 	(cl-loop for i from 0 upto (* (length ticks) 2)
 		 for y = (+ (elt ticks 0) (* spacing i))
 		 when (zerop (mod (truncate (* y 1000))
