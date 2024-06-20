@@ -151,7 +151,7 @@
 	 (style (intern (eplot--vs 'style data "line")))
 	 (svg (svg-create width height))
 	 (font (eplot--vs 'font data "futural"))
-	 (font-size (eplot--vn 'font data 14))
+	 (font-size (eplot--vn 'font data 12))
 	 (xs (- width margin-left margin-right))
 	 (ys (- height margin-top margin-bottom))
 	 (color (eplot--vs 'color data "black"))
@@ -211,11 +211,18 @@
 	       for px = (if (memq style '(impulse bar))
 			    (+ margin-left (* x stride) (/ stride 2))
 			  (+ margin-left (* x stride)))
+	       ;; We might have one extra stride outside the area -- don't
+	       ;; draw it.
+	       when (> px (- width margin-right))
+	       return nil
 	       do (svg-line svg
 			    px
 			    (- height margin-bottom)
 			    px
-			    (+ (- height margin-bottom) 2)
+			    (+ (- height margin-bottom)
+			       (if (zerop (% x step))
+				   4
+				 2))
 			    :stroke legend-color)
 	       (svg-line svg px margin-top
 			 px (- height margin-bottom)
@@ -252,9 +259,10 @@
 	(setq spacing (abs (- (elt ticks 1) (elt ticks 0))))
 	(cl-loop for i from 0 upto (* (length ticks) 2)
 		 for y = (+ (elt ticks 0) (* spacing i))
-		 when (zerop (mod y factor))
+		 when (zerop (mod (truncate (* y 1000))
+				  (truncate (* factor 1000))))
 		 return (setq offset (e/ (mod i factor) 1000)))
-	(cl-loop for iy = -1
+	(cl-loop with iy = 0
 		 for y in ticks
 		 for i from 0
 		 for py = (- (- height margin-bottom)
@@ -262,10 +270,23 @@
 				ys))
 		 when (> i offset)
 		 do (cl-incf iy)
-		 when (and (> iy -1)
-			   (zerop (% (* iy 1000) (* factor 1000))))
 		 do (svg-line svg margin-left py
-			      (- margin-left 10) py)))
+			      (- margin-left 3) py
+			      :stroke-color axes-color)
+		 (svg-line svg margin-left py
+			   (- width margin-right) py
+			   :stroke-color grid-color)
+		 when (and (> iy -1)
+			   (zerop (% (truncate (* iy 1000))
+				     (truncate (* factor 1000)))))
+		 do (svg-text svg (format "%s" y)
+			      :font-family font
+			      :text-anchor "end"
+			      :font-size font-size
+			      :fill legend-color
+			      :x (- margin-left 4)
+			      :y (+ py (/ font-size 2) -2))
+		 ))
       
       ;; Draw axes.
       (svg-line svg margin-left margin-top margin-left
