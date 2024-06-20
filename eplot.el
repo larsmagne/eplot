@@ -220,14 +220,14 @@
 			    (- height margin-bottom)
 			    px
 			    (+ (- height margin-bottom)
-			       (if (zerop (% x step))
+			       (if (zerop (e% x step))
 				   4
 				 2))
 			    :stroke legend-color)
 	       (svg-line svg px margin-top
 			 px (- height margin-bottom)
 			 :stroke grid-color)
-	       when (zerop (% x step))
+	       when (zerop (e% x step))
 	       do (svg-text svg label
 			    :font-family font
 			    :text-anchor "middle"
@@ -240,6 +240,9 @@
       (let* ((ticks (eplot--get-ticks min max ys))
 	     (ideal (e/ ys font-size))
 	     factor val-factor series spacing offset)
+	;; We may be extending the bottom of the chart to get pleasing
+	;; numbers.
+	(setq min (min min (car ticks)))
 	(if (> ideal (length ticks))
 	    (setq factor 0.1
 		  val-factor 0.1)
@@ -337,6 +340,11 @@
     (svg-insert-image svg)
     ))
 
+(defun e% (num1 num2)
+  (let ((factor (max (expt 10 (eplot--decimal-digits num1))
+		     (expt 10 (eplot--decimal-digits num2)))))
+    (% (truncate (* num1 factor)) (truncate (* num2 factor)))))
+
 (defun eplot--decimal-digits (number)
   (- (length (replace-regexp-in-string
 	      "0+\\'" ""
@@ -371,8 +379,6 @@
 	       feven
 	       (- (% (floor fmin) feven))
 	       (- feven)))
-	   ((zerop (% fmin feven))
-	    fmin)
 	   (t
 	    (- fmin (% fmin feven)))))
     (cl-loop for x from start upto (* max factor) by feven
