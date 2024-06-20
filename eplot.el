@@ -312,28 +312,18 @@
 	(setq spacing (if (length> y-ticks 1)
 			  (abs (- (elt y-ticks 1) (elt y-ticks 0)))
 			0))
-	(cl-loop for i from 0 upto (* (length y-ticks) 2)
-		 for y = (+ (elt y-ticks 0) (* spacing i))
-		 when (zerop (mod (truncate (* y 1000))
-				  (truncate (* factor 1000))))
-		 return (setq offset (e/ (mod i factor) 1000)))
-	(cl-loop with iy = 0
-		 for y in y-ticks
+	(cl-loop for y in y-ticks
 		 for i from 0
 		 for py = (- (- height margin-bottom)
 			     (* (/ (- (* 1.0 y) min) (- max min))
 				ys))
-		 when (> i offset)
-		 do (cl-incf iy)
 		 do (svg-line svg margin-left py
 			      (- margin-left 3) py
 			      :stroke-color axes-color)
 		 (svg-line svg margin-left py
 			   (- width margin-right) py
 			   :stroke-color grid-color)
-		 when (and (> iy -1)
-			   (zerop (% (truncate (* iy 1000))
-				     (truncate (* factor 1000)))))
+		 when (zerop (e% y factor))
 		 do (svg-text svg (format "%s" y)
 			      :font-family font
 			      :text-anchor "end"
@@ -481,15 +471,18 @@
 
 (defun eplot-test-plots ()
   (interactive)
-  (pop-to-buffer "*test eplots*")
-  (erase-buffer)
-  (cl-loop for file in (directory-files "." t "chart.*.txt")
-	   for i from 0
-	   when (and (cl-plusp i)
-		     (zerop (% i 2)))
-	   do (insert "\n\n")
-	   do (eplot-parse-and-insert file)
-	   (insert " ")))
+  (save-current-buffer
+    (if (get-buffer-window "*test eplots*" t)
+	(set-buffer "*test eplots*")
+      (pop-to-buffer "*test eplots*"))
+    (erase-buffer)
+    (cl-loop for file in (directory-files "." t "chart.*.txt")
+	     for i from 0
+	     when (and (cl-plusp i)
+		       (zerop (% i 2)))
+	     do (insert "\n\n")
+	     do (eplot-parse-and-insert file)
+	     (insert " "))))
 
 (defun eplot-parse-and-insert (file)
   "Parse and insert a file in the current buffer."
