@@ -292,7 +292,7 @@
 				  font-size 2)))
       ;; Make Y ticks.
       (let* ((ideal (e/ ys font-size))
-	     factor val-factor series spacing offset)
+	     factor val-factor series)
 	(if (> ideal (length y-ticks))
 	    (setq factor 0.1
 		  val-factor 0.1)
@@ -309,9 +309,6 @@
 	    (setq val-factor (car (eplot--pleasing-numbers
 				   (e/ (- max min) 100)
 				   series)))))
-	(setq spacing (if (length> y-ticks 1)
-			  (abs (- (elt y-ticks 1) (elt y-ticks 0)))
-			0))
 	(cl-loop for y in y-ticks
 		 for i from 0
 		 for py = (- (- height margin-bottom)
