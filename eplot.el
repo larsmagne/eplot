@@ -357,7 +357,7 @@
 	 (even (car (eplot--pleasing-numbers (* (e/ diff height) 10))))
 	 (factor (max (expt 10 (eplot--decimal-digits even))
 		      (expt 10 (eplot--decimal-digits diff))))
-	 (fmin (* min factor))
+	 (fmin (truncate (* min factor)))
 	 (feven (truncate (* factor even)))
 	 start)
     (when whole
@@ -371,12 +371,12 @@
 	       feven
 	       (- (% (floor fmin) feven))
 	       (- feven)))
-	   ((= min 0)
-	    0)
+	   ((zerop (% fmin feven))
+	    fmin)
 	   (t
 	    (floor (+ fmin (- feven (% fmin feven)))))))
     (cl-loop for x from start upto (* max factor) by feven
-	     collect (eplot--int (/ x factor)))))
+	     collect (e/ x factor))))
 
 (defun eplot--int (number)
   (cond
