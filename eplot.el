@@ -216,7 +216,7 @@
 		:font-size font-size
 		:fill legend-color
 		:x (+ margin-left (/ (- width margin-left margin-right) 2))
-		:y (+ 4 (- height (/ margin-bottom 4)))))
+		:y (- height (/ margin-bottom 4))))
     (when-let ((label (eplot--vs 'y-label data)))
       (svg-text svg label
 		:font-family font
@@ -225,7 +225,7 @@
 		:fill legend-color
 		:transform
 		(format "translate(%s,%s) rotate(-90)"
-			(+ (/ margin-left 2) 7)
+			(- (/ margin-left 2) 2)
 			(+ margin-top
 			   (/ (- height margin-bottom margin-top) 2)))))
     ;; Analyze values.
