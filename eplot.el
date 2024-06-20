@@ -374,7 +374,7 @@
 	   ((zerop (% fmin feven))
 	    fmin)
 	   (t
-	    (floor (+ fmin (- feven (% fmin feven)))))))
+	    (- fmin (% fmin feven)))))
     (cl-loop for x from start upto (* max factor) by feven
 	     collect (e/ x factor))))
 
