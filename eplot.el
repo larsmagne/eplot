@@ -269,6 +269,74 @@
       (svg-insert-image svg))
     ))
 
+(defun eplot--decimal-digits (number)
+  (- (length (replace-regexp-in-string
+	      "0+\\'" ""
+	      (format "%.10f" (- number (truncate number)))))
+     2))
+
+(defun e/ (&rest numbers)
+  (if (cl-every #'integerp numbers)
+      (let ((int (apply #'/ numbers))
+	    (float (apply #'/ (* 1.0 (car numbers)) (cdr numbers))))
+	(if (= int float)
+	    int
+	  float))
+    (apply #'/ numbers)))
+
+(defun eplot--get-ticks (min max height &optional whole)
+  (let* ((diff (abs (- min max)))
+	 (factor (expt 10 (eplot--decimal-digits diff)))
+	 (even (car (eplot--pleasing-numbers (* (e/ diff height) 10))))
+	 (fmin (* min factor))
+	 (feven (* factor even))
+	 start)
+    (when whole
+      (setq even (max 1 even)))
+
+    (setq start
+	  (cond
+	   ((< min 0)
+	    (+ (floor fmin)
+	       feven
+	       (- (% (floor fmin) feven))
+	       (- feven)))
+	   ((= min 0)
+	    0)
+	   (t
+	    (floor (+ fmin (- feven (% fmin feven)))))))
+    (cl-loop for x from start upto (* max factor) by feven
+	     collect (eplot--int (/ x factor)))))
+
+(defun eplot--int (number)
+  (cond
+   ((integerp number)
+    number)
+   ((= number (truncate number))
+    (truncate number))
+   (t
+    number)))
+
+(defun eplot--pleasing-numbers (number &optional series)
+  (let* ((digits (eplot--decimal-digits number))
+	 (one (if (zerop digits) 1 (/ 1.0 (expt 10 digits))))
+	 (two (if (zerop digits) 2 (/ 2.0 (expt 10 digits))))
+	 (five (if (zerop digits) 5 (/ 5.0 (expt 10 digits)))))
+    (catch 'found
+      (while t
+	(when (and (< number one)
+		   (or (null series) (= series 1)))
+	  (throw 'found (list one 1)))
+	(setq one (* one 10))
+	(when (and (< number two)
+		   (or (null series) (= series 2)))
+	  (throw 'found (list two 2)))
+	(setq two (* two 10))
+	(when (and (< number five)
+		   (or (null series) (= series 5)))
+	  (throw 'found (list five 5)))
+	(setq five (* five 10))))))
+
 (provide 'eplot)
 
 ;;; eplot.el ends here
