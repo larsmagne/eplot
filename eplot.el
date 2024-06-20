@@ -240,16 +240,25 @@
 		       (if (memq style '(impulse bar))
 			   (length vals)
 			 (1- (length vals)))))
-	   (ticks (eplot--get-ticks 0 (length values) xs whole))
+	   (x-ticks (eplot--get-ticks 0 (length values) xs whole))
+	   (y-ticks (eplot--get-ticks min max ys))
 	   ;; This is how often we should output labels on the ticks.
-	   (step (ceiling (e/ (length ticks) (e/ width 70)))))
+	   (step (ceiling (e/ (length x-ticks) (e/ width 70)))))
 
+      ;; We may be extending the bottom of the chart to get pleasing
+      ;; numbers.  We don't want to be drawing the chart on top of the
+      ;; X axis, because the chart won't be visible there.
+      (when (<= min (car y-ticks))
+	(setq min (- (car y-ticks)
+		     ;; 2% of the value range.
+		     (* 0.02 (- (car (last y-ticks)) (car y-ticks))))))
+      
       (when (eq grid-position 'top)
 	(eplot--draw-plots data color style height margin-bottom margin-left
 			   min max ys stride svg))      
 
       ;; Make X ticks.
-      (cl-loop for x in ticks
+      (cl-loop for x in x-ticks
 	       for label = (if whole
 			       (plist-get (elt values x) :label)
 			     (format "%s" x))
@@ -282,38 +291,34 @@
 			    :y (+ (- height margin-bottom)
 				  font-size 2)))
       ;; Make Y ticks.
-      (let* ((ticks (eplot--get-ticks min max ys))
-	     (ideal (e/ ys font-size))
+      (let* ((ideal (e/ ys font-size))
 	     factor val-factor series spacing offset)
-	;; We may be extending the bottom of the chart to get pleasing
-	;; numbers.
-	(setq min (min min (car ticks)))
-	(if (> ideal (length ticks))
+	(if (> ideal (length y-ticks))
 	    (setq factor 0.1
 		  val-factor 0.1)
 	  (let ((please (eplot--pleasing-numbers
-			 (ceiling (e/ (length ticks) ideal)))))
+			 (ceiling (e/ (length y-ticks) ideal)))))
 	    (setq factor (car please)
 		  series (cadr please))
 	    ;; If we get a too big factor here, we decrease it.
-	    (when (< (e/ (length ticks) factor) 2)
+	    (when (< (e/ (length y-ticks) factor) 2)
 	      (let ((please (eplot--pleasing-numbers
-			     (ceiling (e/ (length ticks) ideal 2)))))
+			     (ceiling (e/ (length y-ticks) ideal 2)))))
 		(setq factor (car please)
 		      series (cadr please))))
 	    (setq val-factor (car (eplot--pleasing-numbers
 				   (e/ (- max min) 100)
 				   series)))))
-	(setq spacing (if (length> ticks 1)
-			  (abs (- (elt ticks 1) (elt ticks 0)))
+	(setq spacing (if (length> y-ticks 1)
+			  (abs (- (elt y-ticks 1) (elt y-ticks 0)))
 			0))
-	(cl-loop for i from 0 upto (* (length ticks) 2)
-		 for y = (+ (elt ticks 0) (* spacing i))
+	(cl-loop for i from 0 upto (* (length y-ticks) 2)
+		 for y = (+ (elt y-ticks 0) (* spacing i))
 		 when (zerop (mod (truncate (* y 1000))
 				  (truncate (* factor 1000))))
 		 return (setq offset (e/ (mod i factor) 1000)))
 	(cl-loop with iy = 0
-		 for y in ticks
+		 for y in y-ticks
 		 for i from 0
 		 for py = (- (- height margin-bottom)
 			     (* (/ (- (* 1.0 y) min) (- max min))
@@ -477,3 +482,6 @@
 (provide 'eplot)
 
 ;;; eplot.el ends here
+
+;;; Todo:
+;; Format: compact/default
