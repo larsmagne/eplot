@@ -87,56 +87,65 @@
   (save-excursion
     (goto-char (point-min))
     ;; First headers.
-    (let ((data nil)
-	  type value data-file)
-      (while (looking-at "\\([^ :]+\\):\\(.*\\)")
-	(setq type (intern (downcase (match-string 1)))
-	      value (string-trim (match-string 2)))
-	(forward-line 1)
-	;; Get continuation lines.
-	(while (looking-at "[ \t]+\\(.*\\)")
-	  (setq value (concat value " " (string-trim (match-string 1))))
-	  (forward-line 1))
-	;; The data may be external.
-	(if (eq type 'data)
-	    (setq data-file value)
-	  (push (cons type value) data)))
+    (let ((data (eplot--parse-headers))
+	  plots)
       ;; Then the values.
-      (push (cons :values (if data-file
-			      (with-temp-buffer
-				(insert-file-contents data-file)
-				(eplot--parse-values))
-			    (eplot--parse-values)))
-	    data)
+      (while-let ((plot (eplot--parse-values)))
+	(push plot plots))
+      (when plots
+	(push (cons :plots (nreverse plots)) data))
       data)))
 
+(defun eplot--parse-headers ()
+  (let ((data nil)
+	type value)
+    (while (looking-at "\\([^\n\t :]+\\):\\(.*\\)")
+      (setq type (intern (downcase (match-string 1)))
+	    value (string-trim (match-string 2)))
+      (forward-line 1)
+      ;; Get continuation lines.
+      (while (looking-at "[ \t]+\\(.*\\)")
+	(setq value (concat value " " (string-trim (match-string 1))))
+	(forward-line 1))
+      (push (cons type value) data))
+    data))
+
 (defun eplot--parse-values ()
-  (let ((values nil))
-    ;; Skip past separator lines.
-    (while (looking-at "[ \t]*\n")
-      (forward-line 1))
-    ;; Now we come to the data.  The data is typically either just a
-    ;; number, or two numbers (in which case the first number is a
-    ;; date or a time).  Labels can be introduced with a # char.
-    (while (re-search-forward
-	    "^\\([0-9.]+\\)\\([ \t]+\\([0-9.]+\\)\\)?\\([ \t]+#\\(.*\\)\\)?"
-	    nil t)
-      (let ((v1 (string-to-number (match-string 1)))
-	    (v2 (match-string 3))
-	    (label (match-string 5)))
-	(cond
-	 ((and v2 label)
-	  (push (list :value v1 :x (string-to-number v2)
-		      :label (substring-no-properties label))
-		values))
-	 (v2
-	  (push (list :value v1 :x (string-to-number v2)) values))
-	 (label
-	  (push (list :value v1 :label (substring-no-properties label))
-		values))
-	 (t
-	  (push (list :value v1) values)))))
-    (nreverse values)))
+  ;; Skip past separator lines.
+  (while (looking-at "[ \t]*\n")
+    (forward-line 1))
+  (let ((values nil)
+	;; We may have plot-specific headers.
+	(headers (eplot--parse-headers)))
+    (if-let ((data-file (eplot--vs 'data headers)))
+	(with-temp-buffer
+	  (insert-file-contents data-file)
+	  (setq values (cdr (assq :values (eplot--parse-values)))
+		headers (delq (assq 'data headers) headers)))
+      ;; Now we come to the data.  The data is typically either just a
+      ;; number, or two numbers (in which case the first number is a
+      ;; date or a time).  Labels can be introduced with a # char.
+      (while (looking-at
+	      "^[ \t]*\\([0-9.]+\\)\\([ \t]+\\([0-9.]+\\)\\)?\\([ \t]+#\\(.*\\)\\)?")
+	(let ((v1 (string-to-number (match-string 1)))
+	      (v2 (match-string 3))
+	      (label (match-string 5)))
+	  (cond
+	   ((and v2 label)
+	    (push (list :value v1 :x (string-to-number v2)
+			:label (substring-no-properties label))
+		  values))
+	   (v2
+	    (push (list :value v1 :x (string-to-number v2)) values))
+	   (label
+	    (push (list :value v1 :label (substring-no-properties label))
+		  values))
+	   (t
+	    (push (list :value v1) values))))
+	(forward-line 1))
+      (setq values (nreverse values)))
+    (and values
+	 `((:headers . ,headers) (:values . ,values)))))
 
 (defun eplot--vn (type data &optional default)
   (if-let ((value (cdr (assq type data))))
@@ -171,8 +180,7 @@
 	 (color (eplot--vs 'color data "black"))
 	 (axes-color (eplot--vs 'axes-color data color))
 	 (grid-color (eplot--vs 'grid-color data "#e0e0e0"))
-	 (legend-color (eplot--vs 'legend-color data axes-color))
-	 (values (cdr (assq :values data))))
+	 (legend-color (eplot--vs 'legend-color data axes-color)))
     ;; Add background.
     (svg-rectangle svg 0 0 width height
 		   :fill (eplot--vs 'background-color data "white"))
@@ -216,7 +224,8 @@
 			(+ margin-top
 			   (/ (- height margin-bottom margin-top) 2)))))
     ;; Analyze values.
-    (let* ((vals (seq-map (lambda (v) (plist-get v :value)) values))
+    (let* ((values (cdr (assq :values (car (cdr (assq :plots data))))))
+	   (vals (seq-map (lambda (v) (plist-get v :value)) values))
 	   (min (if vals (seq-min vals) 0))
 	   (max (if vals (seq-max vals) 0))
 	   (whole (memq style '(impulse bar)))
