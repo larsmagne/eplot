@@ -185,6 +185,7 @@
 	 (color (eplot--vs 'color data "black"))
 	 (axes-color (eplot--vs 'axes-color data color))
 	 (grid-color (eplot--vs 'grid-color data "#e0e0e0"))
+	 (grid-position (eplot--vy 'grid-position data 'bottom))
 	 (legend-color (eplot--vs 'legend-color data axes-color)))
     ;; Add background.
     (svg-rectangle svg 0 0 width height
@@ -242,6 +243,11 @@
 	   (ticks (eplot--get-ticks 0 (length values) xs whole))
 	   ;; This is how often we should output labels on the ticks.
 	   (step (ceiling (e/ (length ticks) (e/ width 70)))))
+
+      (when (eq grid-position 'top)
+	(eplot--draw-plots data color style height margin-bottom margin-left
+			   min max ys stride svg))      
+
       ;; Make X ticks.
       (cl-loop for x in ticks
 	       for label = (if whole
@@ -329,8 +335,7 @@
 			      :font-size font-size
 			      :fill legend-color
 			      :x (- margin-left 4)
-			      :y (+ py (/ font-size 2) -2))
-		 ))
+			      :y (+ py (/ font-size 2) -2))))
       
       ;; Draw axes.
       (svg-line svg margin-left margin-top margin-left
@@ -340,55 +345,61 @@
 		(- width margin-right) (- height margin-bottom)
 		:stroke axes-color)
 
-      ;; Draw all the plots.
-      (cl-loop for plot in (reverse (cdr (assq :plots data)))
-	       for headers = (cdr (assq :headers plot))
-	       for values = (cdr (assq :values plot))
-	       for vals = (seq-map (lambda (v) (plist-get v :value)) values)
-	       do
-	       (cl-loop
-		with color = (eplot--vs 'color headers color)
-		with style = (eplot--vy 'style headers style)
-		with lpy
-		with lpx
-		for val in vals
-		for x from 0
-		for py = (- (- height margin-bottom)
-			    (* (/ (- (* 1.0 val) min) (- max min))
-			       ys))
-		for px = (+ margin-left (* x stride))
-		do
-		(cl-case style
-		  (bar
-		   (svg-rectangle svg
-				  px py
-				  stride (- height margin-bottom py)
-				  :stroke color
-				  :fill "black"))
-		  (impulse
-		   (svg-line svg
-			     px py
-			     px (- height margin-bottom)
-			     :stroke color))
-		  (point
-		   (svg-line svg px py (1+ px) (1+ py)
-			     :stroke color))
-		  (line
-		   (when lpx
-		     (svg-line svg lpx lpy px py
-			       :stroke color)))
-		  (circle)
-		  (cross)
-		  (filled-square)
-		  (triangle)
-		  (box)
-		  )
-		(setq lpy py
-		      lpx px))))
-
+      (when (eq grid-position 'bottom)
+	(eplot--draw-plots data color style height margin-bottom margin-left
+			   min max ys stride svg)))
     
-    (svg-insert-image svg)
-    ))
+    (svg-insert-image svg)))
+
+(defun eplot--draw-plots (data color style height
+			       margin-bottom margin-left
+			       min max ys
+			       stride svg)
+  ;; Draw all the plots.
+  (cl-loop for plot in (reverse (cdr (assq :plots data)))
+	   for headers = (cdr (assq :headers plot))
+	   for values = (cdr (assq :values plot))
+	   for vals = (seq-map (lambda (v) (plist-get v :value)) values)
+	   do
+	   (cl-loop
+	    with color = (eplot--vs 'color headers color)
+	    with style = (eplot--vy 'style headers style)
+	    with lpy
+	    with lpx
+	    for val in vals
+	    for x from 0
+	    for py = (- (- height margin-bottom)
+			(* (/ (- (* 1.0 val) min) (- max min))
+			   ys))
+	    for px = (+ margin-left (* x stride))
+	    do
+	    (cl-case style
+	      (bar
+	       (svg-rectangle svg
+			      px py
+			      stride (- height margin-bottom py)
+			      :stroke color
+			      :fill "black"))
+	      (impulse
+	       (svg-line svg
+			 px py
+			 px (- height margin-bottom)
+			 :stroke color))
+	      (point
+	       (svg-line svg px py (1+ px) (1+ py)
+			 :stroke color))
+	      (line
+	       (when lpx
+		 (svg-line svg lpx lpy px py
+			   :stroke color)))
+	      (circle)
+	      (cross)
+	      (filled-square)
+	      (triangle)
+	      (box)
+	      )
+	    (setq lpy py
+		  lpx px))))
 
 (defun e% (num1 num2)
   (let ((factor (max (expt 10 (eplot--decimal-digits num1))
