@@ -479,6 +479,25 @@
 	  (throw 'found (list five 5)))
 	(setq five (* five 10))))))
 
+(defun eplot-test-plots ()
+  (interactive)
+  (pop-to-buffer "*test eplots*")
+  (erase-buffer)
+  (cl-loop for file in (directory-files "." t "chart.*.txt")
+	   for i from 0
+	   when (and (cl-plusp i)
+		     (zerop (% i 2)))
+	   do (insert "\n\n")
+	   do (eplot-parse-and-insert file)
+	   (insert " ")))
+
+(defun eplot-parse-and-insert (file)
+  "Parse and insert a file in the current buffer."
+  (interactive "fEplot file: ")
+  (eplot--render (with-temp-buffer
+		   (insert-file-contents file)
+		   (eplot--parse-buffer))))
+
 (provide 'eplot)
 
 ;;; eplot.el ends here
