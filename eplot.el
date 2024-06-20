@@ -135,38 +135,32 @@
 (defun eplot--render (data)
   (let* ((factor (image-compute-scaling-factor))
 	 (width (eplot--vn 'width data
-			   (* (window-pixel-width
-			       (get-buffer-window "*eplot*" t))
-			      0.9)))
+			   (/ (* (window-pixel-width
+ 				  (get-buffer-window "*eplot*" t))
+				 0.9)
+			      factor)))
 	 (height (eplot--vn 'height data
-			    (* (window-pixel-height
-				(get-buffer-window "*eplot*" t))
-			       0.9)))
-	 (margin-left (* factor (eplot--vn 'margin-left data 20)))
-	 (margin-right (* factor (eplot--vn 'margin-right data 10)))
-	 (margin-top (* factor (eplot--vn 'margin-top data 20)))
-	 (margin-bottom (* factor (eplot--vn 'margin-bottom data 20)))
+			    (/ (* (window-pixel-height
+				   (get-buffer-window "*eplot*" t))
+				  0.9)
+			       factor)))
+	 (margin-left (eplot--vn 'margin-left data 30))
+	 (margin-right (eplot--vn 'margin-right data 10))
+	 (margin-top (eplot--vn 'margin-top data 20))
+	 (margin-bottom (eplot--vn 'margin-bottom data 21))
 	 (style (intern (eplot--vs 'style data "line")))
 	 (svg (svg-create width height))
 	 (font (eplot--vs 'font data "futural"))
-	 (font-size (eplot--vn 'font data (* factor 12)))
+	 (font-size (eplot--vn 'font data 14))
 	 (xs (- width margin-left margin-right))
 	 (ys (- height margin-top margin-bottom))
 	 (color (eplot--vs 'color data "black"))
 	 (axes-color (eplot--vs 'axes-color data color))
+	 (grid-color (eplot--vs 'grid-color data "#e0e0e0"))
 	 (legend-color (eplot--vs 'legend-color data axes-color)))
     ;; Add background.
     (svg-rectangle svg 0 0 width height
 		   :fill (eplot--vs 'background-color data "white"))
-    ;; Draw axes.
-    (svg-line svg margin-left margin-top margin-left
-	      (+ (- height margin-bottom) 10)
-	      :stroke axes-color
-	      :stroke-width 2)
-    (svg-line svg (- margin-left 10) (- height margin-bottom)
-	      (- width margin-right) (- height margin-bottom)
-	      :stroke axes-color
-	      :stroke-width 2)
     ;; Title and legends.
     (when-let ((title (eplot--vs 'title data)))
       (svg-text svg title
@@ -175,7 +169,7 @@
 		:font-size font-size
 		:fill legend-color
 		:x (+ margin-left (/ (- width margin-left margin-right) 2))
-		:y (+ (* factor 10) (/ margin-top 2))))
+		:y (+ 10 (/ margin-top 2))))
     (when-let ((label (eplot--vs 'x-label data)))
       (svg-text svg label
 		:font-family font
@@ -183,7 +177,7 @@
 		:font-size font-size
 		:fill legend-color
 		:x (+ margin-left (/ (- width margin-left margin-right) 2))
-		:y (+ (* factor 4) (- height (/ margin-bottom 4)))))
+		:y (+ 4 (- height (/ margin-bottom 4)))))
     (when-let ((label (eplot--vs 'y-label data)))
       (svg-text svg label
 		:font-family font
@@ -192,7 +186,7 @@
 		:fill legend-color
 		:transform
 		(format "translate(%s,%s) rotate(-90)"
-			(+ (/ margin-left 2) (* 7 factor))
+			(+ (/ margin-left 2) 7)
 			(+ margin-top
 			   (/ (- height margin-bottom margin-top) 2)))))
     ;; Analyze values.
@@ -201,15 +195,16 @@
 	   (min (seq-min vals))
 	   (max (seq-max vals))
 	   (whole (memq style '(impulse bar)))
-	   (stride (/ xs
-		      ;; Fenceposting impulse/bar vs everything else.
-		      (if (memq style '(impulse bar))
-			  (length vals)
-			(1- (length vals)))))
+	   (stride (e/ xs
+		       ;; Fenceposting impulse/bar vs everything else.
+		       (if (memq style '(impulse bar))
+			   (length vals)
+			 (1- (length vals)))))
+	   (ticks (eplot--get-ticks 0 (length values) xs whole))
 	   ;; This is how often we should output labels on the ticks.
-	   (step (ceiling (e/ (length values) (e/ width 70)))))
-      ;; Make ticks.
-      (cl-loop for x in (eplot--get-ticks 0 (length values) ys whole)
+	   (step (ceiling (e/ (length ticks) (e/ width 70)))))
+      ;; Make X ticks.
+      (cl-loop for x in ticks
 	       for label = (if whole
 			       (plist-get (elt values x) :label)
 			     (format "%s" x))
@@ -220,8 +215,11 @@
 			    px
 			    (- height margin-bottom)
 			    px
-			    (+ (- height margin-bottom) (* factor 5))
+			    (+ (- height margin-bottom) 2)
 			    :stroke legend-color)
+	       (svg-line svg px margin-top
+			 px (- height margin-bottom)
+			 :stroke grid-color)
 	       when (zerop (% x step))
 	       do (svg-text svg label
 			    :font-family font
@@ -230,7 +228,52 @@
 			    :fill legend-color
 			    :x px
 			    :y (+ (- height margin-bottom)
-				  (* 16 factor))))
+				  font-size 2)))
+      ;; Make Y ticks.
+      (let* ((ticks (eplot--get-ticks min max ys))
+	     (ideal (e/ ys font-size))
+	     factor val-factor series spacing offset)
+	(if (> ideal (length ticks))
+	    (setq factor 0.1
+		  val-factor 0.1)
+	  (let ((please (eplot--pleasing-numbers
+			 (ceiling (e/ (length ticks) ideal)))))
+	    (setq factor (car please)
+		  series (cadr please))
+	    ;; If we get a too big factor here, we decrease it.
+	    (when (< (e/ (length ticks) factor) 2)
+	      (let ((please (eplot--pleasing-numbers
+			     (ceiling (e/ (length ticks) ideal 2)))))
+		(setq factor (car please)
+		      series (cadr please))))
+	    (setq val-factor (car (eplot--pleasing-numbers
+				   (e/ (- max min) 100)
+				   series)))))
+	(setq spacing (abs (- (elt ticks 1) (elt ticks 0))))
+	(cl-loop for i from 0 upto (* (length ticks) 2)
+		 for y = (+ (elt ticks 0) (* spacing i))
+		 when (zerop (mod y factor))
+		 return (setq offset (e/ (mod i factor) 1000)))
+	(cl-loop for iy = -1
+		 for y in ticks
+		 for i from 0
+		 for py = (- (- height margin-bottom)
+			     (* (/ (- (* 1.0 y) min) (- max min))
+				ys))
+		 when (> i offset)
+		 do (cl-incf iy)
+		 when (and (> iy -1)
+			   (zerop (% (* iy 1000) (* factor 1000))))
+		 do (svg-line svg margin-left py
+			      (- margin-left 10) py)))
+      
+      ;; Draw axes.
+      (svg-line svg margin-left margin-top margin-left
+		(+ (- height margin-bottom) 5)
+		:stroke axes-color)
+      (svg-line svg (- margin-left 5) (- height margin-bottom)
+		(- width margin-right) (- height margin-bottom)
+		:stroke axes-color)
       (cl-loop
        with lpy
        with lpx
@@ -270,8 +313,7 @@
 	     lpx px)))
 
     
-    (let ((image-scaling-factor 1))
-      (svg-insert-image svg))
+    (svg-insert-image svg)
     ))
 
 (defun eplot--decimal-digits (number)
