@@ -155,6 +155,11 @@
 (defun eplot--vs (type data &optional default)
   (or (cdr (assq type data)) default))
 
+(defun eplot--vy (type data &optional default)
+  (if-let ((value (cdr (assq type data))))
+      (intern value)
+    default))
+
 (defun eplot--render (data)
   (let* ((factor (image-compute-scaling-factor))
 	 (width (eplot--vn 'width data
@@ -171,7 +176,7 @@
 	 (margin-right (eplot--vn 'margin-right data 10))
 	 (margin-top (eplot--vn 'margin-top data 20))
 	 (margin-bottom (eplot--vn 'margin-bottom data 21))
-	 (style (intern (eplot--vs 'style data "line")))
+	 (style (eplot--vy 'style data 'line))
 	 (svg (svg-create width height))
 	 (font (eplot--vs 'font data "futural"))
 	 (font-size (eplot--vn 'font data 12))
@@ -226,8 +231,8 @@
     ;; Analyze values.
     (let* ((values (cdr (assq :values (car (cdr (assq :plots data))))))
 	   (vals (seq-map (lambda (v) (plist-get v :value)) values))
-	   (min (if vals (seq-min vals) 0))
-	   (max (if vals (seq-max vals) 0))
+	   (min (eplot--vn 'min data (if vals (seq-min vals) 0)))
+	   (max (eplot--vn 'max data (if vals (seq-max vals) 0)))
 	   (whole (memq style '(impulse bar)))
 	   (stride (e/ xs
 		       ;; Fenceposting impulse/bar vs everything else.
@@ -334,43 +339,52 @@
       (svg-line svg (- margin-left 5) (- height margin-bottom)
 		(- width margin-right) (- height margin-bottom)
 		:stroke axes-color)
-      (cl-loop
-       with lpy
-       with lpx
-       for val in vals
-       for x from 0
-       for py = (- (- height margin-bottom)
-		   (* (/ (- (* 1.0 val) min) (- max min))
-		      ys))
-       for px = (+ margin-left (* x stride))
-       do
-       (cl-case style
-	 (bar
-	  (svg-rectangle svg
-			 px py
-			 stride (- height margin-bottom py)
-			 :stroke color
-			 :fill "black"))
-	 (impulse
-	  (svg-line svg
-		    (+ px (/ stride 2)) py
-		    (+ px (/ stride 2)) (- height margin-bottom)
-		    :stroke color))
-	 (point
-	  (svg-line svg px py (1+ px) (1+ py)
-		    :stroke color))
-	 (line
-	  (when lpx
-	    (svg-line svg lpx lpy px py
-		      :stroke color)))
-	 (circle)
-	 (cross)
-	 (filled-square)
-	 (triangle)
-	 (box)
-	 )
-       (setq lpy py
-	     lpx px)))
+
+      ;; Draw all the plots.
+      (cl-loop for plot in (reverse (cdr (assq :plots data)))
+	       for headers = (cdr (assq :headers plot))
+	       for values = (cdr (assq :values plot))
+	       for vals = (seq-map (lambda (v) (plist-get v :value)) values)
+	       do
+	       (cl-loop
+		with color = (eplot--vs 'color headers color)
+		with style = (eplot--vy 'style headers style)
+		with lpy
+		with lpx
+		for val in vals
+		for x from 0
+		for py = (- (- height margin-bottom)
+			    (* (/ (- (* 1.0 val) min) (- max min))
+			       ys))
+		for px = (+ margin-left (* x stride))
+		do
+		(cl-case style
+		  (bar
+		   (svg-rectangle svg
+				  px py
+				  stride (- height margin-bottom py)
+				  :stroke color
+				  :fill "black"))
+		  (impulse
+		   (svg-line svg
+			     px py
+			     px (- height margin-bottom)
+			     :stroke color))
+		  (point
+		   (svg-line svg px py (1+ px) (1+ py)
+			     :stroke color))
+		  (line
+		   (when lpx
+		     (svg-line svg lpx lpy px py
+			       :stroke color)))
+		  (circle)
+		  (cross)
+		  (filled-square)
+		  (triangle)
+		  (box)
+		  )
+		(setq lpy py
+		      lpx px))))
 
     
     (svg-insert-image svg)
