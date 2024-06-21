@@ -278,9 +278,25 @@
 			 (1- (length values)))))
 	   (x-ticks (eplot--get-ticks 0 (length values) xs
 				      (eq format 'bar-chart)))
-	   (y-ticks (eplot--get-ticks min max ys))
+	   (y-ticks (eplot--get-ticks
+		     min
+		     ;; We get 2% more ticks to check whether we
+		     ;; should extend max.
+		     (if (eplot--vn 'max data) max (* max 1.02))
+		     ys))
 	   ;; This is how often we should output labels on the ticks.
 	   (step (ceiling (e/ (length x-ticks) (e/ width 70)))))
+
+      ;; If max is less than 2% off from a pleasant number, then
+      ;; increase max.
+      (unless (eplot--vn 'max data)
+	(cl-loop for tick in (reverse y-ticks)
+		 when (and (< max tick)
+			   (< (e/ (- tick max) max) 0.02))
+		 return (progn
+			  (setq max tick)
+			  ;; Chop off any further ticks.
+			  (setcdr (member tick y-ticks) nil))))
 
       ;; We may be extending the bottom of the chart to get pleasing
       ;; numbers.  We don't want to be drawing the chart on top of the
