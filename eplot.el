@@ -186,10 +186,11 @@
 	 (axes-color (eplot--vs 'axes-color data color))
 	 (grid-color (eplot--vs 'grid-color data "#e0e0e0"))
 	 (grid-position (eplot--vy 'grid-position data 'bottom))
-	 (legend-color (eplot--vs 'legend-color data axes-color)))
+	 (legend-color (eplot--vs 'legend-color data axes-color))
+	 (background-color (eplot--vs 'background-color data "white")))
     ;; Add background.
     (svg-rectangle svg 0 0 width height
-		   :fill (eplot--vs 'background-color data "white"))
+		   :fill background-color)
     (when-let ((surround-color (eplot--vs 'surround-color data)))
       (svg-rectangle svg 0 0 width height
 		     :fill surround-color)
@@ -346,7 +347,37 @@
 	(svg-rectangle svg margin-left margin-top xs ys
 		       :stroke-width (eplot--vn 'frame-width data 1)
 		       :fill "none"
-		       :stroke-color frame-color)))
+		       :stroke-color frame-color))
+
+      (when (eplot--vs 'legend data)
+	(when-let ((names
+		    (cl-loop for plot in (cdr (assq :plots data))
+			     for headers = (cdr (assq :headers plot))
+			     for name = (eplot--vs 'name headers)
+			     when name
+			     collect
+			     (cons name (eplot--vs 'legend-color headers)))))
+	  (svg-rectangle svg (+ margin-left 20) (+ margin-top 20)
+			 (format "%dex"
+				 (+ 2
+				    (seq-max (mapcar (lambda (name)
+						       (length (car name)))
+						     names))))
+			 (* font-size (+ (length names) 2))
+			 :font-size font-size
+			 :fill-color (eplot--vs 'legend-background-color data
+						background-color)
+			 :stroke-color (eplot--vs 'legend-border-color data
+						  axes-color))
+	  (cl-loop for name in names
+		   for i from 0
+		   do (svg-text svg (car name)
+			       :font-family font
+			       :text-anchor "front"
+			       :font-size font-size
+			       :fill (or (cdr name) legend-color)
+			       :x (+ margin-left 25)
+			       :y (+ margin-top 40 (* i font-size)))))))
     
     (svg-insert-image svg)))
 
