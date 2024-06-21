@@ -168,11 +168,13 @@
     (with-temp-buffer
       (insert (string-trim string) "\n")
       (goto-char (point-min))
-      (while (search-forward "\\(.\\)," nil t)
+      (while (re-search-forward "\\(.\\)," nil t)
 	(if (equal (match-string 1) "\\")
 	    (replace-match "," t t)
-	  (delete-backward-char 1)
-	  (insert "\n")))
+	  (delete-char -1)
+	  (insert "\n")
+	  (when (looking-at "[ \t]+")
+	    (replace-match ""))))
       (goto-char (point-min))
       (eplot--parse-headers))))
 
@@ -553,9 +555,12 @@
 	       (push (cons margin-left (- height margin-bottom)) polygon)))
 	   (cl-loop
 	    for val in vals
+	    for value in values
 	    for x from 0
+	    for settings = (plist-get value :settings)
 	    for color = (eplot--vary-color
-			 (eplot--vs 'color headers default-color)
+			 (eplot--vs 'color settings
+				    (eplot--vs 'color headers default-color))
 			 x)
 	    for py = (- (- height margin-bottom)
 			(* (/ (- (* 1.0 val) min) (- max min))
@@ -596,10 +601,13 @@
 		   (svg-line svg px lpy px py
 			     :stroke color))))
 	      (circle
-	       (svg-circle svg px py (eplot--vn 'size headers 3)
+	       (svg-circle svg px py
+			   (eplot--vn 'size settings
+				      (eplot--vn 'size headers 3))
 			   :stroke color
 			   :fill (eplot--vary-color
-				  (eplot--vs 'fill headers "none")
+				  (eplot--vs 'fill settings
+					     (eplot--vs 'fill headers "none"))
 				  x)))
 	      (cross
 	       (let ((s (eplot--vn 'size headers 3)))
