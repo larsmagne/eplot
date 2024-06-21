@@ -1,7 +1,6 @@
 Format: compact
 Width: 300
 Height: 200
-Max: 70
 Legend: True
 
 Name: Net

@@ -1,0 +1,8 @@
+Format: compact
+Width: 300
+Height: 200
+
+Data-Format: two-values
+Style: square
+Gradient: red black
+Data: data-between.txt
