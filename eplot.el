@@ -191,7 +191,7 @@
       (intern value)
     default))
 
-(defun eplot--render (data)
+(defun eplot--render (data &optional return-image)
   (let* ((factor (image-compute-scaling-factor))
 	 (width (eplot--vn 'width data
 			   (/ (* (window-pixel-width
@@ -466,8 +466,10 @@
 			       :fill (or (cdr name) legend-color)
 			       :x (+ margin-left 25)
 			       :y (+ margin-top 40 (* i font-size)))))))
-    
-    (svg-insert-image svg)))
+
+    (if return-image
+	svg
+      (svg-insert-image svg))))
 
 (defun eplot--format-y (y spacing whole)
   (cond
@@ -794,10 +796,30 @@ nil means `top-down'."
 		     (insert-file-contents file)
 		     (eplot--parse-buffer)))))
 
+(defun eplot-write-plots ()
+  (interactive)
+  (cl-loop for file in (directory-files "examples" t "^chart.*.txt\\'")
+	   for image = (let ((default-directory (file-name-directory file)))
+			 (eplot--render (with-temp-buffer
+					  (insert-file-contents file)
+					  (eplot--parse-buffer))
+					t))
+	   for svg = (expand-file-name (file-name-with-extension
+					(file-name-nondirectory file)
+					".svg")
+				       "images")
+	   do (with-temp-buffer
+		(set-buffer-multibyte nil)
+		(svg-print image)
+		(write-region (point-min) (point-max) svg)
+		(call-process
+		 "convert" nil nil nil
+		 svg (file-name-with-extension svg ".png"))
+		(delete-file svg))))
+
 (provide 'eplot)
 
 ;;; eplot.el ends here
 
 ;;; Todo:
-;; Per-data circle size...
 ;; Choose which column of data to use
