@@ -286,7 +286,7 @@
 		     (* 0.02 (- (car (last y-ticks)) (car y-ticks))))))
       
       (when (eq grid-position 'top)
-	(eplot--draw-plots data color style height margin-bottom margin-left
+	(eplot--draw-plots data color height margin-bottom margin-left
 			   min max ys stride svg margin-top))
 
       ;; Make X ticks.
@@ -366,7 +366,7 @@
 		:stroke axes-color)
 
       (when (eq grid-position 'bottom)
-	(eplot--draw-plots data color style height margin-bottom margin-left
+	(eplot--draw-plots data color height margin-bottom margin-left
 			   min max ys stride svg margin-top))
 
       (when-let ((frame-color (eplot--vs 'frame-color data)))
@@ -439,7 +439,7 @@
        (cons 'direction (intern (or (nth 2 bits) "top-down")))
        (cons 'position (intern (or (nth 3 bits) "below")))))))
 
-(defun eplot--draw-plots (data color style height
+(defun eplot--draw-plots (data color height
 			       margin-bottom margin-left
 			       min max ys
 			       stride svg margin-top)
@@ -453,7 +453,7 @@
 	   for gradient = (eplot--parse-gradient (eplot--vs 'gradient headers))
 	   for lpy = nil
 	   for lpx = nil
-	   for style = (eplot--vy 'style headers style)
+	   for style = (eplot--vy 'style headers 'line)	   
 	   do
 	   (unless gradient
 	     (when-let ((fill (eplot--vs 'fill headers)))
