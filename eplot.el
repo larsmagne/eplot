@@ -287,7 +287,7 @@
       
       (when (eq grid-position 'top)
 	(eplot--draw-plots data color height margin-bottom margin-left
-			   min max ys stride svg margin-top))
+			   min max xs ys stride svg margin-top))
 
       ;; Make X ticks.
       (cl-loop for x in x-ticks
@@ -365,7 +365,7 @@
 
       (when (eq grid-position 'bottom)
 	(eplot--draw-plots data color height margin-bottom margin-left
-			   min max ys stride svg margin-top))
+			   min max xs ys stride svg margin-top))
 
       (when-let ((frame-color (eplot--vs 'frame-color data)))
 	(svg-rectangle svg margin-left margin-top xs ys
@@ -437,16 +437,32 @@
        (cons 'direction (intern (or (nth 2 bits) "top-down")))
        (cons 'position (intern (or (nth 3 bits) "below")))))))
 
+(defun eplot--smooth (values algo xs)
+  (if (not algo)
+      values
+    (let* ((vals (cl-coerce values 'vector))
+	   (max (1- (length vals)))
+	   (period (* 4 (ceiling (/ max xs)))))
+      (cl-case algo
+	(moving-average
+	 (cl-loop for i from 0 upto max
+		  collect (e/ (cl-loop for ii from 0 upto (1- period)
+				       sum (elt vals (min (+ i ii) max)))
+			      period)))))))
+
 (defun eplot--draw-plots (data color height
 			       margin-bottom margin-left
-			       min max ys
+			       min max xs ys
 			       stride svg margin-top)
   ;; Draw all the plots.
   (cl-loop for plot in (reverse (cdr (assq :plots data)))
 	   for plot-number from 0
 	   for headers = (cdr (assq :headers plot))
 	   for values = (cdr (assq :values plot))
-	   for vals = (seq-map (lambda (v) (plist-get v :value)) values)
+	   for vals = (eplot--smooth
+		       (seq-map (lambda (v) (plist-get v :value)) values)
+		       (eplot--vy 'smoothing headers)
+		       xs)
 	   for polygon = nil
 	   for gradient = (eplot--parse-gradient (eplot--vs 'gradient headers))
 	   for lpy = nil
