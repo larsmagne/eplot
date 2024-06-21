@@ -184,10 +184,10 @@
 			       factor)))
 	 (format (eplot--vy 'format data 'normal))
 	 (compact (eq format 'compact))
-	 (margin-left (eplot--vn 'margin-left data (if compact 30 60)))
+	 (margin-left (eplot--vn 'margin-left data (if compact 30 70)))
 	 (margin-right (eplot--vn 'margin-right data (if compact 10 20)))
 	 (margin-top (eplot--vn 'margin-top data (if compact 20 40)))
-	 (margin-bottom (eplot--vn 'margin-bottom data (if compact 21 50)))
+	 (margin-bottom (eplot--vn 'margin-bottom data (if compact 21 60)))
 	 (svg (svg-create width height))
 	 (font (eplot--vs 'font data "futural"))
 	 (font-size (eplot--vn 'font data (if compact 12 14)))
@@ -227,6 +227,7 @@
       (svg-text svg title
 		:font-family font
 		:text-anchor "middle"
+		:font-weight "bold"
 		:font-size font-size
 		:fill (eplot--vs 'title-color data legend-color)
 		:x (+ margin-left (/ (- width margin-left margin-right) 2))
@@ -235,6 +236,7 @@
       (svg-text svg label
 		:font-family font
 		:text-anchor "middle"
+		:font-weight "bold"
 		:font-size font-size
 		:fill legend-color
 		:x (+ margin-left (/ (- width margin-left margin-right) 2))
@@ -243,11 +245,12 @@
       (svg-text svg label
 		:font-family font
 		:text-anchor "middle"
+		:font-weight "bold"
 		:font-size font-size
 		:fill legend-color
 		:transform
 		(format "translate(%s,%s) rotate(-90)"
-			(- (/ margin-left 2) (/ font-size 2))
+			(+ (- (/ margin-left 2) (/ font-size 2)) 2)
 			(+ margin-top
 			   (/ (- height margin-bottom margin-top) 2)))))
     ;; Set min/max based on all plots.
@@ -325,7 +328,10 @@
 			    :fill legend-color
 			    :x px
 			    :y (+ (- height margin-bottom)
-				  font-size 2)))
+				  font-size
+				  (if (eq format 'bar-chart)
+				      5
+				    2))))
       ;; Make Y ticks.
       (let* ((ideal (1+ (ceiling (e/ ys font-size))))
 	     factor)
