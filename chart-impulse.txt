@@ -1,10 +1,6 @@
 Format: compact
 Width: 300
 Height: 200
-Max: 70
-
-Data: data1.txt
 
 Style: impulse
-Color: blue
-Data: data2.txt
+Data: data1.txt
