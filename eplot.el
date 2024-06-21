@@ -776,14 +776,15 @@ nil means `top-down'."
 	(set-buffer "*test eplots*")
       (pop-to-buffer "*test eplots*"))
     (erase-buffer)
-    (cl-loop for file in (directory-files "examples" t "chart.*.txt\\'")
+    (cl-loop for file in (directory-files "examples" t "^chart.*.txt\\'")
 	     for i from 0
 	     when (and (cl-plusp i)
-		       (zerop (% i 3)))
+		       (zerop (% i 5)))
 	     do (insert "\n\n")
-	     do (let ((image-scaling-factor 1.57))
+	     do (let ((image-scaling-factor 0.9))
 		  (eplot-parse-and-insert file))
-	     (insert " "))))
+	     (insert " "))
+    (insert "\n\n")))
 
 (defun eplot-parse-and-insert (file)
   "Parse and insert a file in the current buffer."
