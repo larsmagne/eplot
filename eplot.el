@@ -285,7 +285,9 @@
 		     (if (eplot--vn 'max data) max (* max 1.02))
 		     ys))
 	   ;; This is how often we should output labels on the ticks.
-	   (step (ceiling (e/ (length x-ticks) (e/ width 70)))))
+	   (step (if (eq format 'bar-chart)
+		     1
+		   (ceiling (e/ (length x-ticks) (e/ width 70))))))
 
       ;; If max is less than 2% off from a pleasant number, then
       ;; increase max.
