@@ -261,7 +261,7 @@
       
       (when (eq grid-position 'top)
 	(eplot--draw-plots data color style height margin-bottom margin-left
-			   min max ys stride svg))      
+			   min max ys stride svg margin-top))
 
       ;; Make X ticks.
       (cl-loop for x in x-ticks
@@ -341,7 +341,7 @@
 
       (when (eq grid-position 'bottom)
 	(eplot--draw-plots data color style height margin-bottom margin-left
-			   min max ys stride svg))
+			   min max ys stride svg margin-top))
 
       (when-let ((frame-color (eplot--vs 'frame-color data)))
 	(svg-rectangle svg margin-left margin-top xs ys
@@ -404,21 +404,36 @@
    (t
     (format "%s" y))))
 
+(defun eplot--parse-gradient (string)
+  (let ((bits (split-string string)))
+    (list
+     (cons 'from (nth 0 bits))
+     (cons 'to (nth 1 bits))
+     (cons 'direction (intern (or (nth 2 bits) "top-down")))
+     (cons 'position (intern (or (nth 3 bits) "below"))))))
+
 (defun eplot--draw-plots (data color style height
 			       margin-bottom margin-left
 			       min max ys
-			       stride svg)
+			       stride svg margin-top)
   ;; Draw all the plots.
   (cl-loop for plot in (reverse (cdr (assq :plots data)))
+	   for plot-number from 0
 	   for headers = (cdr (assq :headers plot))
 	   for values = (cdr (assq :values plot))
 	   for vals = (seq-map (lambda (v) (plist-get v :value)) values)
+	   for polygon = nil
+	   for gradient = (eplot--parse-gradient (eplot--vs 'gradient headers))
+	   with lpy
+	   with lpx
 	   do
+	   (when gradient
+	     (if (eq (eplot--vs 'position gradient) 'above)
+		 (push (cons margin-left margin-top) polygon)
+	       (push (cons margin-left (- height margin-bottom)) polygon)))
 	   (cl-loop
 	    with color = (eplot--vs 'color headers color)
 	    with style = (eplot--vy 'style headers style)
-	    with lpy
-	    with lpx
 	    for val in vals
 	    for x from 0
 	    for py = (- (- height margin-bottom)
@@ -442,15 +457,24 @@
 	       (svg-line svg px py (1+ px) (1+ py)
 			 :stroke color))
 	      (line
-	       (when lpx
-		 (svg-line svg lpx lpy px py
-			   :stroke color)))
+	       ;; If we're doing a gradient, we're just collecting
+	       ;; points and will draw the polygon later.
+	       (if gradient
+		   (push (cons px py) polygon)
+		 (when lpx
+		   (svg-line svg lpx lpy px py
+			     :stroke color))))
 	      (square
-	       (when lpx
-		 (svg-line svg lpx lpy px lpy
-			   :stroke color)
-		 (svg-line svg px lpy px py
-			   :stroke color)))
+	       (if gradient
+		   (progn
+		     (when lpx
+		       (push (cons lpx px) polygon))
+		     (push (cons px py) polygon))
+		 (when lpx
+		   (svg-line svg lpx lpy px lpy
+			     :stroke color)
+		   (svg-line svg px lpy px py
+			     :stroke color))))
 	      (circle
 	       (svg-circle svg px py (eplot--vn 'size headers 3)
 			   :stroke color))
@@ -478,7 +502,45 @@
 				:stroke color
 				:fill-color (eplot--vs 'fill headers "none")))))
 	    (setq lpy py
-		  lpx px))))
+		  lpx px))
+	   (when polygon
+	     (if (eq (eplot--vs 'position gradient) 'above)
+		 (push (cons lpx margin-top) polygon)
+	       (push (cons lpx (- height margin-bottom)) polygon))
+	     (let ((id (format "gradient-%d" plot-number)))
+	       (eplot--gradient svg id 'linear
+				`((0 . ,(eplot--vs 'from gradient))
+				  (100 . ,(eplot--vs 'to gradient)))
+				(eplot--vs 'direction gradient))
+	       (svg-polygon svg (nreverse polygon)
+			    :gradient id)
+	       (setq polygon nil)))))
+
+(defun eplot--gradient (svg id type stops &optional direction)
+  "Add a gradient with ID to SVG.
+TYPE is `linear' or `radial'.
+
+STOPS is a list of percentage/color pairs.
+
+DIRECTION is one of `top-down', `bottom-up', `left-right' or `right-left'.
+nil means `top-down'."
+  (svg--def
+   svg
+   (apply
+    #'dom-node
+    (if (eq type 'linear)
+	'linearGradient
+      'radialGradient)
+    `((id . ,id)
+      (x1 . ,(if (eq direction 'left-right) 1 0))
+      (x2 . ,(if (eq direction 'right-left) 1 0))
+      (y1 . ,(if (eq direction 'bottom-up) 1 0))
+      (y2 . ,(if (eq direction 'top-down) 1 0)))
+    (mapcar
+     (lambda (stop)
+       (dom-node 'stop `((offset . ,(format "%s%%" (car stop)))
+			 (stop-color . ,(cdr stop)))))
+     stops))))
 
 (defun e% (num1 num2)
   (let ((factor (max (expt 10 (eplot--decimal-digits num1))
