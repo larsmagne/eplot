@@ -190,7 +190,7 @@
 	 (style (eplot--vy 'style data 'line))
 	 (svg (svg-create width height))
 	 (font (eplot--vs 'font data "futural"))
-	 (font-size (eplot--vn 'font data 12))
+	 (font-size (eplot--vn 'font data (if compact 12 14)))
 	 (xs (- width margin-left margin-right))
 	 (ys (- height margin-top margin-bottom))
 	 (color (eplot--vs 'color data "black"))
@@ -245,7 +245,7 @@
 		:fill legend-color
 		:transform
 		(format "translate(%s,%s) rotate(-90)"
-			(- (/ margin-left 2) 2)
+			(- (/ margin-left 2) (/ font-size 2))
 			(+ margin-top
 			   (/ (- height margin-bottom margin-top) 2)))))
     ;; Set min/max based on all plots.
@@ -325,14 +325,12 @@
       ;; Make Y ticks.
       (let* ((ideal (1+ (ceiling (e/ ys font-size))))
 	     factor)
-	(if (> ideal (length y-ticks))
-	    (setq factor 0.01)
+	(setq factor (eplot--pleasing-numbers
+		      (ceiling (e/ ys ideal))))
+	;; If we get a too big factor here, we decrease it.
+	(when (< (e/ (- max min) factor) 2)
 	  (setq factor (eplot--pleasing-numbers
-			(ceiling (e/ (length y-ticks) ideal 2))))
-	  ;; If we get a too big factor here, we decrease it.
-	  (when (< (e/ (length y-ticks) factor) 2)
-	    (setq factor (eplot--pleasing-numbers
-			  (ceiling (e/ (length y-ticks) ideal 2))))))
+			(ceiling (e/ (length y-ticks) ideal 2)))))
 	(cl-loop for y in y-ticks
 		 for i from 0
 		 for py = (- (- height margin-bottom)
@@ -697,5 +695,4 @@ nil means `top-down'."
 ;;; eplot.el ends here
 
 ;;; Todo:
-;; Format: compact/default
 ;; Per-data circle size...
