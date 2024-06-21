@@ -297,23 +297,15 @@
 				  font-size 2)))
       ;; Make Y ticks.
       (let* ((ideal (1+ (ceiling (e/ ys font-size))))
-	     factor val-factor series)
+	     factor)
 	(if (> ideal (length y-ticks))
-	    (setq factor 0.1
-		  val-factor 0.1)
-	  (let ((please (eplot--pleasing-numbers
-			 (ceiling (e/ (length y-ticks) ideal)))))
-	    (setq factor (car please)
-		  series (cadr please))
-	    ;; If we get a too big factor here, we decrease it.
-	    (when (< (e/ (length y-ticks) factor) 2)
-	      (let ((please (eplot--pleasing-numbers
-			     (ceiling (e/ (length y-ticks) ideal 2)))))
-		(setq factor (car please)
-		      series (cadr please))))
-	    (setq val-factor (car (eplot--pleasing-numbers
-				   (e/ (- max min) 100)
-				   series)))))
+	    (setq factor 0.01)
+	  (setq factor (eplot--pleasing-numbers
+			(ceiling (e/ (length y-ticks) ideal 2))))
+	  ;; If we get a too big factor here, we decrease it.
+	  (when (< (e/ (length y-ticks) factor) 2)
+	    (setq factor (eplot--pleasing-numbers
+			  (ceiling (e/ (length y-ticks) ideal 2))))))
 	(cl-loop for y in y-ticks
 		 for i from 0
 		 for py = (- (- height margin-bottom)
@@ -331,12 +323,12 @@
 		     (svg-text svg (eplot--format-y
 				    y (- (elt y-ticks 1) (elt y-ticks 0))
 				    whole)
-			      :font-family font
-			      :text-anchor "end"
-			      :font-size font-size
-			      :fill legend-color
-			      :x (- margin-left 4)
-			      :y (+ py (/ font-size 2) -2))))))
+			       :font-family font
+			       :text-anchor "end"
+			       :font-size font-size
+			       :fill legend-color
+			       :x (- margin-left 4)
+			       :y (+ py (/ font-size 2) -2))))))
       
       ;; Draw axes.
       (svg-line svg margin-left margin-top margin-left
@@ -374,6 +366,8 @@
     (format "%dM" (/ y 1000000)))
    ((zerop (% spacing 1000))
     (format "%dk" (/ y 1000)))
+   ((>= spacing 1)
+    (format "%s" y))
    ((not whole)
     (format "%.1f" y))
    (t
@@ -451,7 +445,7 @@
 
 (defun eplot--get-ticks (min max height &optional whole)
   (let* ((diff (abs (- min max)))
-	 (even (car (eplot--pleasing-numbers (* (e/ diff height) 10))))
+	 (even (eplot--pleasing-numbers (* (e/ diff height) 10)))
 	 (factor (max (expt 10 (eplot--decimal-digits even))
 		      (expt 10 (eplot--decimal-digits diff))))
 	 (fmin (truncate (* min factor)))
@@ -482,24 +476,21 @@
    (t
     number)))
 
-(defun eplot--pleasing-numbers (number &optional series)
+(defun eplot--pleasing-numbers (number)
   (let* ((digits (eplot--decimal-digits number))
 	 (one (if (zerop digits) 1 (/ 1.0 (expt 10 digits))))
 	 (two (if (zerop digits) 2 (/ 2.0 (expt 10 digits))))
 	 (five (if (zerop digits) 5 (/ 5.0 (expt 10 digits)))))
     (catch 'found
       (while t
-	(when (and (< number one)
-		   (or (null series) (= series 1)))
-	  (throw 'found (list one 1)))
+	(when (< number one)
+	  (throw 'found one))
 	(setq one (* one 10))
-	(when (and (< number two)
-		   (or (null series) (= series 2)))
-	  (throw 'found (list two 2)))
+	(when (< number two)
+	  (throw 'found two))
 	(setq two (* two 10))
-	(when (and (< number five)
-		   (or (null series) (= series 5)))
-	  (throw 'found (list five 5)))
+	(when (< number five)
+	  (throw 'found five))
 	(setq five (* five 10))))))
 
 (defun eplot-test-plots ()
@@ -509,7 +500,7 @@
 	(set-buffer "*test eplots*")
       (pop-to-buffer "*test eplots*"))
     (erase-buffer)
-    (cl-loop for file in (directory-files "." t "chart.*.txt")
+    (cl-loop for file in (directory-files "." t "chart.*.txt\\'")
 	     for i from 0
 	     when (and (cl-plusp i)
 		       (zerop (% i 3)))
