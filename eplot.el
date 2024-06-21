@@ -250,7 +250,7 @@
 		:fill legend-color
 		:transform
 		(format "translate(%s,%s) rotate(-90)"
-			(+ (- (/ margin-left 2) (/ font-size 2)) 2)
+			(- (/ margin-left 2) (/ font-size 2))
 			(+ margin-top
 			   (/ (- height margin-bottom margin-top) 2)))))
     ;; Set min/max based on all plots.
@@ -379,7 +379,7 @@
 			       :text-anchor "end"
 			       :font-size font-size
 			       :fill legend-color
-			       :x (- margin-left 4)
+			       :x (- margin-left 6)
 			       :y (+ py (/ font-size 2) -2))))))
       
       ;; Draw axes.
