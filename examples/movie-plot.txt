@@ -1,13 +1,10 @@
 Format: bar-chart
+Mode: dark
+Width: 400
+Height: 400
 Title: Movies And Their Grades
 X-Label: Grade
 Y-Label: Number of Movies
-Background-Color: #101010
-Color: #c0c0c0
-Title-Color: white
-Label-Color: white
-Width: 400
-Height: 400
 
 Color: vary
 8   #☐

@@ -189,6 +189,7 @@
 				  0.9)
 			       factor)))
 	 (format (eplot--vy 'format data 'normal))
+	 (dark (eq (eplot--vy 'mode data) 'dark))
 	 (compact (eq format 'compact))
 	 (margin-left (eplot--vn 'margin-left data (if compact 30 70)))
 	 (margin-right (eplot--vn 'margin-right data (if compact 10 20)))
@@ -199,16 +200,22 @@
 	 (font-size (eplot--vn 'font data (if compact 12 14)))
 	 (xs (- width margin-left margin-right))
 	 (ys (- height margin-top margin-bottom))
-	 (color (eplot--vs 'color data "black"))
+	 (color (eplot--vs 'color data (if dark "#c0c0c0" "black")))
 	 (axes-color (eplot--vs 'axes-color data color))
-	 (grid-color (eplot--vs 'grid-color data "#e0e0e0"))
+	 (grid-color (eplot--vs 'grid-color data
+				(if (and dark (not (eq format 'bar-chart)))
+				    "#404040"
+				  "#e0e0e0")))
 	 (grid-position (eplot--vy 'grid-position data
 				   (if (eq format 'bar-chart) 'top 'bottom)))
 	 (grid (eplot--vy 'grid data (if (eq format 'bar-chart) 'y 'on)))
 	 (grid-opacity (eplot--vn 'grid-opacity data
 				  (if (eq format 'bar-chart) 0.2)))
 	 (legend-color (eplot--vs 'legend-color data axes-color))
-	 (background-color (eplot--vs 'background-color data "white"))
+	 (label-color (eplot--vs 'label-color data
+				 (if dark "white" legend-color)))
+	 (background-color (eplot--vs 'background-color data
+				      (if dark "#101010" "white")))
 	 ;; Default bar charts to always start at zero.
 	 (min (eplot--vn 'min data (and (eq format 'bar-chart) 0)))
 	 (max (eplot--vn 'max data)))
@@ -221,11 +228,13 @@
       (svg-rectangle svg margin-left margin-top
 		     xs ys
 		     :fill (eplot--vs 'background-color data "white")))
-    (when-let ((border-color (eplot--vs 'border-color data)))
-      (svg-rectangle svg 0 0 width height
-		     :stroke-width (eplot--vn 'border-width data 1)
-		     :fill "none"
-		     :stroke-color border-color))
+    (let ((border-width (eplot--vn 'border-width data))
+	  (border-color (eplot--vn 'border-color data)))
+      (when (or border-width border-color)
+	(svg-rectangle svg 0 0 width height
+		       :stroke-width (or border-width 1)
+		       :fill "none"
+		       :stroke-color (or border-color color))))
     (when-let ((frame-color (eplot--vs 'frame-color data)))
       (svg-rectangle svg margin-left margin-top xs ys
 		     :stroke-width (eplot--vn 'frame-width data 1)
@@ -238,7 +247,7 @@
 		:text-anchor "middle"
 		:font-weight "bold"
 		:font-size font-size
-		:fill (eplot--vs 'title-color data legend-color)
+		:fill (eplot--vs 'title-color data label-color)
 		:x (+ margin-left (/ (- width margin-left margin-right) 2))
 		:y (+ 3 (/ margin-top 2))))
     (when-let ((label (eplot--vs 'x-label data)))
@@ -247,7 +256,7 @@
 		:text-anchor "middle"
 		:font-weight "bold"
 		:font-size font-size
-		:fill (eplot--vs 'label-color data legend-color)
+		:fill (eplot--vs 'label-color data label-color)
 		:x (+ margin-left (/ (- width margin-left margin-right) 2))
 		:y (- height (/ margin-bottom 4))))
     (when-let ((label (eplot--vs 'y-label data)))
@@ -256,7 +265,7 @@
 		:text-anchor "middle"
 		:font-weight "bold"
 		:font-size font-size
-		:fill (eplot--vs 'label-color data legend-color)
+		:fill (eplot--vs 'label-color data label-color)
 		:transform
 		(format "translate(%s,%s) rotate(-90)"
 			(- (/ margin-left 2) (/ font-size 2))
