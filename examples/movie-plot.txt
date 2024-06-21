@@ -3,9 +3,6 @@ Title: Movies And Their Grades
 X-Label: Grade
 Y-Label: Number of Movies
 Background-Color: #101010
-Grid: y
-Grid-Position: top
-Grid-Opacity: 0.2
 Color: #c0c0c0
 Title-Color: white
 Label-Color: white

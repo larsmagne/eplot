@@ -202,8 +202,11 @@
 	 (color (eplot--vs 'color data "black"))
 	 (axes-color (eplot--vs 'axes-color data color))
 	 (grid-color (eplot--vs 'grid-color data "#e0e0e0"))
-	 (grid-position (eplot--vy 'grid-position data 'bottom))
-	 (grid (eplot--vy 'grid data 'on))
+	 (grid-position (eplot--vy 'grid-position data
+				   (if (eq format 'bar-chart) 'top 'bottom)))
+	 (grid (eplot--vy 'grid data (if (eq format 'bar-chart) 'y 'on)))
+	 (grid-opacity (eplot--vn 'grid-opacity data
+				  (if (eq format 'bar-chart) 0.2)))
 	 (legend-color (eplot--vs 'legend-color data axes-color))
 	 (background-color (eplot--vs 'background-color data "white"))
 	 ;; Default bar charts to always start at zero.
@@ -343,7 +346,7 @@
 	       (when (or (eq grid 'on) (eq grid 'x))
 		 (svg-line svg px margin-top
 			   px (- height margin-bottom)
-			   :opacity (eplot--vn 'grid-opacity data)
+			   :opacity grid-opacity
 			   :stroke grid-color))
 	       when (zerop (e% x step))
 	       do (svg-text svg label
@@ -379,7 +382,7 @@
 		   (when (or (eq grid 'on) (eq grid 'y))
 		     (svg-line svg margin-left py
 			       (- width margin-right) py
-			       :opacity (eplot--vn 'grid-opacity data)
+			       :opacity grid-opacity
 			       :stroke-color grid-color))
 		   (when (zerop (e% y factor))
 		     (svg-text svg (eplot--format-y
