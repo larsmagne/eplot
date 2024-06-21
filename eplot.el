@@ -110,38 +110,48 @@
       (push (cons type value) data))
     data))
 
-(defun eplot--parse-values ()
+(defun eplot--parse-values (&optional in-headers)
   ;; Skip past separator lines.
   (while (looking-at "[ \t]*\n")
     (forward-line 1))
-  (let ((values nil)
-	;; We may have plot-specific headers.
-	(headers (eplot--parse-headers)))
+  (let* ((values nil)
+	 ;; We may have plot-specific headers.
+	 (headers (eplot--parse-headers))
+	 (two-values (or (eplot--vs 'data-format headers)
+			 (eplot--vs 'data-format in-headers)))
+	 extra-value)
     (if-let ((data-file (eplot--vs 'data headers)))
 	(with-temp-buffer
 	  (insert-file-contents data-file)
-	  (setq values (cdr (assq :values (eplot--parse-values)))
+	  (setq values (cdr (assq :values (eplot--parse-values headers)))
 		headers (delq (assq 'data headers) headers)))
       ;; Now we come to the data.  The data is typically either just a
       ;; number, or two numbers (in which case the first number is a
       ;; date or a time).  Labels can be introduced with a # char.
       (while (looking-at
-	      "^[ \t]*\\([0-9.]+\\)\\([ \t]+\\([0-9.]+\\)\\)?\\([ \t]+#\\(.*\\)\\)?")
+	      "^[ \t]*\\([0-9.]+\\)\\([ \t]+\\([0-9.]+\\)\\)?\\([ \t]+\\([0-9.]+\\)\\)?\\([ \t]+#\\(.*\\)\\)?")
 	(let ((v1 (string-to-number (match-string 1)))
 	      (v2 (match-string 3))
-	      (label (match-string 5)))
-	  (cond
-	   ((and v2 label)
-	    (push (list :value v1 :x (string-to-number v2)
-			:label (substring-no-properties label))
-		  values))
-	   (v2
-	    (push (list :value v1 :x (string-to-number v2)) values))
-	   (label
-	    (push (list :value v1 :label (substring-no-properties label))
-		  values))
-	   (t
-	    (push (list :value v1) values))))
+	      (v3 (match-string 5))
+	      (label (match-string 7))
+	      this)
+	  (when (and two-values (not v3))
+	    (setq extra-value v2
+		  v2 nil))
+	  (setq this
+		(cond
+		 ((and v2 label)
+		  (list :value (string-to-number v2) :x v1
+			:label (substring-no-properties label)))
+		 (v2
+		  (list :value (string-to-number v2) :x v1))
+		 (label
+		  (list :value v1 :label (substring-no-properties label)))
+		 (t
+		  (list :value v1))))
+	  (when extra-value
+	    (setq this (nconc this (list :extra-value extra-value))))
+	  (push this values))
 	(forward-line 1))
       (setq values (nreverse values)))
     (and values
@@ -172,10 +182,11 @@
 				   (get-buffer-window "*eplot*" t))
 				  0.9)
 			       factor)))
-	 (margin-left (eplot--vn 'margin-left data 30))
-	 (margin-right (eplot--vn 'margin-right data 10))
-	 (margin-top (eplot--vn 'margin-top data 20))
-	 (margin-bottom (eplot--vn 'margin-bottom data 21))
+	 (compact (equal (eplot--vs 'format data) "compact"))
+	 (margin-left (eplot--vn 'margin-left data (if compact 30 60)))
+	 (margin-right (eplot--vn 'margin-right data (if compact 10 20)))
+	 (margin-top (eplot--vn 'margin-top data (if compact 20 40)))
+	 (margin-bottom (eplot--vn 'margin-bottom data (if compact 21 42)))
 	 (style (eplot--vy 'style data 'line))
 	 (svg (svg-create width height))
 	 (font (eplot--vs 'font data "futural"))
@@ -187,7 +198,9 @@
 	 (grid-color (eplot--vs 'grid-color data "#e0e0e0"))
 	 (grid-position (eplot--vy 'grid-position data 'bottom))
 	 (legend-color (eplot--vs 'legend-color data axes-color))
-	 (background-color (eplot--vs 'background-color data "white")))
+	 (background-color (eplot--vs 'background-color data "white"))
+	 (min (eplot--vn 'min data))
+	 (max (eplot--vn 'max data)))
     ;; Add background.
     (svg-rectangle svg 0 0 width height
 		   :fill background-color)
@@ -235,17 +248,30 @@
 			(- (/ margin-left 2) 2)
 			(+ margin-top
 			   (/ (- height margin-bottom margin-top) 2)))))
+    ;; Set min/max based on all plots.
+    (let ((set-min min)
+	  (set-max max))
+      (dolist (plot (cdr (assq :plots data)))
+	(let* ((values (cdr (assq :values plot)))
+	       (vals (nconc (seq-map (lambda (v) (plist-get v :value)) values)
+			    (and (equal (eplot--vs 'data-format
+						   (cdr (assq :headers plot)))
+					"two-values")
+				 (seq-map
+				  (lambda (v) (plist-get v :extra-value))
+				  values)))))
+	  (unless set-min
+	    (setq min (min (or min 1.0e+INF) (seq-min vals))))
+	  (unless set-max
+	    (setq max (max (or max -1.0e+INF) (seq-max vals)))))))
     ;; Analyze values.
     (let* ((values (cdr (assq :values (car (cdr (assq :plots data))))))
-	   (vals (seq-map (lambda (v) (plist-get v :value)) values))
-	   (min (eplot--vn 'min data (if vals (seq-min vals) 0)))
-	   (max (eplot--vn 'max data (if vals (seq-max vals) 0)))
 	   (whole (memq style '(impulse bar)))
 	   (stride (e/ xs
 		       ;; Fenceposting impulse/bar vs everything else.
 		       (if (memq style '(impulse bar))
-			   (length vals)
-			 (1- (length vals)))))
+			   (length values)
+			 (1- (length values)))))
 	   (x-ticks (eplot--get-ticks 0 (length values) xs whole))
 	   (y-ticks (eplot--get-ticks min max ys))
 	   ;; This is how often we should output labels on the ticks.
