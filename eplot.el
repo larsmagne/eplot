@@ -182,12 +182,12 @@
 				   (get-buffer-window "*eplot*" t))
 				  0.9)
 			       factor)))
-	 (compact (equal (eplot--vs 'format data) "compact"))
+	 (format (eplot--vy 'format data 'normal))
+	 (compact (eq format 'compact))
 	 (margin-left (eplot--vn 'margin-left data (if compact 30 60)))
 	 (margin-right (eplot--vn 'margin-right data (if compact 10 20)))
 	 (margin-top (eplot--vn 'margin-top data (if compact 20 40)))
-	 (margin-bottom (eplot--vn 'margin-bottom data (if compact 21 40)))
-	 (style (eplot--vy 'style data 'line))
+	 (margin-bottom (eplot--vn 'margin-bottom data (if compact 21 50)))
 	 (svg (svg-create width height))
 	 (font (eplot--vs 'font data "futural"))
 	 (font-size (eplot--vn 'font data (if compact 12 14)))
@@ -197,9 +197,11 @@
 	 (axes-color (eplot--vs 'axes-color data color))
 	 (grid-color (eplot--vs 'grid-color data "#e0e0e0"))
 	 (grid-position (eplot--vy 'grid-position data 'bottom))
+	 (grid (eplot--vy 'grid data 'on))
 	 (legend-color (eplot--vs 'legend-color data axes-color))
 	 (background-color (eplot--vs 'background-color data "white"))
-	 (min (eplot--vn 'min data))
+	 ;; Default bar charts to always start at zero.
+	 (min (eplot--vn 'min data (and (eq format 'bar-chart) 0)))
 	 (max (eplot--vn 'max data)))
     ;; Add background.
     (svg-rectangle svg 0 0 width height
@@ -266,13 +268,13 @@
 	    (setq max (max (or max -1.0e+INF) (seq-max vals)))))))
     ;; Analyze values.
     (let* ((values (cdr (assq :values (car (cdr (assq :plots data))))))
-	   (whole (memq style '(impulse bar)))
 	   (stride (e/ xs
-		       ;; Fenceposting impulse/bar vs everything else.
-		       (if (memq style '(impulse bar))
+		       ;; Fenceposting bar-chart vs everything else.
+		       (if (eq format 'bar-chart)
 			   (length values)
 			 (1- (length values)))))
-	   (x-ticks (eplot--get-ticks 0 (length values) xs whole))
+	   (x-ticks (eplot--get-ticks 0 (length values) xs
+				      (eq format 'bar-chart)))
 	   (y-ticks (eplot--get-ticks min max ys))
 	   ;; This is how often we should output labels on the ticks.
 	   (step (ceiling (e/ (length x-ticks) (e/ width 70)))))
@@ -291,28 +293,30 @@
 
       ;; Make X ticks.
       (cl-loop for x in x-ticks
-	       for label = (if whole
+	       for label = (if (eq format 'bar-chart)
 			       (plist-get (elt values x) :label)
 			     (format "%s" x))
-	       for px = (if (memq style '(impulse bar))
+	       for px = (if (eq format 'bar-chart)
 			    (+ margin-left (* x stride) (/ stride 2))
 			  (+ margin-left (* x stride)))
 	       ;; We might have one extra stride outside the area -- don't
 	       ;; draw it.
 	       when (> px (- width margin-right))
 	       return nil
-	       do (svg-line svg
-			    px
-			    (- height margin-bottom)
-			    px
-			    (+ (- height margin-bottom)
-			       (if (zerop (e% x step))
-				   4
-				 2))
-			    :stroke legend-color)
-	       (svg-line svg px margin-top
-			 px (- height margin-bottom)
-			 :stroke grid-color)
+	       do
+	       ;; Draw little tick.
+	       (unless (eq format 'bar-chart)
+		 (svg-line svg
+			   px (- height margin-bottom)
+			   px (+ (- height margin-bottom)
+				 (if (zerop (e% x step))
+				     4
+				   2))
+			   :stroke legend-color))
+	       (when (or (eq grid 'on) (eq grid 'x))
+		 (svg-line svg px margin-top
+			   px (- height margin-bottom)
+			   :stroke grid-color))
 	       when (zerop (e% x step))
 	       do (svg-text svg label
 			    :font-family font
@@ -341,13 +345,14 @@
 		   (svg-line svg margin-left py
 			     (- margin-left 3) py
 			     :stroke-color axes-color)
-		   (svg-line svg margin-left py
-			     (- width margin-right) py
-			     :stroke-color grid-color)
+		   (when (or (eq grid 'on) (eq grid 'y))
+		     (svg-line svg margin-left py
+			       (- width margin-right) py
+			       :stroke-color grid-color))
 		   (when (zerop (e% y factor))
 		     (svg-text svg (eplot--format-y
 				    y (- (elt y-ticks 1) (elt y-ticks 0))
-				    whole)
+				    nil)
 			       :font-family font
 			       :text-anchor "end"
 			       :font-size font-size
@@ -450,6 +455,12 @@
 				       sum (elt vals (min (+ i ii) max)))
 			      period)))))))
 
+(defun eplot--vary-color (color n)
+  (let ((colors '("red" "green" "blue" "cyan" "yellow" "purple")))
+    (if (not (equal color "vary"))
+	color
+      (elt colors (mod n (length colors))))))
+
 (defun eplot--draw-plots (data color height
 			       margin-bottom margin-left
 			       min max xs ys
@@ -467,7 +478,10 @@
 	   for gradient = (eplot--parse-gradient (eplot--vs 'gradient headers))
 	   for lpy = nil
 	   for lpx = nil
-	   for style = (eplot--vy 'style headers 'line)	   
+	   for style = (if (eq (eplot--vy 'format data) 'bar-chart)
+			   'bar
+			 (eplot--vy 'style headers 'line))
+	   for bar-gap = (* stride 0.1)
 	   do
 	   (unless gradient
 	     (when-let ((fill (eplot--vs 'fill headers)))
@@ -478,9 +492,10 @@
 		 (push (cons margin-left margin-top) polygon)
 	       (push (cons margin-left (- height margin-bottom)) polygon)))
 	   (cl-loop
-	    with color = (eplot--vs 'color headers color)
 	    for val in vals
 	    for x from 0
+	    for color = (eplot--vary-color (eplot--vs 'color headers color)
+					   x)
 	    for py = (- (- height margin-bottom)
 			(* (/ (- (* 1.0 val) min) (- max min))
 			   ys))
@@ -489,10 +504,9 @@
 	    (cl-case style
 	      (bar
 	       (svg-rectangle svg
-			      px py
-			      stride (- height margin-bottom py)
-			      :stroke color
-			      :fill "black"))
+			      (+ px bar-gap) py
+			      (- stride bar-gap) (- height margin-bottom py)
+			      :fill color))
 	      (impulse
 	       (svg-line svg
 			 px py
