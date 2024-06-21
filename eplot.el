@@ -464,21 +464,19 @@
 			   :stroke color)))
 	      (triangle
 	       (let ((s (eplot--vn 'size headers 5)))
-		 (svg-line svg
-			   (- px (e/ s 2)) (+ py (e/ s 2))
-			   px (- py (e/ s 2))
-			   :stroke color)
-		 (svg-line svg
-			   px (- py (e/ s 2))
-			   (+ px (e/ s 2)) (+ py (e/ s 2))
-			   :stroke color)
-		 (svg-line svg
-			   (+ px (e/ s 2)) (+ py (e/ s 2))
-			   (- px (e/ s 2)) (+ py (e/ s 2))
-			   :stroke color)))
-	      (filled-square)
-	      (box)
-	      )
+		 (svg-polygon svg
+			      (list
+			       (cons (- px (e/ s 2)) (+ py (e/ s 2)))
+			       (cons px (- py (e/ s 2)))
+			       (cons (+ px (e/ s 2)) (+ py (e/ s 2))))
+			      :stroke color
+			      :fill-color (eplot--vs 'fill headers "none"))))
+	      (rectangle
+	       (let ((s (eplot--vn 'size headers 3)))
+		 (svg-rectangle svg (- px (e/ s 2)) (- py (e/ s 2))
+				s s
+				:stroke color
+				:fill-color (eplot--vs 'fill headers "none")))))
 	    (setq lpy py
 		  lpx px))))
 
