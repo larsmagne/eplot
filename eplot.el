@@ -186,7 +186,7 @@
 	 (margin-left (eplot--vn 'margin-left data (if compact 30 60)))
 	 (margin-right (eplot--vn 'margin-right data (if compact 10 20)))
 	 (margin-top (eplot--vn 'margin-top data (if compact 20 40)))
-	 (margin-bottom (eplot--vn 'margin-bottom data (if compact 21 42)))
+	 (margin-bottom (eplot--vn 'margin-bottom data (if compact 21 40)))
 	 (style (eplot--vy 'style data 'line))
 	 (svg (svg-create width height))
 	 (font (eplot--vs 'font data "futural"))
@@ -690,7 +690,7 @@ nil means `top-down'."
 	(set-buffer "*test eplots*")
       (pop-to-buffer "*test eplots*"))
     (erase-buffer)
-    (cl-loop for file in (directory-files "." t "chart.*.txt\\'")
+    (cl-loop for file in (directory-files "examples" t "chart.*.txt\\'")
 	     for i from 0
 	     when (and (cl-plusp i)
 		       (zerop (% i 3)))
@@ -702,9 +702,10 @@ nil means `top-down'."
 (defun eplot-parse-and-insert (file)
   "Parse and insert a file in the current buffer."
   (interactive "fEplot file: ")
-  (eplot--render (with-temp-buffer
-		   (insert-file-contents file)
-		   (eplot--parse-buffer))))
+  (let ((default-directory (file-name-directory file)))
+    (eplot--render (with-temp-buffer
+		     (insert-file-contents file)
+		     (eplot--parse-buffer)))))
 
 (provide 'eplot)
 
@@ -712,3 +713,4 @@ nil means `top-down'."
 
 ;;; Todo:
 ;; Per-data circle size...
+;; Choose which column of data to use
