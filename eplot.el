@@ -445,10 +445,38 @@
 	       (when lpx
 		 (svg-line svg lpx lpy px py
 			   :stroke color)))
-	      (circle)
-	      (cross)
+	      (square
+	       (when lpx
+		 (svg-line svg lpx lpy px lpy
+			   :stroke color)
+		 (svg-line svg px lpy px py
+			   :stroke color)))
+	      (circle
+	       (svg-circle svg px py (eplot--vn 'size headers 3)
+			   :stroke color))
+	      (cross
+	       (let ((s (eplot--vn 'size headers 3)))
+		 (svg-line svg (- px s) (- py s)
+			   (+ px s) (+ py s)
+			   :stroke color)
+		 (svg-line svg (+ px s) (- py s)
+			   (- px s) (+ py s)
+			   :stroke color)))
+	      (triangle
+	       (let ((s (eplot--vn 'size headers 5)))
+		 (svg-line svg
+			   (- px (e/ s 2)) (+ py (e/ s 2))
+			   px (- py (e/ s 2))
+			   :stroke color)
+		 (svg-line svg
+			   px (- py (e/ s 2))
+			   (+ px (e/ s 2)) (+ py (e/ s 2))
+			   :stroke color)
+		 (svg-line svg
+			   (+ px (e/ s 2)) (+ py (e/ s 2))
+			   (- px (e/ s 2)) (+ py (e/ s 2))
+			   :stroke color)))
 	      (filled-square)
-	      (triangle)
 	      (box)
 	      )
 	    (setq lpy py
@@ -553,3 +581,4 @@
 
 ;;; Todo:
 ;; Format: compact/default
+;; Per-data circle size...
