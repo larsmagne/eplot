@@ -1,10 +1,15 @@
+Format: bar-chart
 Title: Movies And Their Grades
 X-Label: Grade
-Y-Label: Movies
+Y-Label: Number of Movies
 Background-Color: #101010
+Grid: y
+Grid-Color: #404040
 Color: white
-Style: line
+Width: 400
+Height: 600
 
+Color: vary
 8   #☐
 29  #⚀
 123 #⚁
