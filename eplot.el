@@ -190,9 +190,9 @@
     ;; Add background.
     (svg-rectangle svg 0 0 width height
 		   :fill (eplot--vs 'background-color data "white"))
-    (when-let ((frame-color (eplot--vs 'frame-color data)))
+    (when-let ((surround-color (eplot--vs 'surround-color data)))
       (svg-rectangle svg 0 0 width height
-		     :fill frame-color)
+		     :fill surround-color)
       (svg-rectangle svg margin-left margin-top
 		     xs ys
 		     :fill (eplot--vs 'background-color data "white")))
@@ -201,6 +201,11 @@
 		     :stroke-width (eplot--vn 'border-width data 1)
 		     :fill "none"
 		     :stroke-color border-color))
+    (when-let ((frame-color (eplot--vs 'frame-color data)))
+      (svg-rectangle svg margin-left margin-top xs ys
+		     :stroke-width (eplot--vn 'frame-width data 1)
+		     :fill "none"
+		     :stroke-color frame-color))
     ;; Title and legends.
     (when-let ((title (eplot--vs 'title data)))
       (svg-text svg title
@@ -323,7 +328,9 @@
 			     (- width margin-right) py
 			     :stroke-color grid-color)
 		   (when (zerop (e% y factor))
-		     (svg-text svg (format "%s" y)
+		     (svg-text svg (eplot--format-y
+				    y (- (elt y-ticks 1) (elt y-ticks 0))
+				    whole)
 			      :font-family font
 			      :text-anchor "end"
 			      :font-size font-size
@@ -341,9 +348,36 @@
 
       (when (eq grid-position 'bottom)
 	(eplot--draw-plots data color style height margin-bottom margin-left
-			   min max ys stride svg)))
+			   min max ys stride svg))
+
+      (when-let ((frame-color (eplot--vs 'frame-color data)))
+	(svg-rectangle svg margin-left margin-top xs ys
+		       :stroke-width (eplot--vn 'frame-width data 1)
+		       :fill "none"
+		       :stroke-color frame-color)))
     
     (svg-insert-image svg)))
+
+(defun eplot--format-y (y spacing whole)
+  (cond
+   ((or (= (ceiling (* spacing 100)) 10) (= (ceiling (* spacing 100)) 20))
+    (format "%.1f" y))
+   ((< spacing 0.01)
+    (format "%.3f" y))
+   ((< spacing 1)
+    (format "%.2f" y))
+   ((and (< spacing 1) (not (zerop (mod (* spacing 10) 1))))
+    (format "%.1f" y))
+   ((zerop (% spacing 1000000000))
+    (format "%dG" (/ y 1000000000)))
+   ((zerop (% spacing 1000000))
+    (format "%dM" (/ y 1000000)))
+   ((zerop (% spacing 1000))
+    (format "%dk" (/ y 1000)))
+   ((not whole)
+    (format "%.1f" y))
+   (t
+    (format "%s" y))))
 
 (defun eplot--draw-plots (data color style height
 			       margin-bottom margin-left
