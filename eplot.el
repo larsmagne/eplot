@@ -405,12 +405,13 @@
     (format "%s" y))))
 
 (defun eplot--parse-gradient (string)
-  (let ((bits (split-string string)))
-    (list
-     (cons 'from (nth 0 bits))
-     (cons 'to (nth 1 bits))
-     (cons 'direction (intern (or (nth 2 bits) "top-down")))
-     (cons 'position (intern (or (nth 3 bits) "below"))))))
+  (when string
+    (let ((bits (split-string string)))
+      (list
+       (cons 'from (nth 0 bits))
+       (cons 'to (nth 1 bits))
+       (cons 'direction (intern (or (nth 2 bits) "top-down")))
+       (cons 'position (intern (or (nth 3 bits) "below")))))))
 
 (defun eplot--draw-plots (data color style height
 			       margin-bottom margin-left
@@ -424,8 +425,8 @@
 	   for vals = (seq-map (lambda (v) (plist-get v :value)) values)
 	   for polygon = nil
 	   for gradient = (eplot--parse-gradient (eplot--vs 'gradient headers))
-	   with lpy
-	   with lpx
+	   for lpy = nil
+	   for lpx = nil
 	   do
 	   (when gradient
 	     (if (eq (eplot--vs 'position gradient) 'above)
