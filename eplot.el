@@ -467,7 +467,7 @@
 	color
       (elt colors (mod n (length colors))))))
 
-(defun eplot--draw-plots (data color height
+(defun eplot--draw-plots (data default-color height
 			       margin-bottom margin-left
 			       min max xs ys
 			       stride svg margin-top)
@@ -500,8 +500,9 @@
 	   (cl-loop
 	    for val in vals
 	    for x from 0
-	    for color = (eplot--vary-color (eplot--vs 'color headers color)
-					   x)
+	    for color = (eplot--vary-color
+			 (eplot--vs 'color headers default-color)
+			 x)
 	    for py = (- (- height margin-bottom)
 			(* (/ (- (* 1.0 val) min) (- max min))
 			   ys))
