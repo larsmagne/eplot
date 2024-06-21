@@ -51,7 +51,9 @@
   (if (and (eq major-mode 'emacs-lisp-mode)
 	   (get-buffer-window "*eplot*" t))
       (with-current-buffer "*eplot*"
-	(eplot-update))
+	(eplot-update)
+	(when-let ((win (get-buffer-window "*eplot*" t)))
+	  (set-window-point win (point-max))))
     ;; Normal case.
     (let ((data (eplot--parse-buffer))
 	  (data-buffer (current-buffer)))
@@ -81,7 +83,8 @@
 		(eplot--parse-buffer)))
 	(inhibit-read-only t))
     (erase-buffer)
-    (eplot--render data)))
+    (eplot--render data)
+    (insert "\n\n")))
 
 (defun eplot--parse-buffer ()
   (save-excursion
