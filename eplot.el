@@ -136,7 +136,7 @@
 	      (label (match-string 7))
 	      this)
 	  (when (and two-values (not v3))
-	    (setq extra-value v2
+	    (setq extra-value (string-to-number v2)
 		  v2 nil))
 	  (setq this
 		(cond
@@ -453,14 +453,18 @@
 	   for gradient = (eplot--parse-gradient (eplot--vs 'gradient headers))
 	   for lpy = nil
 	   for lpx = nil
+	   for style = (eplot--vy 'style headers style)
 	   do
+	   (unless gradient
+	     (when-let ((fill (eplot--vs 'fill headers)))
+	       (setq gradient `((from . ,fill) (to . ,fill)
+				(direction . top-down) (position . below)))))
 	   (when gradient
 	     (if (eq (eplot--vs 'position gradient) 'above)
 		 (push (cons margin-left margin-top) polygon)
 	       (push (cons margin-left (- height margin-bottom)) polygon)))
 	   (cl-loop
 	    with color = (eplot--vs 'color headers color)
-	    with style = (eplot--vy 'style headers style)
 	    for val in vals
 	    for x from 0
 	    for py = (- (- height margin-bottom)
@@ -495,7 +499,7 @@
 	       (if gradient
 		   (progn
 		     (when lpx
-		       (push (cons lpx px) polygon))
+		       (push (cons lpx py) polygon))
 		     (push (cons px py) polygon))
 		 (when lpx
 		   (svg-line svg lpx lpy px lpy
@@ -530,7 +534,32 @@
 				:fill-color (eplot--vs 'fill headers "none")))))
 	    (setq lpy py
 		  lpx px))
+
+	   ;; We're doing a gradient of some kind, so draw it now when
+	   ;; we've collected the polygon.
 	   (when polygon
+	     ;; We have a "between" chart, so collect the data points
+	     ;; from the "extra" values, too.
+	     (when (equal (eplot--vs 'data-format headers) "two-values")
+	       (cl-loop
+		for val in (nreverse
+			    (seq-map (lambda (v) (plist-get v :extra-value))
+				     values))
+		for x from (1- (length vals)) downto 0
+		for py = (- (- height margin-bottom)
+			    (* (/ (- (* 1.0 val) min) (- max min))
+			       ys))
+		for px = (+ margin-left (* x stride))
+		do
+		(cl-case style
+		  (line
+		   (push (cons px py) polygon))
+		  (square
+		   (when lpx
+		     (push (cons lpx py) polygon))
+		   (push (cons px py) polygon)))
+		(setq lpx px lpy py)))
+
 	     (if (eq (eplot--vs 'position gradient) 'above)
 		 (push (cons lpx margin-top) polygon)
 	       (push (cons lpx (- height margin-bottom)) polygon))
