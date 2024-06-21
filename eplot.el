@@ -66,7 +66,10 @@
 	  (unless (eq major-mode 'eplot-mode)
 	    (eplot-mode))
 	  (setq-local eplot--data-buffer data-buffer)
-	  (eplot--render data))))))
+	  (eplot--render data)
+	  (insert "\n")
+	  (when-let ((win (get-buffer-window "*eplot*" t)))
+	    (set-window-point win (point-max))))))))
 
 (defun eplot-eval-and-update ()
   "Helper command when developing."
@@ -241,7 +244,7 @@
 		:text-anchor "middle"
 		:font-weight "bold"
 		:font-size font-size
-		:fill legend-color
+		:fill (eplot--vs 'label-color data legend-color)
 		:x (+ margin-left (/ (- width margin-left margin-right) 2))
 		:y (- height (/ margin-bottom 4))))
     (when-let ((label (eplot--vs 'y-label data)))
@@ -250,7 +253,7 @@
 		:text-anchor "middle"
 		:font-weight "bold"
 		:font-size font-size
-		:fill legend-color
+		:fill (eplot--vs 'label-color data legend-color)
 		:transform
 		(format "translate(%s,%s) rotate(-90)"
 			(- (/ margin-left 2) (/ font-size 2))
@@ -340,6 +343,7 @@
 	       (when (or (eq grid 'on) (eq grid 'x))
 		 (svg-line svg px margin-top
 			   px (- height margin-bottom)
+			   :opacity (eplot--vn 'grid-opacity data)
 			   :stroke grid-color))
 	       when (zerop (e% x step))
 	       do (svg-text svg label
@@ -375,6 +379,7 @@
 		   (when (or (eq grid 'on) (eq grid 'y))
 		     (svg-line svg margin-left py
 			       (- width margin-right) py
+			       :opacity (eplot--vn 'grid-opacity data)
 			       :stroke-color grid-color))
 		   (when (zerop (e% y factor))
 		     (svg-text svg (eplot--format-y
