@@ -395,8 +395,7 @@
 			       :stroke-color grid-color))
 		   (when (zerop (e% y factor))
 		     (svg-text svg (eplot--format-y
-				    y (- (elt y-ticks 1) (elt y-ticks 0))
-				    nil)
+				    y factor nil)
 			       :font-family font
 			       :text-anchor "end"
 			       :font-size font-size
