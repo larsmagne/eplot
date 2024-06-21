@@ -139,20 +139,20 @@
 	(let ((v1 (string-to-number (match-string 1)))
 	      (v2 (match-string 3))
 	      (v3 (match-string 5))
-	      (label (match-string 7))
+	      (settings (eplot--parse-settings (match-string 7)))
 	      this)
 	  (when (and two-values (not v3))
 	    (setq extra-value (string-to-number v2)
 		  v2 nil))
 	  (setq this
 		(cond
-		 ((and v2 label)
+		 ((and v2 settings)
 		  (list :value (string-to-number v2) :x v1
-			:label (substring-no-properties label)))
+			:settings settings))
 		 (v2
 		  (list :value (string-to-number v2) :x v1))
-		 (label
-		  (list :value v1 :label (substring-no-properties label)))
+		 (settings
+		  (list :value v1 :settings settings))
 		 (t
 		  (list :value v1))))
 	  (when extra-value
@@ -162,6 +162,19 @@
       (setq values (nreverse values)))
     (and values
 	 `((:headers . ,headers) (:values . ,values)))))
+
+(defun eplot--parse-settings (string)
+  (when string
+    (with-temp-buffer
+      (insert (string-trim string) "\n")
+      (goto-char (point-min))
+      (while (search-forward "\\(.\\)," nil t)
+	(if (equal (match-string 1) "\\")
+	    (replace-match "," t t)
+	  (delete-backward-char 1)
+	  (insert "\n")))
+      (goto-char (point-min))
+      (eplot--parse-headers))))
 
 (defun eplot--vn (type data &optional default)
   (if-let ((value (cdr (assq type data))))
@@ -333,7 +346,8 @@
       ;; Make X ticks.
       (cl-loop for x in x-ticks
 	       for label = (if (eq format 'bar-chart)
-			       (plist-get (elt values x) :label)
+			       (eplot--vs 'label
+					  (plist-get (elt values x) :settings))
 			     (format "%s" x))
 	       for px = (if (eq format 'bar-chart)
 			    (+ margin-left (* x stride) (/ stride 2))

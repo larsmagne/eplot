@@ -7,10 +7,10 @@ X-Label: Grade
 Y-Label: Number of Movies
 
 Color: vary
-8   #☐
-29  #⚀
-123 #⚁
-132 #⚂
-198 #⚃
-162 #⚄
-71  #⚅
+8   # Label: ☐
+29  # Label: ⚀
+123 # Label: ⚁
+132 # Label: ⚂
+198 # Label: ⚃
+162 # Label: ⚄
+71  # Label: ⚅
