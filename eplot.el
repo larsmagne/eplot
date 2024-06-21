@@ -569,7 +569,8 @@
 				  (100 . ,(eplot--vs 'to gradient)))
 				(eplot--vs 'direction gradient))
 	       (svg-polygon svg (nreverse polygon)
-			    :gradient id)
+			    :gradient id
+			    :stroke (eplot--vs 'fill-border headers))
 	       (setq polygon nil)))))
 
 (defun eplot--gradient (svg id type stops &optional direction)
