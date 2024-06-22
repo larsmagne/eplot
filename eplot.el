@@ -782,8 +782,8 @@ nil means `top-down'."
 	  (throw 'found five))
 	(setq five (* five 10))))))
 
-(defun eplot-test-plots ()
-  (interactive)
+(defun eplot-test-plots (&optional main)
+  (interactive "P")
   (save-current-buffer
     (let ((spacer (svg-create 1 1)))
       (svg-rectangle spacer 0 0 1 1 :fill "black")
@@ -793,7 +793,9 @@ nil means `top-down'."
 	(when (< text-scale-mode-amount (abs (text-scale-min-amount)))
 	  (text-scale-decrease (abs (text-scale-min-amount)))))
       (erase-buffer)
-      (cl-loop for file in (directory-files "examples" t "^chart.*.txt\\'")
+      (cl-loop for file in (directory-files "examples" t
+					    (if main "^chart.*.plt\\'"
+					      "plt\\'"))
 	       for i from 0
 	       when (and (cl-plusp i)
 			 (zerop (% i 5)))
@@ -821,7 +823,7 @@ nil means `top-down'."
 
 (defun eplot-write-plots ()
   (interactive)
-  (cl-loop for file in (directory-files "examples" t "^chart.*.txt\\'")
+  (cl-loop for file in (directory-files "examples" t "[.]plt\\'")
 	   for image = (let ((default-directory (file-name-directory file)))
 			 (eplot--render (with-temp-buffer
 					  (insert-file-contents file)
