@@ -351,6 +351,7 @@
 
       ;; Make X ticks.
       (cl-loop for x in x-ticks
+	       for i from 0
 	       for label = (if bar-chart
 			       (eplot--vs 'label
 					  (plist-get (elt values x) :settings)
@@ -378,7 +379,9 @@
 			   px (- height margin-bottom)
 			   :opacity grid-opacity
 			   :stroke grid-color))
-	       when (zerop (e% x step))
+	       when (and (zerop (e% x step))
+			 (or bar-chart
+			     (and (not (zerop x)) (not (zerop i)))))
 	       do (svg-text svg label
 			    :font-family font
 			    :text-anchor "middle"
