@@ -822,8 +822,8 @@ nil means `top-down'."
 		     (insert-file-contents file)
 		     (eplot--parse-buffer)))))
 
-(defun eplot-write-plots ()
-  (interactive)
+(defun eplot-write-plots (&optional all)
+  (interactive "P")
   (cl-loop for file in (directory-files "examples" t "[.]plt\\'")
 	   for image = (let ((default-directory (file-name-directory file)))
 			 (eplot--render (with-temp-buffer
@@ -835,7 +835,7 @@ nil means `top-down'."
 					".svg")
 				       "images")
 	   for png = (file-name-with-extension svg ".png")
-	   when (file-newer-than-file-p file png)
+	   when (or all (file-newer-than-file-p file png))
 	   do (with-temp-buffer
 		(set-buffer-multibyte nil)
 		(svg-print image)
@@ -853,5 +853,6 @@ nil means `top-down'."
 ;; Choose which column of data to use
 
 ;; Headers for first plot should be able to put in real headers.
-;; Deconfuse overlapping names.
+;; So deconfuse overlapping names.
+
 ;; Allow several gradient stops
