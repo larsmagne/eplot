@@ -337,7 +337,10 @@
       ;; We may be extending the bottom of the chart to get pleasing
       ;; numbers.  We don't want to be drawing the chart on top of the
       ;; X axis, because the chart won't be visible there.
-      (when (<= min (car y-ticks))
+      (when (and (<= min (car y-ticks))
+		 ;; But not if we start at origo, because that just
+		 ;; looks confusing.
+		 (not (zerop min)))
 	(setq min (- (car y-ticks)
 		     ;; 2% of the value range.
 		     (* 0.02 (- (car (last y-ticks)) (car y-ticks))))))
@@ -351,7 +354,7 @@
 	       for label = (if bar-chart
 			       (eplot--vs 'label
 					  (plist-get (elt values x) :settings)
-					  "")
+					  (format "%s" x))
 			     (format "%s" x))
 	       for px = (if bar-chart
 			    (+ margin-left (* x stride) (/ stride 2))
@@ -385,7 +388,7 @@
 			    :y (+ (- height margin-bottom)
 				  font-size
 				  (if bar-chart
-				      5
+				      (if compact 3 5)
 				    2))))
       ;; Make Y ticks.
       (let* ((ideal (1+ (ceiling (e/ ys font-size))))
@@ -791,7 +794,7 @@ nil means `top-down'."
 	       do (insert "\n")
 	       (svg-insert-image spacer)
 	       (insert "\n")
-	       do (let ((image-scaling-factor 0.9)
+	       do (let ((image-scaling-factor 0.95)
 			(start (point)))
 		    (eplot-parse-and-insert file)
 		    ;; So that you can hover over a chart and see its
