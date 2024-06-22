@@ -529,9 +529,12 @@
 		 "#46f0f0" "#f032e6" "#bcf60c" "#fabebe" "#008080" "#e6beff"
 		 "#9a6324" "#fffac8" "#800000" "#aaffc3" "#808000" "#ffd8b1"
 		 "#000075" "#808080" "#ffffff" "#000000"]))
-    (if (not (equal color "vary"))
-	color
-      (elt colors (mod n (length colors))))))
+    (unless (equal color "vary")
+      (setq colors
+	    (if (string-search " " color)
+		(split-string color)
+	      (list color))))
+    (elt colors (mod n (length colors)))))
 
 (defun eplot--draw-plots (data default-color height
 			       margin-bottom margin-left
@@ -843,4 +846,3 @@ nil means `top-down'."
 
 ;;; Todo:
 ;; Choose which column of data to use
-;; Allow Color: to be a list.
