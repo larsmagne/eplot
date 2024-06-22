@@ -204,8 +204,10 @@
 				  0.9)
 			       factor)))
 	 (format (eplot--vy 'format data 'normal))
+	 (layout (eplot--vy 'layout data 'normal))
 	 (dark (eq (eplot--vy 'mode data) 'dark))
-	 (compact (eq format 'compact))
+	 (compact (eq layout 'compact))
+	 (bar-chart (eq format 'bar-chart))
 	 (margin-left (eplot--vn 'margin-left data (if compact 30 70)))
 	 (margin-right (eplot--vn 'margin-right data (if compact 10 20)))
 	 (margin-top (eplot--vn 'margin-top data (if compact 20 40)))
@@ -218,21 +220,21 @@
 	 (color (eplot--vs 'color data (if dark "#c0c0c0" "black")))
 	 (axes-color (eplot--vs 'axes-color data color))
 	 (grid-color (eplot--vs 'grid-color data
-				(if (and dark (not (eq format 'bar-chart)))
+				(if (and dark (not bar-chart))
 				    "#404040"
 				  "#e0e0e0")))
 	 (grid-position (eplot--vy 'grid-position data
-				   (if (eq format 'bar-chart) 'top 'bottom)))
-	 (grid (eplot--vy 'grid data (if (eq format 'bar-chart) 'y 'on)))
+				   (if bar-chart 'top 'bottom)))
+	 (grid (eplot--vy 'grid data (if bar-chart 'y 'on)))
 	 (grid-opacity (eplot--vn 'grid-opacity data
-				  (if (eq format 'bar-chart) 0.2)))
+				  (if bar-chart 0.2)))
 	 (legend-color (eplot--vs 'legend-color data axes-color))
 	 (label-color (eplot--vs 'label-color data
 				 (if dark "white" legend-color)))
 	 (background-color (eplot--vs 'background-color data
 				      (if dark "#101010" "white")))
 	 ;; Default bar charts to always start at zero.
-	 (min (eplot--vn 'min data (and (eq format 'bar-chart) 0)))
+	 (min (eplot--vn 'min data (and bar-chart 0)))
 	 (max (eplot--vn 'max data)))
     ;; Add background.
     (svg-rectangle svg 0 0 width height
@@ -306,11 +308,10 @@
     (let* ((values (cdr (assq :values (car (cdr (assq :plots data))))))
 	   (stride (e/ xs
 		       ;; Fenceposting bar-chart vs everything else.
-		       (if (eq format 'bar-chart)
+		       (if bar-chart
 			   (length values)
 			 (1- (length values)))))
-	   (x-ticks (eplot--get-ticks 0 (length values) xs
-				      (eq format 'bar-chart)))
+	   (x-ticks (eplot--get-ticks 0 (length values) xs bar-chart))
 	   (y-ticks (eplot--get-ticks
 		     min
 		     ;; We get 2% more ticks to check whether we
@@ -318,7 +319,7 @@
 		     (if (eplot--vn 'max data) max (* max 1.02))
 		     ys))
 	   ;; This is how often we should output labels on the ticks.
-	   (step (if (eq format 'bar-chart)
+	   (step (if bar-chart
 		     1
 		   (ceiling (e/ (length x-ticks) (e/ width 70))))))
 
@@ -347,11 +348,12 @@
 
       ;; Make X ticks.
       (cl-loop for x in x-ticks
-	       for label = (if (eq format 'bar-chart)
+	       for label = (if bar-chart
 			       (eplot--vs 'label
-					  (plist-get (elt values x) :settings))
+					  (plist-get (elt values x) :settings)
+					  "")
 			     (format "%s" x))
-	       for px = (if (eq format 'bar-chart)
+	       for px = (if bar-chart
 			    (+ margin-left (* x stride) (/ stride 2))
 			  (+ margin-left (* x stride)))
 	       ;; We might have one extra stride outside the area -- don't
@@ -360,7 +362,7 @@
 	       return nil
 	       do
 	       ;; Draw little tick.
-	       (unless (eq format 'bar-chart)
+	       (unless bar-chart
 		 (svg-line svg
 			   px (- height margin-bottom)
 			   px (+ (- height margin-bottom)
@@ -382,7 +384,7 @@
 			    :x px
 			    :y (+ (- height margin-bottom)
 				  font-size
-				  (if (eq format 'bar-chart)
+				  (if bar-chart
 				      5
 				    2))))
       ;; Make Y ticks.
@@ -823,3 +825,4 @@ nil means `top-down'."
 
 ;;; Todo:
 ;; Choose which column of data to use
+;; Allow Color: to be a list.
