@@ -328,7 +328,7 @@
       (unless (eplot--vn 'max data)
 	(cl-loop for tick in (reverse y-ticks)
 		 when (and (< max tick)
-			   (< (e/ (- tick max) max) 0.02))
+			   (< (e/ (- tick max) (- max min)) 0.02))
 		 return (progn
 			  (setq max tick)
 			  ;; Chop off any further ticks.
@@ -408,7 +408,7 @@
 			     (* (/ (- (* 1.0 y) min) (- max min))
 				ys))
 		 do
-		 (when (< py (- height margin-bottom))
+		 (when (< margin-top py (- height margin-bottom))
 		   (svg-line svg margin-left py
 			     (- margin-left 3) py
 			     :stroke-color axes-color)
