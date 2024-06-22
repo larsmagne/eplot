@@ -848,3 +848,7 @@ nil means `top-down'."
 
 ;;; Todo:
 ;; Choose which column of data to use
+
+;; Headers for first plot should be able to put in real headers.
+;; Deconfuse overlapping names.
+;; Allow several gradient stops
