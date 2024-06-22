@@ -146,7 +146,7 @@ Bar charts are somewhat special.
 
 Each bar is displayed separately, and the labels on the X axis are
 displayed in the middle of the bars -- this is quite different from
-the box plot:
+the box plot on the same data set:
 
 	Format: normal
 	Min: 0
@@ -158,7 +158,7 @@ the box plot:
 
 ![chart-bar-box.plt](/images/chart-bar-box.png)
 
-Anyway, the first bar box demonstrated the "vary" color, but you can
+Anyway, the first bar box demonstrated the "vary" color again, but you can
 specify the colors yourself:
 
 	Format: bar-chart
@@ -216,7 +216,12 @@ an example:
 
 ![chart-color.plt](/images/chart-color.png)
 
-Go wild!
+Go wild!  But preferably not that wild.
+
+	Gradient: black red
+	Data: data1.txt
+
+![chart-gradient1.plt](/images/chart-gradient1.png)
 
 You can also plot the data using gradients.
 
@@ -225,11 +230,6 @@ You can also plot the data using gradients.
 	Data: data1.txt
 
 ![chart-gradient-square.plt](/images/chart-gradient-square.png)
-
-	Gradient: black red
-	Data: data1.txt
-
-![chart-gradient1.plt](/images/chart-gradient1.png)
 
 You can put the gradient above the chart instead:
 
@@ -243,7 +243,7 @@ You can put the gradient above the chart instead:
 
 ![chart-gradient3.plt](/images/chart-gradient3.png)
 
-You can specify the direction -- this is basically just swapping the
+You can specify the direction -- this one is basically just swapping the
 order of the colors.
 
 	Gradient: black red right-left above
@@ -256,21 +256,21 @@ But also right-left...
 	Gradient: black red left-right below
 	Data: data1.txt
 
-![chart-gradient5.plt](/images/chart-gradient5.png)
-
-... and left-right.
-
-	Gradient: black red left-right above
-	Data: data1.txt
-
 ![chart-gradient6.plt](/images/chart-gradient6.png)
 
-And, of course, left-right above the chart.
+... and left-right.
 
 	Gradient: black red bottom-up above
 	Data: data1.txt
 	
 	Gradient: black red top-down below
+	Data: data1.txt
+
+![chart-gradient5.plt](/images/chart-gradient5.png)
+
+And below the plot.
+
+	Gradient: black red left-right above
 	Data: data1.txt
 
 ![chart-two-gradient1.plt](/images/chart-two-gradient1.png)
