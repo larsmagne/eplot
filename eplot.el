@@ -358,7 +358,8 @@
 					  (format "%s" x))
 			     (format "%s" x))
 	       for px = (if bar-chart
-			    (+ margin-left (* x stride) (/ stride 2))
+			    (+ margin-left (* x stride) (/ stride 2)
+			       (/ (* stride 0.1) 2))
 			  (+ margin-left (* x stride)))
 	       ;; We might have one extra stride outside the area -- don't
 	       ;; draw it.
