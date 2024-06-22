@@ -1,6 +1,10 @@
+Format: bar-chart
 Layout: compact
 Width: 300
 Height: 200
 
-Gradient: black red
-Data: data1.txt
+Color: vary
+10
+5
+7
+

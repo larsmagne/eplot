@@ -1,4 +1,4 @@
-Format: compact
+Layout: compact
 Mode: dark
 Width: 300
 Height: 200
