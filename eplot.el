@@ -764,9 +764,9 @@ nil means `top-down'."
 
 (defun eplot--pleasing-numbers (number)
   (let* ((digits (eplot--decimal-digits number))
-	 (one (if (zerop digits) 1 (/ 1.0 (expt 10 digits))))
-	 (two (if (zerop digits) 2 (/ 2.0 (expt 10 digits))))
-	 (five (if (zerop digits) 5 (/ 5.0 (expt 10 digits)))))
+	 (one (e/ 1 (expt 10 digits)))
+	 (two (e/ 2 (expt 10 digits)))
+	 (five (e/ 5 (expt 10 digits))))
     (catch 'found
       (while t
 	(when (< number one)
