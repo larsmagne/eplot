@@ -4,7 +4,7 @@ Width: 300
 Height: 200
 
 Color: vary
-10
-5
-7
+33
+20
+24
 
