@@ -776,19 +776,31 @@ nil means `top-down'."
 (defun eplot-test-plots ()
   (interactive)
   (save-current-buffer
-    (if (get-buffer-window "*test eplots*" t)
-	(set-buffer "*test eplots*")
-      (pop-to-buffer "*test eplots*"))
-    (erase-buffer)
-    (cl-loop for file in (directory-files "examples" t "^chart.*.txt\\'")
-	     for i from 0
-	     when (and (cl-plusp i)
-		       (zerop (% i 5)))
-	     do (insert "\n\n")
-	     do (let ((image-scaling-factor 0.9))
-		  (eplot-parse-and-insert file))
-	     (insert " "))
-    (insert "\n\n")))
+    (let ((spacer (svg-create 1 1)))
+      (svg-rectangle spacer 0 0 1 1 :fill "black")
+      (if (get-buffer-window "*test eplots*" t)
+	  (set-buffer "*test eplots*")
+	(pop-to-buffer "*test eplots*")
+	(when (< text-scale-mode-amount (abs (text-scale-min-amount)))
+	  (text-scale-decrease (abs (text-scale-min-amount)))))
+      (erase-buffer)
+      (cl-loop for file in (directory-files "examples" t "^chart.*.txt\\'")
+	       for i from 0
+	       when (and (cl-plusp i)
+			 (zerop (% i 5)))
+	       do (insert "\n")
+	       (svg-insert-image spacer)
+	       (insert "\n")
+	       do (let ((image-scaling-factor 0.9)
+			(start (point)))
+		    (eplot-parse-and-insert file)
+		    ;; So that you can hover over a chart and see its
+		    ;; file name.
+		    (put-text-property
+		     start (point) 'help-echo (file-name-nondirectory file)))
+	       (svg-insert-image spacer))
+      (insert "\n\n")
+      (goto-char (point-min)))))
 
 (defun eplot-parse-and-insert (file)
   "Parse and insert a file in the current buffer."
