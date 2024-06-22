@@ -834,13 +834,15 @@ nil means `top-down'."
 					(file-name-nondirectory file)
 					".svg")
 				       "images")
+	   for png = (file-name-with-extension svg ".png")
+	   when (file-newer-than-file-p file png)
 	   do (with-temp-buffer
 		(set-buffer-multibyte nil)
 		(svg-print image)
 		(write-region (point-min) (point-max) svg)
 		(call-process
 		 "convert" nil nil nil
-		 svg (file-name-with-extension svg ".png"))
+		 svg png)
 		(delete-file svg))))
 
 (provide 'eplot)
