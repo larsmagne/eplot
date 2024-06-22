@@ -840,9 +840,7 @@ nil means `top-down'."
 		(set-buffer-multibyte nil)
 		(svg-print image)
 		(write-region (point-min) (point-max) svg)
-		(call-process
-		 "convert" nil nil nil
-		 svg png)
+		(call-process "convert" nil nil nil svg png)
 		(delete-file svg))))
 
 (provide 'eplot)
