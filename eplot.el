@@ -135,9 +135,14 @@
   (let* ((values nil)
 	 ;; We may have plot-specific headers.
 	 (headers (nconc (eplot--parse-headers) data-headers))
-	 (two-values (or (eplot--vs 'data-format headers)
-			 (eplot--vs 'data-format in-headers)))
-	 extra-value)
+	 (data-format (or (eplot--vyl 'data-format headers)
+			  (eplot--vyl 'data-format in-headers)))
+	 (two-values (memq 'two-values data-format))
+	 (xy (or (memq 'date data-format)
+		 (memq 'time data-format)
+		 (memq 'xy data-format)))
+	 (data-column (or (eplot--vn 'data-column headers)
+			  (eplot--vn 'data-column in-headers))))
     (if-let ((data-file (eplot--vs 'data headers)))
 	(with-temp-buffer
 	  (insert-file-contents data-file)
@@ -145,30 +150,26 @@
 		headers (delq (assq 'data headers) headers)))
       ;; Now we come to the data.  The data is typically either just a
       ;; number, or two numbers (in which case the first number is a
-      ;; date or a time).  Labels can be introduced with a # char.
-      (while (looking-at
-	      "^[ \t]*\\([0-9.]+\\)\\([ \t]+\\([0-9.]+\\)\\)?\\([ \t]+\\([0-9.]+\\)\\)?\\([ \t]+#\\(.*\\)\\)?")
-	(let ((v1 (string-to-number (match-string 1)))
-	      (v2 (match-string 3))
-	      (v3 (match-string 5))
-	      (settings (eplot--parse-settings (match-string 7)))
+      ;; date or a time).  Labels ans settings can be introduced with
+      ;; a # char.
+      (while (looking-at "\\([-0-9. \t]+\\)\\([ \t]+#\\(.*\\)\\)?")
+	(let ((numbers (mapcar #'string-to-number
+			       (split-string (string-trim (match-string 1)))))
+	      (settings (eplot--parse-settings (match-string 3)))
 	      this)
-	  (when (and two-values (not v3))
-	    (setq extra-value (string-to-number v2)
-		  v2 nil))
-	  (setq this
-		(cond
-		 ((and v2 settings)
-		  (list :value (string-to-number v2) :x v1
-			:settings settings))
-		 (v2
-		  (list :value (string-to-number v2) :x v1))
-		 (settings
-		  (list :value v1 :settings settings))
-		 (t
-		  (list :value v1))))
-	  (when extra-value
-	    (setq this (nconc this (list :extra-value extra-value))))
+	  ;; If we're reading two dimensionalish data, the first
+	  ;; number is the date/time/x.
+	  (when xy
+	    (setq this (list :x (pop numbers))))
+	  ;; Chop off all the numbers until we read the column(s)
+	  ;; we're using.
+	  (when data-column
+	    (setq numbers (nthcdr (1- data-column) numbers)))
+	  (setq this (nconc this (list :value (pop numbers))))
+	  (when two-values
+	    (setq this (nconc this (list :extra-value (pop numbers)))))
+	  (when settings
+	    (nconc this (list :settings settings)))
 	  (push this values))
 	(forward-line 1))
       (setq values (nreverse values)))
@@ -200,7 +201,12 @@
 
 (defun eplot--vy (type data &optional default)
   (if-let ((value (cdr (assq type data))))
-      (intern value)
+      (intern (downcase value))
+    default))
+
+(defun eplot--vyl (type data &optional default)
+  (if-let ((value (cdr (assq type data))))
+      (mapcar #'intern (split-string (downcase value)))
     default))
 
 (defun eplot--render (data &optional return-image)
@@ -309,9 +315,9 @@
       (dolist (plot (cdr (assq :plots data)))
 	(let* ((values (cdr (assq :values plot)))
 	       (vals (nconc (seq-map (lambda (v) (plist-get v :value)) values)
-			    (and (equal (eplot--vs 'data-format
-						   (cdr (assq :headers plot)))
-					"two-values")
+			    (and (memq 'two-values
+				       (eplot--vyl 'data-format
+						   (cdr (assq :headers plot))))
 				 (seq-map
 				  (lambda (v) (plist-get v :extra-value))
 				  values)))))
@@ -775,7 +781,7 @@
 	   (when polygon
 	     ;; We have a "between" chart, so collect the data points
 	     ;; from the "extra" values, too.
-	     (when (equal (eplot--vs 'data-format headers) "two-values")
+	     (when (memq 'tow-values (eplot--vyl 'data-format headers))
 	       (cl-loop
 		for val in (nreverse
 			    (seq-map (lambda (v) (plist-get v :extra-value))
@@ -984,7 +990,6 @@ nil means `top-down'."
 ;;; eplot.el ends here
 
 ;;; Todo:
-;; Choose which column of data to use
 
 ;; Date plot
 ;; Time plot
