@@ -893,7 +893,8 @@ nil means `top-down'."
 (defun eplot-test-plots (&optional main)
   (interactive "P")
   (save-current-buffer
-    (let ((spacer (svg-create 1 1)))
+    (let ((spacer (svg-create 1 1))
+	  (width 0))
       (svg-rectangle spacer 0 0 1 1 :fill "black")
       (if (get-buffer-window "*test eplots*" t)
 	  (set-buffer "*test eplots*")
@@ -905,19 +906,26 @@ nil means `top-down'."
 					    (if main "^chart.*.plt\\'"
 					      "plt\\'"))
 	       for i from 0
-	       when (and (cl-plusp i)
-			 (zerop (% i 4)))
-	       do (insert "\n")
-	       (svg-insert-image spacer)
-	       (insert "\n")
 	       do (let ((image-scaling-factor 1.2)
 			(start (point)))
 		    (eplot-parse-and-insert file)
 		    ;; So that you can hover over a chart and see its
 		    ;; file name.
 		    (put-text-property
-		     start (point) 'help-echo (file-name-nondirectory file)))
-	       (svg-insert-image spacer))
+		     start (point) 'help-echo (file-name-nondirectory file))
+		    (let ((w (car (image-size
+				   (get-text-property start 'display) t))))
+		      (if (not (> (+ w width) (+ 80 (window-pixel-width))))
+			  (cl-incf width w)
+			(goto-char start)
+			(insert "\n\n")
+			(goto-char (point-max))
+			(setq width w))))
+	       (let ((start (point)))
+		 (svg-insert-image spacer)
+		 (put-text-property start (point) 'spacer t)))
+      (goto-char (point-min))
+      (eplot--fold-buffer)
       (insert "\n\n")
       (goto-char (point-min)))))
 
