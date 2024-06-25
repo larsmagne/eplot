@@ -207,7 +207,7 @@ an example:
 	Surround-Color: green
 	Background-Color: blue
 	Grid-Color: black
-	Color: white
+	Chart-Color: white
 	Title: Title, background and border
 	Axes-Color: black
 	Title-Color: red

@@ -96,10 +96,19 @@
   (save-excursion
     (goto-char (point-min))
     ;; First headers.
-    (let ((data (eplot--parse-headers))
-	  plots)
+    (let* ((data (eplot--parse-headers))
+	   (plot-headers
+	    ;; It's OK not to separate the plot headers from the chart
+	    ;; headers.  Collect them here, if any.
+	    (cl-loop for elem in '( smoothing gradient style fill color size
+				    data-format fill-border data)
+		     for value = (eplot--vs elem data)
+		     when value
+		     collect (cons elem value)))
+	   plots)
       ;; Then the values.
-      (while-let ((plot (eplot--parse-values)))
+      (while-let ((plot (eplot--parse-values nil plot-headers)))
+	(setq plot-headers nil)
 	(push plot plots))
       (when plots
 	(push (cons :plots (nreverse plots)) data))
@@ -119,13 +128,13 @@
       (push (cons type value) data))
     data))
 
-(defun eplot--parse-values (&optional in-headers)
+(defun eplot--parse-values (&optional in-headers data-headers)
   ;; Skip past separator lines.
   (while (looking-at "[ \t]*\n")
     (forward-line 1))
   (let* ((values nil)
 	 ;; We may have plot-specific headers.
-	 (headers (eplot--parse-headers))
+	 (headers (nconc (eplot--parse-headers) data-headers))
 	 (two-values (or (eplot--vs 'data-format headers)
 			 (eplot--vs 'data-format in-headers)))
 	 extra-value)
@@ -222,8 +231,8 @@
 	 (font-size (eplot--vn 'font data (if compact 12 14)))
 	 (xs (- width margin-left margin-right))
 	 (ys (- height margin-top margin-bottom))
-	 (color (eplot--vs 'color data (if dark "#c0c0c0" "black")))
-	 (axes-color (eplot--vs 'axes-color data color))
+	 (chart-color (eplot--vs 'chart-color data (if dark "#c0c0c0" "black")))
+	 (axes-color (eplot--vs 'axes-color data chart-color))
 	 (grid-color (eplot--vs 'grid-color data
 				(if (and dark (not bar-chart))
 				    "#404040"
@@ -257,7 +266,7 @@
 	(svg-rectangle svg 0 0 width height
 		       :stroke-width (or border-width 1)
 		       :fill "none"
-		       :stroke-color (or border-color color))))
+		       :stroke-color (or border-color chart-color))))
     (when-let ((frame-color (eplot--vs 'frame-color data)))
       (svg-rectangle svg margin-left margin-top xs ys
 		     :stroke-width (eplot--vn 'frame-width data 1)
@@ -329,12 +338,13 @@
 		       (if bar-chart
 			   (length values)
 			 (1- (length values)))))
-	   (y-ticks (eplot--get-ticks
-		     min
-		     ;; We get 2% more ticks to check whether we
-		     ;; should extend max.
-		     (if (eplot--vn 'max data) max (* max 1.02))
-		     ys))
+	   (y-ticks (and max
+			 (eplot--get-ticks
+			  min
+			  ;; We get 2% more ticks to check whether we
+			  ;; should extend max.
+			  (if (eplot--vn 'max data) max (* max 1.02))
+			  ys)))
 	   x-tick-step x-label-step
 	   y-tick-step y-label-step)
 
@@ -344,9 +354,10 @@
 	(let ((xt (eplot--compute-x-ticks xs x-values font-size)))
 	  (setq x-tick-step (car xt)
 		x-label-step (cadr xt))))
-      (let ((yt (eplot--compute-y-ticks ys y-ticks font-size)))
-	(setq y-tick-step (car yt)
-	      y-label-step (cadr yt)))
+      (when max
+	(let ((yt (eplot--compute-y-ticks ys y-ticks font-size)))
+	  (setq y-tick-step (car yt)
+		y-label-step (cadr yt))))
       ;; If max is less than 2% off from a pleasant number, then
       ;; increase max.
       (unless (eplot--vn 'max data)
@@ -358,22 +369,23 @@
 			  ;; Chop off any further ticks.
 			  (setcdr (member tick y-ticks) nil))))
 
-      (if (and (not (eplot--vn 'min data))
-	       (< (car y-ticks) min))
-	  (setq min (car y-ticks))
-	;; We may be extending the bottom of the chart to get pleasing
-	;; numbers.  We don't want to be drawing the chart on top of the
-	;; X axis, because the chart won't be visible there.
-	(when (and (<= min (car y-ticks))
-		   ;; But not if we start at origo, because that just
-		   ;; looks confusing.
-		   (not (zerop min)))
-	  (setq min (- (car y-ticks)
-		       ;; 2% of the value range.
-		       (* 0.02 (- (car (last y-ticks)) (car y-ticks)))))))
+      (when y-ticks
+	(if (and (not (eplot--vn 'min data))
+		 (< (car y-ticks) min))
+	    (setq min (car y-ticks))
+	  ;; We may be extending the bottom of the chart to get pleasing
+	  ;; numbers.  We don't want to be drawing the chart on top of the
+	  ;; X axis, because the chart won't be visible there.
+	  (when (and (<= min (car y-ticks))
+		     ;; But not if we start at origo, because that just
+		     ;; looks confusing.
+		     (not (zerop min)))
+	    (setq min (- (car y-ticks)
+			 ;; 2% of the value range.
+			 (* 0.02 (- (car (last y-ticks)) (car y-ticks))))))))
       
       (when (eq grid-position 'top)
-	(eplot--draw-plots data color height margin-bottom margin-left
+	(eplot--draw-plots data chart-color height margin-bottom margin-left
 			   min max xs ys stride svg margin-top))
 
       ;; Make X ticks.
@@ -462,7 +474,7 @@
 		:stroke axes-color)
 
       (when (eq grid-position 'bottom)
-	(eplot--draw-plots data color height margin-bottom margin-left
+	(eplot--draw-plots data chart-color height margin-bottom margin-left
 			   min max xs ys stride svg margin-top))
 
       (when-let ((frame-color (eplot--vs 'frame-color data)))
@@ -966,9 +978,6 @@ nil means `top-down'."
 
 ;;; Todo:
 ;; Choose which column of data to use
-
-;; Headers for first plot should be able to put in real headers.
-;; So deconfuse overlapping names.
 
 ;; Allow several gradient stops
 
