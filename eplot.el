@@ -53,7 +53,7 @@
       (with-current-buffer "*eplot*"
 	(eplot-update)
 	(when-let ((win (get-buffer-window "*eplot*" t)))
-	  (set-window-point win (point-max))))
+	  (set-window-point win (point-min))))
     ;; Normal case.
     (let ((data (eplot--parse-buffer))
 	  (data-buffer (current-buffer)))
@@ -69,7 +69,7 @@
 	  (eplot--render data)
 	  (insert "\n")
 	  (when-let ((win (get-buffer-window "*eplot*" t)))
-	    (set-window-point win (point-max))))))))
+	    (set-window-point win (point-min))))))))
 
 (defun eplot-eval-and-update ()
   "Helper command when developing."
@@ -235,7 +235,8 @@
 				      (if dark "#101010" "white")))
 	 ;; Default bar charts to always start at zero.
 	 (min (eplot--vn 'min data (and bar-chart 0)))
-	 (max (eplot--vn 'max data)))
+	 (max (eplot--vn 'max data))
+	 x-type x-values x-ticks)
     ;; Add background.
     (svg-rectangle svg 0 0 width height
 		   :fill background-color)
@@ -300,6 +301,18 @@
 				 (seq-map
 				  (lambda (v) (plist-get v :extra-value))
 				  values)))))
+	  ;; Set the x-values based on the first plot.
+	  (unless x-values
+	    (cond
+	     (t
+	      ;; This is a one-dimensional plot -- we don't have X
+	      ;; values, really, so we just do zero to (1- (length
+	      ;; values)).
+	      (setq x-type 'one-dimensional
+		    x-values (cl-loop for i from 0
+				      repeat (length values)
+				      collect i)
+		    x-ticks x-values))))
 	  (unless set-min
 	    (setq min (min (or min 1.0e+INF) (seq-min vals))))
 	  (unless set-max
@@ -311,18 +324,20 @@
 		       (if bar-chart
 			   (length values)
 			 (1- (length values)))))
-	   (x-ticks (eplot--get-ticks 0 (length values) xs bar-chart))
 	   (y-ticks (eplot--get-ticks
 		     min
 		     ;; We get 2% more ticks to check whether we
 		     ;; should extend max.
 		     (if (eplot--vn 'max data) max (* max 1.02))
 		     ys))
-	   ;; This is how often we should output labels on the ticks.
-	   (step (if bar-chart
-		     1
-		   (ceiling (e/ (length x-ticks) (e/ width 70))))))
+	   x-tick-step x-label-step)
 
+      (if bar-chart
+	  (setq x-tick-step 1
+		x-label-step 1)
+	(let ((xt (eplot--compute-x-ticks xs x-values font-size)))
+	  (setq x-tick-step (car xt)
+		x-label-step (cadr xt))))
       ;; If max is less than 2% off from a pleasant number, then
       ;; increase max.
       (unless (eplot--vn 'max data)
@@ -366,22 +381,27 @@
 	       when (> px (- width margin-right))
 	       return nil
 	       do
-	       ;; Draw little tick.
-	       (unless bar-chart
-		 (svg-line svg
-			   px (- height margin-bottom)
-			   px (+ (- height margin-bottom)
-				 (if (zerop (e% x step))
-				     4
-				   2))
-			   :stroke legend-color))
-	       (when (or (eq grid 'on) (eq grid 'x))
-		 (svg-line svg px margin-top
-			   px (- height margin-bottom)
-			   :opacity grid-opacity
-			   :stroke grid-color))
-	       when (and (zerop (e% x step))
+	       (when (zerop (e% x x-tick-step))
+		 ;; Draw little tick.
+		 (unless bar-chart
+		   (svg-line svg
+			     px (- height margin-bottom)
+			     px (+ (- height margin-bottom)
+				   (if (zerop (e% x x-tick-step))
+				       4
+				     2))
+			     :stroke legend-color))
+		 (when (or (eq grid 'on) (eq grid 'x))
+		   (svg-line svg px margin-top
+			     px (- height margin-bottom)
+			     :opacity grid-opacity
+			     :stroke grid-color)))
+	       when (and (zerop (e% x x-label-step))
+			 ;; We want to skip marking the first X value
+			 ;; unless we're a bar chart or we're a one
+			 ;; dimensional chart.
 			 (or bar-chart
+			     (eq x-type 'one-dimensional)
 			     (and (not (zerop x)) (not (zerop i)))))
 	       do (svg-text svg label
 			    :font-family font
@@ -502,6 +522,56 @@
     (format "%.1f" y))
    (t
     (format "%s" y))))
+
+(defun eplot--format-value (value)
+  (format "%s" value))
+
+(defun eplot--compute-x-ticks (xs x-values font-size)
+  (let* (;;(min (car x-values))
+	 (max (car (last x-values)))
+	 (count (length x-values))
+	 (max-print (eplot--format-value max))
+	 ;; We want each label to be spaced at least as long apart as
+	 ;; the length of the longest label, with room for two blanks
+	 ;; in between.
+	 (min-spacing (* (+ (length max-print) 2) (e/ font-size 2))))
+    (cond
+     ;; We have room for every X value.
+     ((< (* count min-spacing) xs)
+      (list 1 1))
+     ;; We have to prune X labels, but not grid lines.  (We shouldn't
+     ;; have a grid line more than every 10 pixels.)
+     ((< (* count 10) xs)
+      (list 1
+	    (let ((label-step 1))
+		(while (> (/ count label-step) (/ xs min-spacing))
+		  (setq label-step (eplot--next-weed label-step)))
+		label-step)))
+     ;; We have to reduce both grid lines and labels.
+     (t
+      (let ((tick-step 1))
+	(while (> (/ count tick-step) (/ xs 10))
+	  (setq tick-step (eplot--next-weed tick-step)))
+	(list tick-step
+	      (let ((label-step tick-step))
+		(while (> (/ count label-step) (/ xs min-spacing))
+		  (setq label-step (eplot--next-weed label-step))
+		  (while (not (zerop (% label-step tick-step)))
+		    (setq label-step (eplot--next-weed label-step))))
+		label-step)))))))
+
+(defun eplot--next-weed (weed)
+  (let* ((digits (truncate (log weed 10)))
+	 (series (/ weed (expt 10 digits))))
+    (cond
+     ((= series 1)
+      (* 2 (expt 10 digits)))
+     ((= series 2)
+      (* 5 (expt 10 digits)))
+     ((= series 5)
+      (* 10 (expt 10 digits)))
+     (t
+      (error "Invalid weed: %s" weed)))))
 
 (defun eplot--parse-gradient (string)
   (when string
