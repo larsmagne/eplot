@@ -800,13 +800,20 @@
 	       (push (cons lpx (- height margin-bottom)) polygon))
 	     (let ((id (format "gradient-%d" plot-number)))
 	       (eplot--gradient svg id 'linear
-				`((0 . ,(eplot--vs 'from gradient))
-				  (100 . ,(eplot--vs 'to gradient)))
+				(eplot--stops (eplot--vs 'from gradient)
+					      (eplot--vs 'to gradient))
 				(eplot--vs 'direction gradient))
 	       (svg-polygon svg (nreverse polygon)
 			    :gradient id
 			    :stroke (eplot--vs 'fill-border headers))
 	       (setq polygon nil)))))
+
+(defun eplot--stops (from to)
+  (append `((0 . ,from))
+	  (cl-loop for (pct col) on (split-string to "-") by #'cddr
+		   collect (if col
+			       (cons (string-to-number pct) col)
+			     (cons 100 pct)))))
 
 (defun eplot--gradient (svg id type stops &optional direction)
   "Add a gradient with ID to SVG.
@@ -978,8 +985,6 @@ nil means `top-down'."
 
 ;;; Todo:
 ;; Choose which column of data to use
-
-;; Allow several gradient stops
 
 ;; Date plot
 ;; Time plot

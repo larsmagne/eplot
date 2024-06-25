@@ -313,6 +313,17 @@ top of the charts.
 
 Go wild.
 
+	Gradient: black 25-purple-50-white-75-purple-black
+	Data: data1.txt
+
+![chart-gradient-more-stops.plt](/images/chart-gradient-more-stops.png)
+
+You can also have more stops.  In that case, the second element
+specifies the percentage points of where each color ends, so the above
+starts with black, then at 25% it's purple, then at 50% it's white,
+then it's back to purple again at 75%, before ending up at black at a
+100% (but you don't have to include the 100% here -- it's understood).
+
 	Grid-Position: top
 	Grid-Color: black
 	Grid-Opacity: 0.2
