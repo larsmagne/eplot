@@ -571,15 +571,17 @@
 	 ;; We want each label to be spaced at least as long apart as
 	 ;; the length of the longest label, with room for two blanks
 	 ;; in between.
-	 (min-spacing (* font-size 0.9)))
+	 (min-spacing (* font-size 0.9))
+	 (digits (eplot--decimal-digits (- (cadr y-values) (car y-values))))
+	 (every (e/ 1 (expt 10 digits))))
     (cond
      ;; We have room for every X value.
      ((< (* count min-spacing) ys)
-      (list 1 1))
+      (list every every))
      ;; We have to prune Y labels, but not grid lines.  (We shouldn't
      ;; have a grid line more than every 10 pixels.)
      ((< (* count 10) ys)
-      (list 1
+      (list every
 	    (let ((label-step 1))
 		(while (> (/ count label-step) (/ ys min-spacing))
 		  (setq label-step (eplot--next-weed label-step)))
