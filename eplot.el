@@ -854,3 +854,7 @@ nil means `top-down'."
 ;; So deconfuse overlapping names.
 
 ;; Allow several gradient stops
+
+;; Date plot
+;; Time plot
+;; 2D plot
