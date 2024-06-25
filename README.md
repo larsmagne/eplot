@@ -198,6 +198,18 @@ the data in between:
 This is the same data set, but in "dark mode", and with a gradient
 between the values.  Oh, and a border, because why not.
 
+	Data-Column: 2
+	41     57.551391
+	42.1    59.88006
+	42.1    59.88006
+	...
+
+![chart-second-column.plt](/images/chart-second-column.png)
+
+It can sometimes be convenient to have several data sets in the same
+file, but in different columns.  You can use the Data-Column header to
+specify which column to plot.
+
 OK, there's a lot of details about the plot you can specify.  Here's
 an example:
 
