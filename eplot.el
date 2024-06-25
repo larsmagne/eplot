@@ -330,7 +330,8 @@
 		     ;; should extend max.
 		     (if (eplot--vn 'max data) max (* max 1.02))
 		     ys))
-	   x-tick-step x-label-step)
+	   x-tick-step x-label-step
+	   y-tick-step y-label-step)
 
       (if bar-chart
 	  (setq x-tick-step 1
@@ -338,6 +339,9 @@
 	(let ((xt (eplot--compute-x-ticks xs x-values font-size)))
 	  (setq x-tick-step (car xt)
 		x-label-step (cadr xt))))
+      (let ((yt (eplot--compute-y-ticks ys y-ticks font-size)))
+	(setq y-tick-step (car yt)
+	      y-label-step (cadr yt)))
       ;; If max is less than 2% off from a pleasant number, then
       ;; increase max.
       (unless (eplot--vn 'max data)
@@ -349,16 +353,19 @@
 			  ;; Chop off any further ticks.
 			  (setcdr (member tick y-ticks) nil))))
 
-      ;; We may be extending the bottom of the chart to get pleasing
-      ;; numbers.  We don't want to be drawing the chart on top of the
-      ;; X axis, because the chart won't be visible there.
-      (when (and (<= min (car y-ticks))
-		 ;; But not if we start at origo, because that just
-		 ;; looks confusing.
-		 (not (zerop min)))
-	(setq min (- (car y-ticks)
-		     ;; 2% of the value range.
-		     (* 0.02 (- (car (last y-ticks)) (car y-ticks))))))
+      (if (and (not (eplot--vn 'min data))
+	       (< (car y-ticks) min))
+	  (setq min (car y-ticks))
+	;; We may be extending the bottom of the chart to get pleasing
+	;; numbers.  We don't want to be drawing the chart on top of the
+	;; X axis, because the chart won't be visible there.
+	(when (and (<= min (car y-ticks))
+		   ;; But not if we start at origo, because that just
+		   ;; looks confusing.
+		   (not (zerop min)))
+	  (setq min (- (car y-ticks)
+		       ;; 2% of the value range.
+		       (* 0.02 (- (car (last y-ticks)) (car y-ticks)))))))
       
       (when (eq grid-position 'top)
 	(eplot--draw-plots data color height margin-bottom margin-left
@@ -415,38 +422,31 @@
 				      (if compact 3 5)
 				    2))))
       ;; Make Y ticks.
-      (let* ((ideal (1+ (ceiling (e/ ys font-size))))
-	     factor)
-	(setq factor (eplot--pleasing-numbers
-		      (ceiling (e/ ys ideal))))
-	;; If we get a too big factor here, we decrease it.
-	(when (< (e/ (- max min) factor) 2)
-	  (setq factor (eplot--pleasing-numbers
-			(ceiling (e/ (length y-ticks) ideal 2)))))
-	(cl-loop for y in y-ticks
-		 for i from 0
-		 for py = (- (- height margin-bottom)
-			     (* (/ (- (* 1.0 y) min) (- max min))
-				ys))
-		 do
-		 (when (< margin-top py (- height margin-bottom))
+      (cl-loop for y in y-ticks
+	       for i from 0
+	       for py = (- (- height margin-bottom)
+			   (* (/ (- (* 1.0 y) min) (- max min))
+			      ys))
+	       do
+	       (when (and (<= margin-top py (- height margin-bottom))
+			  (zerop (% i y-tick-step)))
+		 (svg-line svg margin-left py
+			   (- margin-left 3) py
+			   :stroke-color axes-color)
+		 (when (or (eq grid 'on) (eq grid 'y))
 		   (svg-line svg margin-left py
-			     (- margin-left 3) py
-			     :stroke-color axes-color)
-		   (when (or (eq grid 'on) (eq grid 'y))
-		     (svg-line svg margin-left py
-			       (- width margin-right) py
-			       :opacity grid-opacity
-			       :stroke-color grid-color))
-		   (when (zerop (e% y factor))
-		     (svg-text svg (eplot--format-y
-				    y factor nil)
-			       :font-family font
-			       :text-anchor "end"
-			       :font-size font-size
-			       :fill legend-color
-			       :x (- margin-left 6)
-			       :y (+ py (/ font-size 2) -2))))))
+			     (- width margin-right) py
+			     :opacity grid-opacity
+			     :stroke-color grid-color))
+		 (when (zerop (% i y-label-step))
+		   (svg-text svg (eplot--format-y
+				  y (- (cadr y-ticks) (car y-ticks)) nil)
+			     :font-family font
+			     :text-anchor "end"
+			     :font-size font-size
+			     :fill legend-color
+			     :x (- margin-left 6)
+			     :y (+ py (/ font-size 2) -2)))))
       
       ;; Draw axes.
       (svg-line svg margin-left margin-top margin-left
@@ -502,7 +502,7 @@
 
 (defun eplot--format-y (y spacing whole)
   (cond
-   ((or (= (ceiling (* spacing 100)) 10) (= (ceiling (* spacing 100)) 20))
+   ((or (= (round (* spacing 100)) 10) (= (round (* spacing 100)) 20))
     (format "%.1f" y))
    ((< spacing 0.01)
     (format "%.3f" y))
@@ -555,6 +555,38 @@
 	(list tick-step
 	      (let ((label-step tick-step))
 		(while (> (/ count label-step) (/ xs min-spacing))
+		  (setq label-step (eplot--next-weed label-step))
+		  (while (not (zerop (% label-step tick-step)))
+		    (setq label-step (eplot--next-weed label-step))))
+		label-step)))))))
+
+(defun eplot--compute-y-ticks (ys y-values font-size)
+  (let* (;;(min (car x-values))
+	 (count (length y-values))
+	 ;; We want each label to be spaced at least as long apart as
+	 ;; the length of the longest label, with room for two blanks
+	 ;; in between.
+	 (min-spacing (* font-size 2)))
+    (cond
+     ;; We have room for every X value.
+     ((< (* count min-spacing) ys)
+      (list 1 1))
+     ;; We have to prune Y labels, but not grid lines.  (We shouldn't
+     ;; have a grid line more than every 10 pixels.)
+     ((< (* count 10) ys)
+      (list 1
+	    (let ((label-step 1))
+		(while (> (/ count label-step) (/ ys min-spacing))
+		  (setq label-step (eplot--next-weed label-step)))
+		label-step)))
+     ;; We have to reduce both grid lines and labels.
+     (t
+      (let ((tick-step 1))
+	(while (> (/ count tick-step) (/ ys 10))
+	  (setq tick-step (eplot--next-weed tick-step)))
+	(list tick-step
+	      (let ((label-step tick-step))
+		(while (> (/ count label-step) (/ ys min-spacing))
 		  (setq label-step (eplot--next-weed label-step))
 		  (while (not (zerop (% label-step tick-step)))
 		    (setq label-step (eplot--next-weed label-step))))
