@@ -36,6 +36,9 @@
 (defvar-keymap eplot-mode-map
   "g" #'eplot-update)
 
+(defvar eplot-default-size '(600 400)
+  "Default size for plots without a specified size.")
+
 (defvar eplot--data-buffer nil)
 
 (defun eplot ()
@@ -194,15 +197,17 @@
 (defun eplot--render (data &optional return-image)
   (let* ((factor (image-compute-scaling-factor))
 	 (width (eplot--vn 'width data
-			   (/ (* (window-pixel-width
- 				  (get-buffer-window "*eplot*" t))
-				 0.9)
-			      factor)))
+			   (or (car eplot-default-size)
+			       (/ (* (window-pixel-width
+ 				      (get-buffer-window "*eplot*" t))
+				     0.9)
+				  factor))))
 	 (height (eplot--vn 'height data
-			    (/ (* (window-pixel-height
-				   (get-buffer-window "*eplot*" t))
-				  0.9)
-			       factor)))
+			    (or (cadr eplot-default-size)
+				(/ (* (window-pixel-height
+				       (get-buffer-window "*eplot*" t))
+				      0.9)
+				   factor))))
 	 (format (eplot--vy 'format data 'normal))
 	 (layout (eplot--vy 'layout data 'normal))
 	 (dark (eq (eplot--vy 'mode data) 'dark))
@@ -429,7 +434,7 @@
 			      ys))
 	       do
 	       (when (and (<= margin-top py (- height margin-bottom))
-			  (zerop (% i y-tick-step)))
+			  (zerop (e% y y-tick-step)))
 		 (svg-line svg margin-left py
 			   (- margin-left 3) py
 			   :stroke-color axes-color)
@@ -438,7 +443,7 @@
 			     (- width margin-right) py
 			     :opacity grid-opacity
 			     :stroke-color grid-color))
-		 (when (zerop (% i y-label-step))
+		 (when (zerop (e% y y-label-step))
 		   (svg-text svg (eplot--format-y
 				  y (- (cadr y-ticks) (car y-ticks)) nil)
 			     :font-family font
@@ -566,7 +571,7 @@
 	 ;; We want each label to be spaced at least as long apart as
 	 ;; the length of the longest label, with room for two blanks
 	 ;; in between.
-	 (min-spacing (* font-size 2)))
+	 (min-spacing (* font-size 0.9)))
     (cond
      ;; We have room for every X value.
      ((< (* count min-spacing) ys)
@@ -901,11 +906,11 @@ nil means `top-down'."
 					      "plt\\'"))
 	       for i from 0
 	       when (and (cl-plusp i)
-			 (zerop (% i 5)))
+			 (zerop (% i 4)))
 	       do (insert "\n")
 	       (svg-insert-image spacer)
 	       (insert "\n")
-	       do (let ((image-scaling-factor 0.95)
+	       do (let ((image-scaling-factor 1.2)
 			(start (point)))
 		    (eplot-parse-and-insert file)
 		    ;; So that you can hover over a chart and see its
