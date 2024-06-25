@@ -10,7 +10,7 @@ Here's an example...
 And here's another.
 
 But let's start from the start.  Here's a trivial example,
-trivial.plt:
+trivial-very-short.plt:
 
 	41
 	42.1
@@ -18,7 +18,7 @@ trivial.plt:
 
 Then say `M-x eplot' in this buffer, and you'll get this displayed:
 
-![trivial.plt](/images/trivial.png)
+![trivial-very-short.plt](/images/trivial-very-short.png)
 
 To tweak the look of the chart, you add header lines to the buffer.
 In most of the examples below, the following header lines are present,
