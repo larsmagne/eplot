@@ -22,12 +22,12 @@
 
 (require 'cl-lib)
 
-(setq auto-mode-alist (cons '("\\.plt" . eplot-edit-mode) auto-mode-alist))
+(setq auto-mode-alist (cons '("\\.plt" . eplot-mode) auto-mode-alist))
 
-(defvar-keymap eplot-edit-mode-map
+(defvar-keymap eplot-mode-map
   "C-c C-c" #'eplot-update-view-buffer)
 
-(define-derived-mode eplot-edit-mode text-mode "eplot")
+(define-derived-mode eplot-mode text-mode "eplot")
 
 (define-minor-mode eplot-minor-mode
   "Minor mode to issue commands from an eplot data buffer."
@@ -36,10 +36,10 @@
 (defvar-keymap eplot-minor-mode-map
   "H-l" #'eplot-eval-and-update)
 
-(define-derived-mode eplot-mode special-mode "eplot"
+(define-derived-mode eplot-view-mode special-mode "eplot view"
   "Major mode for displaying eplots.")
 
-(defvar-keymap eplot-mode-map
+(defvar-keymap eplot-view-mode-map
   "g" #'eplot-update)
 
 (defvar eplot-default-size '(600 400)
@@ -71,8 +71,8 @@
 	  (pop-to-buffer "*eplot*"))
 	(let ((inhibit-read-only t))
 	  (erase-buffer)
-	  (unless (eq major-mode 'eplot-mode)
-	    (eplot-mode))
+	  (unless (eq major-mode 'eplot-view-mode)
+	    (eplot-view-mode))
 	  (setq-local eplot--data-buffer data-buffer)
 	  (eplot--render data)
 	  (insert "\n")
