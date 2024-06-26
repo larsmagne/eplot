@@ -263,7 +263,8 @@
 	 (max (eplot--vn 'max data))
 	 x-type x-values x-ticks stride
 	 x-min x-max
-	 (possibly-adjust-min t))
+	 (possibly-adjust-min t)
+	 print-format)
     ;; Add background.
     (svg-rectangle svg 0 0 width height
 		   :fill background-color)
@@ -330,10 +331,28 @@
 				  values)))))
 	  ;; Set the x-values based on the first plot.
 	  (unless x-values
+	    (setq print-format (cond
+				((memq 'date data-format) 'date)
+				((memq 'time data-format) 'date)
+				(t 'number)))
 	    (cond
 	     ((memq 'xy data-format)
 	      (setq x-values (cl-loop for val in values
 				      collect (plist-get val :x))
+		    x-min (seq-min x-values)
+		    x-max (seq-max x-values)
+		    x-ticks (eplot--get-ticks x-min x-max xs)
+		    stride (e/ xs (- x-max x-min))))
+	     ((memq 'date data-format)
+	      (setq x-values
+		    (cl-loop for val in values
+			     collect
+			     (time-convert
+			      (encode-time
+			       (decoded-time-set-defaults
+				(iso8601-parse-date
+				 (format "%d" (plist-get val :x)))))
+			      'integer))
 		    x-min (seq-min x-values)
 		    x-max (seq-max x-values)
 		    x-ticks (eplot--get-ticks x-min x-max xs)
@@ -375,7 +394,7 @@
       (if bar-chart
 	  (setq x-tick-step 1
 		x-label-step 1)
-	(let ((xt (eplot--compute-x-ticks xs x-values font-size)))
+	(let ((xt (eplot--compute-x-ticks xs x-values font-size print-format)))
 	  (setq x-tick-step (car xt)
 		x-label-step (cadr xt))))
       (when max
@@ -420,7 +439,7 @@
 			       (eplot--vs 'label
 					  (plist-get (elt values x) :settings)
 					  (format "%s" x))
-			     (format "%s" x))
+			     (eplot--format-value x print-format))
 	       for px = (if bar-chart
 			    (+ margin-left (* x stride) (/ stride 2)
 			       (/ (* stride 0.1) 2))
@@ -437,7 +456,7 @@
 		   (svg-line svg
 			     px (- height margin-bottom)
 			     px (+ (- height margin-bottom)
-				   (if (zerop (e% x x-tick-step))
+				   (if (zerop (e% x x-label-step))
 				       4
 				     2))
 			     :stroke legend-color))
@@ -568,14 +587,22 @@
    (t
     (format "%s" y))))
 
-(defun eplot--format-value (value)
-  (format "%s" value))
+(defun eplot--format-value (value print-format)
+  (cond
+   ((eq print-format 'date)
+    (format-time-string "%Y-%m-%d" value))
+   ((eq print-format 'year)
+    (format-time-string "%Y" value))
+   ((eq print-format 'time)
+    (format-time-string "%H:%M:%S" value))
+   (t
+    (format "%s" value))))
 
-(defun eplot--compute-x-ticks (xs x-values font-size)
+(defun eplot--compute-x-ticks (xs x-values font-size print-format)
   (let* ((min (seq-min x-values))
 	 (max (seq-max x-values))
 	 (count (length x-values))
-	 (max-print (eplot--format-value max))
+	 (max-print (eplot--format-value max print-format))
 	 ;; We want each label to be spaced at least as long apart as
 	 ;; the length of the longest label, with room for two blanks
 	 ;; in between.
