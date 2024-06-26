@@ -263,8 +263,9 @@
 	 (max (eplot--vn 'max data))
 	 x-type x-values x-ticks stride
 	 x-min x-max
+	 x-tick-step x-label-step
 	 (possibly-adjust-min t)
-	 print-format)
+	 print-format inhibit-compute-x-step)
     ;; Add background.
     (svg-rectangle svg 0 0 width height
 		   :fill background-color)
@@ -355,8 +356,13 @@
 			      'integer))
 		    x-min (seq-min x-values)
 		    x-max (seq-max x-values)
-		    x-ticks (eplot--get-ticks x-min x-max xs)
-		    stride (e/ xs (- x-max x-min))))
+		    stride (e/ xs (- x-max x-min))
+		    inhibit-compute-x-step t)
+	      (let ((xs (eplot--get-date-ticks x-min x-max)))
+		(setq x-ticks (car xs)
+		      print-format (cadr xs)
+		      x-tick-step 1
+		      x-label-step 1)))
 	     (t
 	      ;; This is a one-dimensional plot -- we don't have X
 	      ;; values, really, so we just do zero to (1- (length
@@ -388,15 +394,16 @@
 			  ;; should extend max.
 			  (if (eplot--vn 'max data) max (* max 1.02))
 			  ys)))
-	   x-tick-step x-label-step
 	   y-tick-step y-label-step)
 
       (if bar-chart
 	  (setq x-tick-step 1
 		x-label-step 1)
-	(let ((xt (eplot--compute-x-ticks xs x-values font-size print-format)))
-	  (setq x-tick-step (car xt)
-		x-label-step (cadr xt))))
+	(unless inhibit-compute-x-step
+	  (let ((xt (eplot--compute-x-ticks
+		     xs x-values font-size print-format)))
+	    (setq x-tick-step (car xt)
+		  x-label-step (cadr xt)))))
       (when max
 	(let ((yt (eplot--compute-y-ticks ys y-ticks font-size)))
 	  (setq y-tick-step (car yt)
@@ -961,6 +968,65 @@ nil means `top-down'."
 	    (- fmin (% fmin feven)))))
     (cl-loop for x from start upto (* max factor) by feven
 	     collect (e/ x factor))))
+
+(defun eplot--get-date-ticks (start end)
+  (let* ((secs (* 60 60 24))
+	 (sday (/ start secs))
+	 (eday (/ end secs))
+	 (duration (- eday sday)))
+    (cond
+     ((< duration 24)
+      (list
+       (cl-loop for date from sday upto eday
+		collect (* date secs))
+       'date))
+     ((< duration 62)
+      (list
+       (cl-loop for date from sday upto eday
+		for time = (* date secs)
+		;; Collect Mondays.
+		when (= (decoded-time-weekday (decode-time time)) 1)
+		collect time)
+       'date))
+     ((< duration (* 31 6))
+      (list
+       (cl-loop for date from sday upto eday
+		for time = (* date secs)
+		for decoded = (decode-time time)
+		;; Collect 1st and 15th.
+		when (or (= (decoded-time-day decoded) 1)
+			 (= (decoded-time-day decoded) 15))
+		collect time)
+       'date))
+     ((< duration (* 365 2))
+      (list
+       (cl-loop for date from sday upto eday
+		for time = (* date secs)
+		for decoded = (decode-time time)
+		;; Collect 1st
+		when (= (decoded-time-day decoded) 15)
+		collect time)
+       'date))
+     ((< duration (* 365 4))
+      (list
+       (cl-loop for date from sday upto eday
+		for time = (* date secs)
+		for decoded = (decode-time time)
+		;; Collect every quarter.
+		when (and (= (decoded-time-day decoded) 1)
+			  (memq (decoded-time-month decoded) '(1 4 7 10)))
+		collect time)
+       'date))
+     (t
+      (list
+       (cl-loop for date from sday upto eday
+		for time = (* date secs)
+		for decoded = (decode-time time)
+		;; Collect every Jan 1st.
+		when (and (= (decoded-time-day decoded) 1)
+			  (= (decoded-time-month decoded) 1))
+		collect time)
+       'year)))))
 
 (defun eplot--int (number)
   (cond
