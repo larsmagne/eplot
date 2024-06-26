@@ -265,7 +265,7 @@
 	 x-min x-max
 	 x-tick-step x-label-step
 	 (possibly-adjust-min t)
-	 print-format inhibit-compute-x-step)
+	 print-format inhibit-compute-x-step x-step-map)
     ;; Add background.
     (svg-rectangle svg 0 0 width height
 		   :fill background-color)
@@ -358,11 +358,12 @@
 		    x-max (seq-max x-values)
 		    stride (e/ xs (- x-max x-min))
 		    inhibit-compute-x-step t)
-	      (let ((xs (eplot--get-date-ticks x-min x-max)))
+	      (let ((xs (eplot--get-date-ticks x-min x-max xs font-size)))
 		(setq x-ticks (car xs)
 		      print-format (cadr xs)
 		      x-tick-step 1
-		      x-label-step 1)))
+		      x-label-step 1
+		      x-step-map (nth 2 xs))))
 	     (t
 	      ;; This is a one-dimensional plot -- we don't have X
 	      ;; values, really, so we just do zero to (1- (length
@@ -440,7 +441,14 @@
 			   min max xs ys stride svg margin-top
 			   x-values x-min x-max))
       ;; Make X ticks.
-      (cl-loop for x in x-ticks
+      (cl-loop for xv in (or x-step-map x-ticks)
+	       for x = (if (consp xv) (car xv) xv)
+	       for do-tick = (if (consp xv)
+				 (nth 1 xv)
+			       (zerop (e% x x-tick-step)))
+	       for do-label = (if (consp xv)
+				  (nth 2 xv)
+				(zerop (e% x x-label-step)))
 	       for i from 0
 	       for label = (if bar-chart
 			       (eplot--vs 'label
@@ -457,7 +465,7 @@
 	       ;; draw it.
 	       when (<= px (- width margin-right))
 	       do
-	       (when (zerop (e% x x-tick-step))
+	       (when do-tick
 		 ;; Draw little tick.
 		 (unless bar-chart
 		   (svg-line svg
@@ -472,7 +480,7 @@
 			     px (- height margin-bottom)
 			     :opacity grid-opacity
 			     :stroke grid-color)))
-	       (when (and (zerop (e% x x-label-step))
+	       (when (and do-label
 			  ;; We want to skip marking the first X value
 			  ;; unless we're a bar chart or we're a one
 			  ;; dimensional chart.
@@ -969,64 +977,84 @@ nil means `top-down'."
     (cl-loop for x from start upto (* max factor) by feven
 	     collect (e/ x factor))))
 
-(defun eplot--get-date-ticks (start end)
+(defun eplot--get-date-ticks (start end xs font-size)
   (let* ((secs (* 60 60 24))
 	 (sday (/ start secs))
 	 (eday (/ end secs))
-	 (duration (- eday sday)))
-    (cond
-     ((< duration 24)
-      (list
-       (cl-loop for date from sday upto eday
-		collect (* date secs))
-       'date))
-     ((< duration 62)
-      (list
-       (cl-loop for date from sday upto eday
-		for time = (* date secs)
-		;; Collect Mondays.
-		when (= (decoded-time-weekday (decode-time time)) 1)
-		collect time)
-       'date))
-     ((< duration (* 31 6))
-      (list
-       (cl-loop for date from sday upto eday
-		for time = (* date secs)
-		for decoded = (decode-time time)
-		;; Collect 1st and 15th.
-		when (or (= (decoded-time-day decoded) 1)
-			 (= (decoded-time-day decoded) 15))
-		collect time)
-       'date))
-     ((< duration (* 365 2))
-      (list
-       (cl-loop for date from sday upto eday
-		for time = (* date secs)
-		for decoded = (decode-time time)
-		;; Collect 1st
-		when (= (decoded-time-day decoded) 15)
-		collect time)
-       'date))
-     ((< duration (* 365 4))
-      (list
-       (cl-loop for date from sday upto eday
-		for time = (* date secs)
-		for decoded = (decode-time time)
-		;; Collect every quarter.
-		when (and (= (decoded-time-day decoded) 1)
-			  (memq (decoded-time-month decoded) '(1 4 7 10)))
-		collect time)
-       'date))
-     (t
-      (list
-       (cl-loop for date from sday upto eday
-		for time = (* date secs)
-		for decoded = (decode-time time)
-		;; Collect every Jan 1st.
-		when (and (= (decoded-time-day decoded) 1)
-			  (= (decoded-time-month decoded) 1))
-		collect time)
-       'year)))))
+	 (duration (- eday sday))
+	 (limits
+	  (list
+	   (list 24 'date
+		 (lambda (_d) t))
+	   (list 62 'date
+		 ;; Collect Mondays.
+		 (lambda (decoded)
+		   (= (decoded-time-weekday decoded) 1)))
+	   (list (* 31 6) 'date
+		 ;; Collect 1st and 15th.
+		 (lambda (decoded)
+		   (or (= (decoded-time-day decoded) 1)
+		       (= (decoded-time-day decoded) 15))))
+	   (list (* 365 2) 'date
+		 ;; Collect 1st of every month.
+		 (lambda (decoded)
+		   (= (decoded-time-day decoded) 1)))
+	   (list (* 365 4) 'date
+		 ;; Collect every quarter.
+		 (lambda (decoded)
+		   (and (= (decoded-time-day decoded) 1)
+			(memq (decoded-time-month decoded) '(1 4 7 10)))))
+	   (list (* 365 8) 'date
+		 ;; Collect every half year.
+		 (lambda (decoded)
+		   (and (= (decoded-time-day decoded) 1)
+			(memq (decoded-time-month decoded) '(1 7)))))
+	   (list 1.0e+INF 'year
+		 ;; Collect every Jan 1st.
+		 (lambda (decoded)
+		   (and (= (decoded-time-day decoded) 1)
+			(= (decoded-time-month decoded) 1)))))))
+    ;; First we collect the potential ticks.
+    (while (>= duration (caar limits))
+      (pop limits))
+    (let* ((x-ticks (cl-loop for date from sday upto eday
+			     for time = (* date secs)
+			     for decoded = (decode-time time)
+			     when (funcall (nth 2 (car limits)) decoded)
+			     collect time))
+	   (count (length x-ticks))
+	   (print-format (nth 1 (car limits)))
+	   (max-print (eplot--format-value (car x-ticks) print-format))
+	   (min-spacing (* (+ (length max-print) 2) (e/ font-size 2))))
+      (cond
+       ;; We have room for every X value.
+       ((< (* count min-spacing) xs)
+	(list x-ticks print-format))
+       ;; We have to prune X labels, but not grid lines.  (We shouldn't
+       ;; have a grid line more than every 10 pixels.)
+       ((< (* count 10) xs)
+	(pop limits)
+	(if (not limits)
+	    (let* ((year-ticks (mapcar (lambda (time)
+					 (decoded-time-year (decode-time time)))
+				       x-ticks))
+		   (xv (eplot--compute-x-ticks
+			xs year-ticks font-size print-format)))
+	      (let ((tick-step (car xv))
+		    (label-step (cadr xv)))
+		(list x-ticks 'year 
+		      (cl-loop for year in year-ticks
+			       for val in x-ticks
+			       collect (list val
+					     (zerop (% year tick-step))
+					     (zerop (% year label-step)))))))
+	  (list x-ticks 'print-format
+		(cl-loop for val in x-ticks
+			 collect (list val t
+				       (funcall (nth 2 (car limits)) val))))))
+       ;; We have to reduce both grid lines and labels.
+       (t
+	(list x-ticks print-format))))))
 
 (defun eplot--int (number)
   (cond
