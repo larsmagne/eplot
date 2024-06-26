@@ -23,6 +23,10 @@
 (require 'cl-lib)
 (require 'face-remap)
 
+(defvar eplot-font "sans-serif"
+  "The default font to use in the charts.
+This can be overridden with the `Font' header.")
+
 (setq auto-mode-alist (cons '("\\.plt" . eplot-mode) auto-mode-alist))
 
 (defvar-keymap eplot-mode-map
@@ -239,7 +243,7 @@
 	 (margin-top (eplot--vn 'margin-top data (if compact 20 40)))
 	 (margin-bottom (eplot--vn 'margin-bottom data (if compact 21 60)))
 	 (svg (svg-create width height))
-	 (font (eplot--vs 'font data "futural"))
+	 (font (eplot--vs 'font data eplot-font))
 	 (font-size (eplot--vn 'font data (if compact 12 14)))
 	 (xs (- width margin-left margin-right))
 	 (ys (- height margin-top margin-bottom))
