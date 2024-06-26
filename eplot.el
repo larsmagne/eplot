@@ -1045,10 +1045,13 @@ nil means `top-down'."
 					    (not (not
 						  (funcall (nth 2 (car limits))
 							   decoded)))))))
-		(when (< (* (seq-count (lambda (v) (nth 2 v)) candidate)
-			    min-spacing)
-			 xs)
-		  (throw 'found (list x-ticks print-format candidate))))
+		(setq print-format (nth 1 (car limits)))
+		(let ((min-spacing (* (+ (length max-print) 2)
+				      (e/ font-size 2))))
+		  (when (< (* (seq-count (lambda (v) (nth 2 v)) candidate)
+			      min-spacing)
+			   xs)
+		    (throw 'found (list x-ticks print-format candidate)))))
 	      (pop limits))
 	    (eplot--year-ticks x-ticks xs font-size))))
        ;; We have to reduce both grid lines and labels.
@@ -1172,3 +1175,5 @@ nil means `top-down'."
 
 ;; Date plot
 ;; Time plot
+
+;; Impulse width
