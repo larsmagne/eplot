@@ -219,6 +219,133 @@ This can be overridden with the `Font' header.")
       (mapcar #'intern (split-string (downcase value)))
     default))
 
+(defvar eplot--chart-headers nil)
+
+(defmacro eplot-def (args doc-string)
+  (declare (indent defun))
+  `(eplot--def ',(car args) ',(nth 2 args) ',(nth 3 args) ,doc-string))
+
+(defun eplot--def (name type default doc)
+  (setq eplot--chart-headers (delq (assq name eplot--chart-headers)
+				   eplot--chart-headers))
+  (push (list name
+	      :type type
+	      :default default
+	      :doc doc)
+	eplot--chart-headers))
+
+(eplot-def (width number)
+  "The width of the entire chart.")
+
+(eplot-def (height number)
+  "The height of the entire chart.")
+
+(eplot-def (format symbol normal)
+  "The overall format of the chart.
+Possible values are `normal' and `bar-chart'.")
+
+(eplot-def (layout symbol)
+  "The general layout of the chart.
+Possible values are `normal' and `compact'.")
+
+(eplot-def (mode symbol)
+  "Dark/light mode.
+Possible values are `dark' and `light'.")
+
+(eplot-def (margin-left number 70)
+  "The left margin.")
+
+(eplot-def (margin-right number 20)
+  "The right margin.")
+
+(eplot-def (margin-top number 40)
+  "The top margin.")
+
+(eplot-def (margin-bottom number 60)
+  "The bottom margin.")
+
+(eplot-def (x-axis-label-space number 5)
+  "The space between the X axis and the label.")
+
+(eplot-def (font string "sans-serif")
+  "The font to use in titles, labels and legends.")
+
+(eplot-def (chart-color string "black")
+  "The foreground color to use in plots, axes, legends, etc.
+This is used as the default, but can be overridden per thing.")
+
+(eplot-def (axes-color string (spec chart-color))
+  "The color of the axes.")
+
+(eplot-def (grid-color string "#e0e0e0")
+  "The color of the grid.")
+
+(eplot-def (grid symbol xy)
+  "What grid axes to do.
+Possible values are `xy', `x' and `y'.")
+
+(eplot-def (grid-opacity number)
+  "The opacity of the grid.
+This should either be nil or a value between 0 and 1, where 0 is
+fully transparent.")
+
+(eplot-def (legend-color string (spec chart-color))
+  "The color of legends (if any).")
+
+(eplot-def (label-color string (spec axes-color))
+  "The color of labels on the axes.")
+
+(eplot-def (surround-color string)
+  "The color between the plot area and the edges of the chart.")
+
+(eplot-def (border-color string)
+  "The color of the border of the chart, if any.")
+
+(eplot-def (border-width number)
+  "The width of the border of the chart, if any.")
+
+(eplot-def (frame-color string)
+  "The color of the frame of the plot, if any.")
+
+(eplot-def (min number)
+  "The minimum value in the chart.
+This is normally computed automatically, but can be overridden
+ with this spec.")
+
+(eplot-def (max number)
+  "The maximum value in the chart.
+This is normally computed automatically, but can be overridden
+ with this spec.")
+
+(eplot-def (title string)
+  "The title of the chart, if any.")
+
+(eplot-def (x-label string)
+  "The label of the X axis, if any.")
+
+(eplot-def (y-label string)
+  "The label of the X axis, if any.")
+
+(defvar eplot-compact-defaults
+  '((margin-left 30)
+    (margin-right 10)
+    (margin-top 20)
+    (margin-bottom 21)
+    (font-size 12)
+    (x-axis-label-space 3)))
+
+(defvar eplot-dark-defaults
+  '((chart-color "#c0c0c0")
+    (grid-color "#404040")
+    (background-color "#101010")
+    (label-color "#101010")))
+
+(defvar eplot-bar-chart-defaults
+  '((grid-position top)
+    (grid y)
+    (grid-opacity 0.2)
+    (min 0)))
+
 (defun eplot--render (data &optional return-image)
   (let* ((factor (image-compute-scaling-factor))
 	 (width (eplot--vn 'width data
