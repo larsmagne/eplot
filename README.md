@@ -1,6 +1,9 @@
 eplot is an Emacs package for generating charts and plots
 interactively.
 
+This is a work in progress and is probably not very useful generally
+yet, but here's the documentation so far:
+
 ![movie-plot.plt](/images/movie-plot.png)
 
 Here's an example...
