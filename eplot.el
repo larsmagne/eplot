@@ -29,6 +29,8 @@ This can be overridden with the `Font' header.")
 
 (setq auto-mode-alist (cons '("\\.plt" . eplot-mode) auto-mode-alist))
 
+;;; eplot modes.
+
 (defvar-keymap eplot-mode-map
   "C-c C-c" #'eplot-update-view-buffer)
 
@@ -89,6 +91,8 @@ This can be overridden with the `Font' header.")
   (elisp-eval-buffer)
   (eval-defun nil)
   (eplot-update-view-buffer))
+
+;;; Parsing buffers.
 
 (defun eplot-update (&rest _ignore)
   "Update the plot in the current buffer."
@@ -200,6 +204,8 @@ This can be overridden with the `Font' header.")
 	    (replace-match ""))))
       (goto-char (point-min))
       (eplot--parse-headers))))
+
+;;; Accessing data.
 
 (defun eplot--vn (type data &optional default)
   (if-let ((value (cdr (assq type data))))
@@ -349,6 +355,7 @@ This is normally computed automatically, but can be overridden
 (defclass eplot-chart ()
   (
    (plots :initarg :plots)
+   ;; ---- CUT HERE ----
    (axes-color :initarg :axes-color :initform nil)
    (border-color :initarg :border-color :initform nil)
    (border-width :initarg :border-width :initform nil)
@@ -376,8 +383,10 @@ This is normally computed automatically, but can be overridden
    (y-label :initarg :y-label :initform nil)
    (y-max :initarg :y-max :initform nil)
    (y-min :initarg :y-min :initform nil)
+   ;; ---- CUT HERE ----
    ))
 
+;; Convenience function to generate the class above.
 (defun eplot--make-slots ()
   (dolist (spec (sort (copy-sequence eplot--chart-headers)
 		      (lambda (s1 s2)
@@ -385,7 +394,8 @@ This is normally computed automatically, but can be overridden
     (insert (format "   (%s :initarg :%s :initform nil)\n"
 		    (car spec) (car spec)))))
 
-(defun eplot--initialize (data)
+(defun eplot--make-chart (data)
+  "Make an `eplot-chart' object and initialize based on DATA."
   (let ((chart (make-instance 'eplot-chart
 			      :plots (eplot--vs :plots data))))
     ;; First get the program-defined defaults.
@@ -416,6 +426,7 @@ This is normally computed automatically, but can be overridden
 	   do (setf (slot-value chart slot) value)))
 
 (defun eplot--default (slot)
+  "Find the default value for SLOT, chasing dependencies."
   (let ((spec (cdr (assq slot eplot--chart-headers))))
     (unless spec
       (error "Invalid slot %s" slot))
@@ -426,6 +437,8 @@ This is normally computed automatically, but can be overridden
 	default))))
 
 (defun eplot--render (data &optional return-image)
+  "Create the chart and display it.
+If RETURN-IMAGE is non-nil, return it instead of displaying it."
   (let* ((factor (image-compute-scaling-factor))
 	 (width (eplot--vn 'width data
 			   (or (car eplot-default-size)
