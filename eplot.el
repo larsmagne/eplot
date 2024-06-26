@@ -42,10 +42,8 @@ This can be overridden with the `Font' header.")
   "H-l" #'eplot-eval-and-update)
 
 (define-derived-mode eplot-view-mode special-mode "eplot view"
-  "Major mode for displaying eplots.")
-
-(defvar-keymap eplot-view-mode-map
-  "g" #'eplot-update)
+  "Major mode for displaying eplots."
+  (setq-default revert-buffer-function #'eplot-update))
 
 (defvar eplot-default-size '(600 400)
   "Default size for plots without a specified size.")
@@ -92,9 +90,11 @@ This can be overridden with the `Font' header.")
   (eval-defun nil)
   (eplot-update-view-buffer))
 
-(defun eplot-update ()
+(defun eplot-update (&rest _ignore)
   "Update the plot in the current buffer."
   (interactive)
+  (unless eplot--data-buffer
+    (user-error "No data buffer associated with this eplot view buffer"))
   (let ((data (with-current-buffer eplot--data-buffer
 		(eplot--parse-buffer)))
 	(inhibit-read-only t))
