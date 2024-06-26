@@ -737,9 +737,13 @@
 	    for py = (- (- height margin-bottom)
 			(* (/ (- (* 1.0 val) min) (- max min))
 			   ys))
-	    for px = (+ margin-left
-			(* (e/ (- x x-min) (- x-max x-min))
-			   xs))
+	    for px = (if (eq style 'bar)
+			 (+ margin-left
+			    (* (e/ (- x x-min) (- x-max x-min -1))
+			       xs))
+		       (+ margin-left
+			  (* (e/ (- x x-min) (- x-max x-min))
+			     xs)))
 	    do
 	    (cl-case style
 	      (bar
@@ -814,7 +818,7 @@
 	   (when polygon
 	     ;; We have a "between" chart, so collect the data points
 	     ;; from the "extra" values, too.
-	     (when (memq 'tow-values (eplot--vyl 'data-format headers))
+	     (when (memq 'two-values (eplot--vyl 'data-format headers))
 	       (cl-loop
 		for val in (nreverse
 			    (seq-map (lambda (v) (plist-get v :extra-value))
@@ -823,7 +827,9 @@
 		for py = (- (- height margin-bottom)
 			    (* (/ (- (* 1.0 val) min) (- max min))
 			       ys))
-		for px = (+ margin-left (* x stride))
+		for px = (+ margin-left
+			    (* (e/ (- x x-min) (- x-max x-min))
+			       xs))
 		do
 		(cl-case style
 		  (line
