@@ -157,7 +157,7 @@
       ;; number, or two numbers (in which case the first number is a
       ;; date or a time).  Labels ans settings can be introduced with
       ;; a # char.
-      (while (looking-at "\\([-0-9. \t]+\\)\\([ \t]+#\\(.*\\)\\)?")
+      (while (looking-at "\\([-0-9. \t]+\\)\\([ \t]*#\\(.*\\)\\)?")
 	(let ((numbers (mapcar #'string-to-number
 			       (split-string (string-trim (match-string 1)))))
 	      (settings (eplot--parse-settings (match-string 3)))
@@ -174,7 +174,7 @@
 	  (when two-values
 	    (setq this (nconc this (list :extra-value (pop numbers)))))
 	  (when settings
-	    (nconc this (list :settings settings)))
+	    (setq this (nconc this (list :settings settings))))
 	  (push this values))
 	(forward-line 1))
       (setq values (nreverse values)))
@@ -652,12 +652,13 @@
 		label-step)))))))
 
 (defun eplot--compute-y-ticks (ys y-values font-size)
-  (let* (;;(min (car x-values))
+  (let* ((min (car y-values))
+	 (max (car (last y-values)))
 	 (count (length y-values))
 	 ;; We want each label to be spaced at least as long apart as
 	 ;; the length of the longest label, with room for two blanks
 	 ;; in between.
-	 (min-spacing (* font-size 0.9))
+	 (min-spacing (* font-size 1.1))
 	 (digits (eplot--decimal-digits (- (cadr y-values) (car y-values))))
 	 (every (e/ 1 (expt 10 digits))))
     (cond
@@ -669,7 +670,7 @@
      ((< (* count 10) ys)
       (list every
 	    (let ((label-step every))
-	      (while (> (/ count label-step) (/ ys min-spacing))
+	      (while (> (/ (- max min) label-step) (/ ys min-spacing))
 		(setq label-step (eplot--next-weed label-step)))
 	      label-step)))
      ;; We have to reduce both grid lines and labels.
