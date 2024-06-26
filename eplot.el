@@ -485,6 +485,7 @@
 			  ;; unless we're a bar chart or we're a one
 			  ;; dimensional chart.
 			  (or bar-chart
+			      t
 			      (not (= x-min (car x-values)))
 			      (eq x-type 'one-dimensional)
 			      (and (not (zerop x)) (not (zerop i)))))
@@ -613,11 +614,12 @@
    (t
     (format "%s" value))))
 
-(defun eplot--compute-x-ticks (xs x-values font-size print-format)
+(defun eplot--compute-x-ticks (xs x-values font-size print-format
+				  &optional use-value)
   (let* ((min (seq-min x-values))
 	 (max (seq-max x-values))
 	 (count (length x-values))
-	 (max-print (eplot--format-value max print-format))
+	 (max-print (eplot--format-value (or use-value max) print-format))
 	 ;; We want each label to be spaced at least as long apart as
 	 ;; the length of the longest label, with room for two blanks
 	 ;; in between.
@@ -977,34 +979,34 @@ nil means `top-down'."
     (cl-loop for x from start upto (* max factor) by feven
 	     collect (e/ x factor))))
 
-(defun eplot--get-date-ticks (start end xs font-size)
+(defun eplot--get-date-ticks (start end xs font-size &optional skip-until)
   (let* ((secs (* 60 60 24))
 	 (sday (/ start secs))
 	 (eday (/ end secs))
 	 (duration (- eday sday))
 	 (limits
 	  (list
-	   (list 24 'date
+	   (list (/ 368 16) 'date
 		 (lambda (_d) t))
-	   (list 62 'date
+	   (list (/ 368 4) 'date
 		 ;; Collect Mondays.
 		 (lambda (decoded)
 		   (= (decoded-time-weekday decoded) 1)))
-	   (list (* 31 6) 'date
+	   (list (/ 368 2) 'date
 		 ;; Collect 1st and 15th.
 		 (lambda (decoded)
 		   (or (= (decoded-time-day decoded) 1)
 		       (= (decoded-time-day decoded) 15))))
-	   (list (* 365 2) 'date
+	   (list (* 368 2) 'date
 		 ;; Collect 1st of every month.
 		 (lambda (decoded)
 		   (= (decoded-time-day decoded) 1)))
-	   (list (* 365 4) 'date
+	   (list (* 368 4) 'date
 		 ;; Collect every quarter.
 		 (lambda (decoded)
 		   (and (= (decoded-time-day decoded) 1)
 			(memq (decoded-time-month decoded) '(1 4 7 10)))))
-	   (list (* 365 8) 'date
+	   (list (* 368 8) 'date
 		 ;; Collect every half year.
 		 (lambda (decoded)
 		   (and (= (decoded-time-day decoded) 1)
@@ -1015,7 +1017,8 @@ nil means `top-down'."
 		   (and (= (decoded-time-day decoded) 1)
 			(= (decoded-time-month decoded) 1)))))))
     ;; First we collect the potential ticks.
-    (while (>= duration (caar limits))
+    (while (or (>= duration (caar limits))
+	       (and skip-until (>= skip-until (caar limits))))
       (pop limits))
     (let* ((x-ticks (cl-loop for date from sday upto eday
 			     for time = (* date secs)
@@ -1033,9 +1036,20 @@ nil means `top-down'."
        ;; We have to prune X labels, but not grid lines.  (We shouldn't
        ;; have a grid line more than every 10 pixels.)
        ((< (* count 10) xs)
-	(pop limits)
-	(if (not limits)
-	    (eplot--year-ticks x-ticks xs font-size)
+	(cond
+	 ((not (cdr limits))
+	  (eplot--year-ticks x-ticks xs font-size))
+	 ;; The Mondays grid is special, because it doesn't resolve
+	 ;; into any of the bigger limits evenly.
+	 ((= (caar limits) (/ 368 4))
+	  (list x-ticks 'date
+		(cl-loop for val in x-ticks
+			 for i from 0
+			 ;; This logic is not correct -- it should compute
+			 ;; the factor.
+			 collect (list val t (zerop (% i 2))))))
+	 (t
+	  (pop limits)
 	  (catch 'found
 	    (while limits
 	      (let ((candidate
@@ -1053,10 +1067,10 @@ nil means `top-down'."
 			   xs)
 		    (throw 'found (list x-ticks print-format candidate)))))
 	      (pop limits))
-	    (eplot--year-ticks x-ticks xs font-size))))
+	    (eplot--year-ticks x-ticks xs font-size)))))
        ;; We have to reduce both grid lines and labels.
        (t
-	(list x-ticks print-format))))))
+	(eplot--get-date-ticks start end xs font-size (caar limits)))))))
 
 (defun eplot--year-ticks (x-ticks xs font-size)
   (let* ((year-ticks (mapcar (lambda (time)
