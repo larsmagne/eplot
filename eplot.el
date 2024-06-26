@@ -22,12 +22,18 @@
 
 (require 'cl-lib)
 
+(setq auto-mode-alist (cons '("\\.plt" . eplot-edit-mode) auto-mode-alist))
+
+(defvar-keymap eplot-edit-mode-map
+  "C-c C-c" #'eplot-update-view-buffer)
+
+(define-derived-mode eplot-edit-mode text-mode "eplot")
+
 (define-minor-mode eplot-minor-mode
   "Minor mode to issue commands from an eplot data buffer."
   :lighter " eplot")
 
 (defvar-keymap eplot-minor-mode-map
-  "C-c C-c" #'eplot-update-view-buffer
   "H-l" #'eplot-eval-and-update)
 
 (define-derived-mode eplot-mode special-mode "eplot"
@@ -44,7 +50,6 @@
 (defun eplot ()
   "Plot the data in the current buffer."
   (interactive)
-  (eplot-minor-mode 1)
   (eplot-update-view-buffer))
 
 (defun eplot-update-view-buffer ()
@@ -1032,5 +1037,3 @@ nil means `top-down'."
 
 ;; Date plot
 ;; Time plot
-
-;; plt-mode
