@@ -256,7 +256,9 @@
 	 ;; Default bar charts to always start at zero.
 	 (min (eplot--vn 'min data (and bar-chart 0)))
 	 (max (eplot--vn 'max data))
-	 x-type x-values x-ticks)
+	 x-type x-values x-ticks stride
+	 x-min x-max
+	 (possibly-adjust-min t))
     ;; Add background.
     (svg-rectangle svg 0 0 width height
 		   :fill background-color)
@@ -314,36 +316,47 @@
 	  (set-max max))
       (dolist (plot (cdr (assq :plots data)))
 	(let* ((values (cdr (assq :values plot)))
+	       (data-format (eplot--vyl 'data-format
+					(cdr (assq :headers plot))))
 	       (vals (nconc (seq-map (lambda (v) (plist-get v :value)) values)
-			    (and (memq 'two-values
-				       (eplot--vyl 'data-format
-						   (cdr (assq :headers plot))))
+			    (and (memq 'two-values data-format)
 				 (seq-map
 				  (lambda (v) (plist-get v :extra-value))
 				  values)))))
 	  ;; Set the x-values based on the first plot.
 	  (unless x-values
 	    (cond
+	     ((memq 'xy data-format)
+	      (setq x-values (cl-loop for val in values
+				      collect (plist-get val :x))
+		    x-min (seq-min x-values)
+		    x-max (seq-max x-values)
+		    x-ticks (eplot--get-ticks x-min x-max xs)
+		    stride (e/ xs (- x-max x-min))))
 	     (t
 	      ;; This is a one-dimensional plot -- we don't have X
 	      ;; values, really, so we just do zero to (1- (length
 	      ;; values)).
 	      (setq x-type 'one-dimensional
+		    stride (e/ xs
+			       ;; Fenceposting bar-chart vs everything else.
+			       (if bar-chart
+				   (length values)
+				 (1- (length values))))
 		    x-values (cl-loop for i from 0
 				      repeat (length values)
 				      collect i)
+		    x-min (car x-values)
+		    x-max (car (last x-values))
 		    x-ticks x-values))))
 	  (unless set-min
-	    (setq min (min (or min 1.0e+INF) (seq-min vals))))
+	    (setq min (min (or min 1.0e+INF) (seq-min vals)))
+	    (unless (= min (car vals))
+	      (setq possibly-adjust-min nil)))
 	  (unless set-max
 	    (setq max (max (or max -1.0e+INF) (seq-max vals)))))))
     ;; Analyze values.
     (let* ((values (cdr (assq :values (car (cdr (assq :plots data))))))
-	   (stride (e/ xs
-		       ;; Fenceposting bar-chart vs everything else.
-		       (if bar-chart
-			   (length values)
-			 (1- (length values)))))
 	   (y-ticks (and max
 			 (eplot--get-ticks
 			  min
@@ -383,17 +396,18 @@
 	  ;; numbers.  We don't want to be drawing the chart on top of the
 	  ;; X axis, because the chart won't be visible there.
 	  (when (and (<= min (car y-ticks))
+		     possibly-adjust-min
 		     ;; But not if we start at origo, because that just
 		     ;; looks confusing.
 		     (not (zerop min)))
 	    (setq min (- (car y-ticks)
 			 ;; 2% of the value range.
 			 (* 0.02 (- (car (last y-ticks)) (car y-ticks))))))))
-      
+
       (when (eq grid-position 'top)
 	(eplot--draw-plots data chart-color height margin-bottom margin-left
-			   min max xs ys stride svg margin-top))
-
+			   min max xs ys stride svg margin-top
+			   x-values x-min x-max))
       ;; Make X ticks.
       (cl-loop for x in x-ticks
 	       for i from 0
@@ -405,11 +419,12 @@
 	       for px = (if bar-chart
 			    (+ margin-left (* x stride) (/ stride 2)
 			       (/ (* stride 0.1) 2))
-			  (+ margin-left (* x stride)))
+			  (+ margin-left
+			     (* (/ (- (* 1.0 x) x-min) (- x-max x-min))
+				xs)))
 	       ;; We might have one extra stride outside the area -- don't
 	       ;; draw it.
-	       when (> px (- width margin-right))
-	       return nil
+	       when (<= px (- width margin-right))
 	       do
 	       (when (zerop (e% x x-tick-step))
 		 ;; Draw little tick.
@@ -426,24 +441,24 @@
 			     px (- height margin-bottom)
 			     :opacity grid-opacity
 			     :stroke grid-color)))
-	       when (and (zerop (e% x x-label-step))
-			 ;; We want to skip marking the first X value
-			 ;; unless we're a bar chart or we're a one
-			 ;; dimensional chart.
-			 (or bar-chart
-			     (eq x-type 'one-dimensional)
-			     (and (not (zerop x)) (not (zerop i)))))
-	       do (svg-text svg label
-			    :font-family font
-			    :text-anchor "middle"
-			    :font-size font-size
-			    :fill legend-color
-			    :x px
-			    :y (+ (- height margin-bottom)
-				  font-size
-				  (if bar-chart
-				      (if compact 3 5)
-				    2))))
+	       (when (and (zerop (e% x x-label-step))
+			  ;; We want to skip marking the first X value
+			  ;; unless we're a bar chart or we're a one
+			  ;; dimensional chart.
+			  (or bar-chart
+			      (eq x-type 'one-dimensional)
+			      (and (not (zerop x)) (not (zerop i)))))
+		 (svg-text svg label
+			   :font-family font
+			   :text-anchor "middle"
+			   :font-size font-size
+			   :fill legend-color
+			   :x px
+			   :y (+ (- height margin-bottom)
+				 font-size
+				 (if bar-chart
+				     (if compact 3 5)
+				   2)))))
       ;; Make Y ticks.
       (cl-loop for y in y-ticks
 	       for i from 0
@@ -481,7 +496,8 @@
 
       (when (eq grid-position 'bottom)
 	(eplot--draw-plots data chart-color height margin-bottom margin-left
-			   min max xs ys stride svg margin-top))
+			   min max xs ys stride svg margin-top
+			   x-values x-min x-max))
 
       (when-let ((frame-color (eplot--vs 'frame-color data)))
 	(svg-rectangle svg margin-left margin-top xs ys
@@ -550,22 +566,24 @@
   (format "%s" value))
 
 (defun eplot--compute-x-ticks (xs x-values font-size)
-  (let* (;;(min (car x-values))
-	 (max (car (last x-values)))
+  (let* (;;(min (seq-min x-values))
+	 (max (seq-max x-values))
 	 (count (length x-values))
 	 (max-print (eplot--format-value max))
 	 ;; We want each label to be spaced at least as long apart as
 	 ;; the length of the longest label, with room for two blanks
 	 ;; in between.
-	 (min-spacing (* (+ (length max-print) 2) (e/ font-size 2))))
+	 (min-spacing (* (+ (length max-print) 2) (e/ font-size 2)))
+	 (digits (eplot--decimal-digits (- (cadr x-values) (car x-values))))
+	 (every (e/ 1 (expt 10 digits))))
     (cond
      ;; We have room for every X value.
      ((< (* count min-spacing) xs)
-      (list 1 1))
+      (list every every))
      ;; We have to prune X labels, but not grid lines.  (We shouldn't
      ;; have a grid line more than every 10 pixels.)
      ((< (* count 10) xs)
-      (list 1
+      (list every
 	    (let ((label-step 1))
 		(while (> (/ count label-step) (/ xs min-spacing))
 		  (setq label-step (eplot--next-weed label-step)))
@@ -667,7 +685,8 @@
 (defun eplot--draw-plots (data default-color height
 			       margin-bottom margin-left
 			       min max xs ys
-			       stride svg margin-top)
+			       stride svg margin-top
+			       x-values x-min x-max)
   ;; Draw all the plots.
   (cl-loop for plot in (reverse (cdr (assq :plots data)))
 	   for plot-number from 0
@@ -697,16 +716,19 @@
 	   (cl-loop
 	    for val in vals
 	    for value in values
-	    for x from 0
+	    for x in x-values
+	    for i from 0
 	    for settings = (plist-get value :settings)
 	    for color = (eplot--vary-color
 			 (eplot--vs 'color settings
 				    (eplot--vs 'color headers default-color))
-			 x)
+			 i)
 	    for py = (- (- height margin-bottom)
 			(* (/ (- (* 1.0 val) min) (- max min))
 			   ys))
-	    for px = (+ margin-left (* x stride))
+	    for px = (+ margin-left
+			(* (e/ (- x x-min) (- x-max x-min))
+			   xs))
 	    do
 	    (cl-case style
 	      (bar
@@ -749,7 +771,7 @@
 			   :fill (eplot--vary-color
 				  (eplot--vs 'fill settings
 					     (eplot--vs 'fill headers "none"))
-				  x)))
+				  i)))
 	      (cross
 	       (let ((s (eplot--vn 'size headers 3)))
 		 (svg-line svg (- px s) (- py s)
@@ -993,4 +1015,5 @@ nil means `top-down'."
 
 ;; Date plot
 ;; Time plot
-;; 2D plot
+
+;; plt-mode
