@@ -330,17 +330,6 @@ top of the charts.
 
 Craazy.
 
-	Gradient: black 25-purple-50-white-75-purple-black
-	Data: data1.txt
-
-![chart-gradient-more-stops.plt](/images/chart-gradient-more-stops.png)
-
-You can also have more stops.  In that case, the second element
-specifies the percentage points of where each color ends, so the above
-starts with black, then at 25% it's purple, then at 50% it's white,
-then it's back to purple again at 75%, before ending up at black at a
-100% (but you don't have to include the 100% here -- it's understood).
-
 	Grid-Position: top
 	Grid-Color: black
 	Grid-Opacity: 0.2
@@ -355,6 +344,17 @@ then it's back to purple again at 75%, before ending up at black at a
 
 But when putting the grid on top like this, it's usually more visually
 pleasant to make the grid non-opaque.
+
+	Gradient: black 25-purple-50-white-75-purple-black
+	Data: data1.txt
+
+![chart-gradient-more-stops.plt](/images/chart-gradient-more-stops.png)
+
+You can also have more stops.  In that case, the second element
+specifies the percentage points of where each color ends, so the above
+starts with black, then at 25% it's purple, then at 50% it's white,
+then it's back to purple again at 75%, before ending up at black at a
+100% (but you don't have to include the 100% here -- it's understood).
 
 	X-Label: Day
 	Y-Label: Money
@@ -391,5 +391,5 @@ before plotting.
 ![chart-xy-circle.plt](/images/chart-xy-circle.png)
 
 eplot isn't really geared towards doing 2D plots -- it's for time
-series and bar charts.  But if can do rudimentary 2D plots, but it
+series and bar charts.  But it can do rudimentary 2D plots, but it
 lacks some of the control you'd expect.
