@@ -803,10 +803,17 @@
 			      (- stride bar-gap) (- height margin-bottom py)
 			      :fill color))
 	      (impulse
-	       (svg-line svg
-			 px py
-			 px (- height margin-bottom)
-			 :stroke color))
+	       (let ((width (eplot--vn 'size settings
+				       (eplot--vn 'size headers 1))))
+		 (if (= width 1)
+		     (svg-line svg
+			       px py
+			       px (- height margin-bottom)
+			       :stroke color)
+		   (svg-rectangle svg
+				  (- px (e/ width 2)) py
+				  width (- height py margin-bottom)
+				  :fill color))))
 	      (point
 	       (svg-line svg px py (1+ px) (1+ py)
 			 :stroke color))
@@ -1187,7 +1194,4 @@ nil means `top-down'."
 
 ;;; Todo:
 
-;; Date plot
 ;; Time plot
-
-;; Impulse width

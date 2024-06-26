@@ -66,9 +66,11 @@ Some styles also take a Fill parameter to specify the fill color.
 
 ![chart-rectangle.plt](/images/chart-rectangle.png)
 
+	Size: 3
+	Color: red black green blue brown
 	Style: impulse
 
-![chart-impulse.plt](/images/chart-impulse.png)
+![chart-impulse-wide.plt](/images/chart-impulse-wide.png)
 
 	Style: point
 
