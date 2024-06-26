@@ -1,5 +1,5 @@
-eplot is an Emacs package for generating charts and plots
-interactively.
+eplot is an Emacs package for generating time series charts, plots and
+bar charts interactively.
 
 This is a work in progress and is probably not very useful generally
 yet, but here's the documentation so far:
@@ -383,3 +383,11 @@ You can also use the date format to plot date series.  And another
 feature demonstrated here is that you can have eplot smooth the data
 before plotting.
 
+	Data-Format: xy
+	Data: data-circle.txt
+
+![chart-xy-circle.plt](/images/chart-xy-circle.png)
+
+eplot isn't really geared towards doing 2D plots -- it's for time
+series and bar charts.  But if can do rudimentary 2D plots, but it
+lacks some of the control you'd expect.
