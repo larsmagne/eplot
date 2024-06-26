@@ -1035,26 +1035,40 @@ nil means `top-down'."
        ((< (* count 10) xs)
 	(pop limits)
 	(if (not limits)
-	    (let* ((year-ticks (mapcar (lambda (time)
-					 (decoded-time-year (decode-time time)))
-				       x-ticks))
-		   (xv (eplot--compute-x-ticks
-			xs year-ticks font-size print-format)))
-	      (let ((tick-step (car xv))
-		    (label-step (cadr xv)))
-		(list x-ticks 'year 
-		      (cl-loop for year in year-ticks
-			       for val in x-ticks
-			       collect (list val
-					     (zerop (% year tick-step))
-					     (zerop (% year label-step)))))))
-	  (list x-ticks 'print-format
-		(cl-loop for val in x-ticks
-			 collect (list val t
-				       (funcall (nth 2 (car limits)) val))))))
+	    (eplot--year-ticks x-ticks xs font-size)
+	  (catch 'found
+	    (while limits
+	      (let ((candidate
+		     (cl-loop for val in x-ticks
+			      for decoded = (decode-time val)
+			      collect (list val t
+					    (not (not
+						  (funcall (nth 2 (car limits))
+							   decoded)))))))
+		(when (< (* (seq-count (lambda (v) (nth 2 v)) candidate)
+			    min-spacing)
+			 xs)
+		  (throw 'found (list x-ticks print-format candidate))))
+	      (pop limits))
+	    (eplot--year-ticks x-ticks xs font-size))))
        ;; We have to reduce both grid lines and labels.
        (t
 	(list x-ticks print-format))))))
+
+(defun eplot--year-ticks (x-ticks xs font-size)
+  (let* ((year-ticks (mapcar (lambda (time)
+			       (decoded-time-year (decode-time time)))
+			     x-ticks))
+	 (xv (eplot--compute-x-ticks
+	      xs year-ticks font-size 'year)))
+    (let ((tick-step (car xv))
+	  (label-step (cadr xv)))
+      (list x-ticks 'year
+	    (cl-loop for year in year-ticks
+		     for val in x-ticks
+		     collect (list val
+				   (zerop (% year tick-step))
+				   (zerop (% year label-step))))))))
 
 (defun eplot--int (number)
   (cond
