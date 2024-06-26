@@ -323,7 +323,7 @@ top of the charts.
 
 ![chart-two-gradient4.plt](/images/chart-two-gradient4.png)
 
-Go wild.
+Craazy.
 
 	Gradient: black 25-purple-50-white-75-purple-black
 	Data: data1.txt
@@ -365,4 +365,18 @@ You can put labels on the axes.  If you're using the compact layout
 (as we are in these examples), you have to open up some space for the
 labels manually -- in the normal layout, there's already space for
 labels.
+
+	Data-Format: date
+	Smoothing: moving-average
+	20090101 157
+	20090102 156
+	20090103 152
+	20090104 152
+	...
+
+![date-chart2.plt](/images/date-chart2.png)
+
+You can also use the date format to plot date series.  And another
+feature demonstrated here is that you can have eplot smooth the data
+before plotting.
 
