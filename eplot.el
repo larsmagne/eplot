@@ -446,6 +446,7 @@
 			  ;; unless we're a bar chart or we're a one
 			  ;; dimensional chart.
 			  (or bar-chart
+			      (not (= x-min (car x-values)))
 			      (eq x-type 'one-dimensional)
 			      (and (not (zerop x)) (not (zerop i)))))
 		 (svg-text svg label
@@ -566,7 +567,7 @@
   (format "%s" value))
 
 (defun eplot--compute-x-ticks (xs x-values font-size)
-  (let* (;;(min (seq-min x-values))
+  (let* ((min (seq-min x-values))
 	 (max (seq-max x-values))
 	 (count (length x-values))
 	 (max-print (eplot--format-value max))
@@ -584,18 +585,18 @@
      ;; have a grid line more than every 10 pixels.)
      ((< (* count 10) xs)
       (list every
-	    (let ((label-step 1))
-		(while (> (/ count label-step) (/ xs min-spacing))
-		  (setq label-step (eplot--next-weed label-step)))
-		label-step)))
+	    (let ((label-step every))
+	      (while (> (/ (- max min) label-step) (/ xs min-spacing))
+		(setq label-step (eplot--next-weed label-step)))
+	      label-step)))
      ;; We have to reduce both grid lines and labels.
      (t
-      (let ((tick-step 1))
-	(while (> (/ count tick-step) (/ xs 10))
+      (let ((tick-step every))
+	(while (> (/ (- max min) tick-step) (/ xs 10))
 	  (setq tick-step (eplot--next-weed tick-step)))
 	(list tick-step
 	      (let ((label-step tick-step))
-		(while (> (/ count label-step) (/ xs min-spacing))
+		(while (> (/ (- max min) label-step) (/ xs min-spacing))
 		  (setq label-step (eplot--next-weed label-step))
 		  (while (not (zerop (% label-step tick-step)))
 		    (setq label-step (eplot--next-weed label-step))))
@@ -618,10 +619,10 @@
      ;; have a grid line more than every 10 pixels.)
      ((< (* count 10) ys)
       (list every
-	    (let ((label-step 1))
-		(while (> (/ count label-step) (/ ys min-spacing))
-		  (setq label-step (eplot--next-weed label-step)))
-		label-step)))
+	    (let ((label-step every))
+	      (while (> (/ count label-step) (/ ys min-spacing))
+		(setq label-step (eplot--next-weed label-step)))
+	      label-step)))
      ;; We have to reduce both grid lines and labels.
      (t
       (let ((tick-step 1))
@@ -636,15 +637,25 @@
 		label-step)))))))
 
 (defun eplot--next-weed (weed)
-  (let* ((digits (truncate (log weed 10)))
-	 (series (/ weed (expt 10 digits))))
+  (let (digits series)
+    (if (>= weed 1)
+	(setq digits (truncate (log weed 10))
+	      series (/ weed (expt 10 digits)))
+      (setq digits (eplot--decimal-digits weed)
+	    series (* weed (expt 10 digits))))
     (cond
      ((= series 1)
-      (* 2 (expt 10 digits)))
+      (if (>= weed 1)
+	  (* 2 (expt 10 digits))
+	(e/ 2 (expt 10 digits))))
      ((= series 2)
-      (* 5 (expt 10 digits)))
+      (if (>= weed 1)
+	  (* 5 (expt 10 digits))
+	(e/ 5 (expt 10 digits))))
      ((= series 5)
-      (* 10 (expt 10 digits)))
+      (if (>= weed 1)
+	  (* 10 (expt 10 digits))
+	(e/ 10 (expt 10 digits))))
      (t
       (error "Invalid weed: %s" weed)))))
 
