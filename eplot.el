@@ -471,7 +471,7 @@
 		   (svg-line svg
 			     px (- height margin-bottom)
 			     px (+ (- height margin-bottom)
-				   (if (zerop (e% x x-label-step))
+				   (if do-label
 				       4
 				     2))
 			     :stroke legend-color))
