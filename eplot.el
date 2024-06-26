@@ -223,7 +223,7 @@ This can be overridden with the `Font' header.")
 
 (defmacro eplot-def (args doc-string)
   (declare (indent defun))
-  `(eplot--def ',(car args) ',(nth 2 args) ',(nth 3 args) ,doc-string))
+  `(eplot--def ',(nth 0 args) ',(nth 1 args) ',(nth 2 args) ,doc-string))
 
 (defun eplot--def (name type default doc)
   (setq eplot--chart-headers (delq (assq name eplot--chart-headers)
@@ -307,12 +307,12 @@ fully transparent.")
 (eplot-def (frame-color string)
   "The color of the frame of the plot, if any.")
 
-(eplot-def (min number)
+(eplot-def (y-min number)
   "The minimum value in the chart.
 This is normally computed automatically, but can be overridden
  with this spec.")
 
-(eplot-def (max number)
+(eplot-def (y-max number)
   "The maximum value in the chart.
 This is normally computed automatically, but can be overridden
  with this spec.")
@@ -344,7 +344,86 @@ This is normally computed automatically, but can be overridden
   '((grid-position top)
     (grid y)
     (grid-opacity 0.2)
-    (min 0)))
+    (y-min 0)))
+
+(defclass eplot-chart ()
+  (
+   (plots :initarg :plots)
+   (axes-color :initarg :axes-color :initform nil)
+   (border-color :initarg :border-color :initform nil)
+   (border-width :initarg :border-width :initform nil)
+   (chart-color :initarg :chart-color :initform nil)
+   (font :initarg :font :initform nil)
+   (format :initarg :format :initform nil)
+   (frame-color :initarg :frame-color :initform nil)
+   (grid :initarg :grid :initform nil)
+   (grid-color :initarg :grid-color :initform nil)
+   (grid-opacity :initarg :grid-opacity :initform nil)
+   (height :initarg :height :initform nil)
+   (label-color :initarg :label-color :initform nil)
+   (layout :initarg :layout :initform nil)
+   (legend-color :initarg :legend-color :initform nil)
+   (margin-bottom :initarg :margin-bottom :initform nil)
+   (margin-left :initarg :margin-left :initform nil)
+   (margin-right :initarg :margin-right :initform nil)
+   (margin-top :initarg :margin-top :initform nil)
+   (mode :initarg :mode :initform nil)
+   (surround-color :initarg :surround-color :initform nil)
+   (title :initarg :title :initform nil)
+   (width :initarg :width :initform nil)
+   (x-axis-label-space :initarg :x-axis-label-space :initform nil)
+   (x-label :initarg :x-label :initform nil)
+   (y-label :initarg :y-label :initform nil)
+   (y-max :initarg :y-max :initform nil)
+   (y-min :initarg :y-min :initform nil)
+   ))
+
+(defun eplot--make-slots ()
+  (dolist (spec (sort (copy-sequence eplot--chart-headers)
+		      (lambda (s1 s2)
+			(string< (car s1) (car s2)))))
+    (insert (format "   (%s :initarg :%s :initform nil)\n"
+		    (car spec) (car spec)))))
+
+(defun eplot--initialize (data)
+  (let ((chart (make-instance 'eplot-chart
+			      :plots (eplot--vs :plots data))))
+    ;; First get the program-defined defaults.
+    (dolist (header eplot--chart-headers)
+      (when-let ((default (plist-get (cdr header) :default)))
+	(setf (slot-value chart (car header))
+	      (if (and (consp default)
+		       (eq (car default) 'spec))
+		  (eplot--default (cadr default))))))
+    ;; Then do the "meta" variables.
+    (when (eq (eplot--vs 'mode data) 'dark)
+      (eplot--set-theme chart eplot-dark-defaults))
+    (when (eq (eplot--vs 'layout data) 'compact)
+      (eplot--set-theme chart eplot-compact-defaults))
+    (when (eq (eplot--vs 'format data) 'bar-chart)
+      (eplot--set-theme chart eplot-bar-chart-defaults))
+    ;; Finally, use the data from the chart.
+    (cl-loop for (type . value) in data
+	     do (unless (eq type :plots)
+		  (let ((spec (cdr (assq type eplot--chart-headers))))
+		    (if (not spec)
+			(error "%s is not a valid spec" type)
+		      (setf (slot-value chart type) value)))))
+    chart))
+
+(defun eplot--set-theme (chart map)
+  (cl-loop for (slot value) in map
+	   do (setf (slot-value chart slot) value)))
+
+(defun eplot--default (slot)
+  (let ((spec (cdr (assq slot eplot--chart-headers))))
+    (unless spec
+      (error "Invalid slot %s" slot))
+    (let ((default (plist-get spec :default)))
+      (if (and (consp default)
+	       (eq (car default) 'spec))
+	  (eplot--default (cadr default))
+	default))))
 
 (defun eplot--render (data &optional return-image)
   (let* ((factor (image-compute-scaling-factor))
