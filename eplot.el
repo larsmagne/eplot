@@ -21,6 +21,7 @@
 ;;; Code:
 
 (require 'cl-lib)
+(require 'face-remap)
 
 (setq auto-mode-alist (cons '("\\.plt" . eplot-mode) auto-mode-alist))
 
@@ -1148,8 +1149,6 @@ nil means `top-down'."
 	       (let ((start (point)))
 		 (svg-insert-image spacer)
 		 (put-text-property start (point) 'spacer t)))
-      (goto-char (point-min))
-      (eplot--fold-buffer)
       (insert "\n\n")
       (goto-char (point-min)))))
 
