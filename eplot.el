@@ -816,7 +816,7 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 	  (unless x-values
 	    (setq print-format (cond
 				((memq 'date data-format) 'date)
-				((memq 'time data-format) 'date)
+				((memq 'time data-format) 'time)
 				(t 'number)))
 	    (cond
 	     ((memq 'xy data-format)
@@ -841,6 +841,26 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 		    stride (e/ xs (- x-max x-min))
 		    inhibit-compute-x-step t)
 	      (let ((xs (eplot--get-date-ticks x-min x-max xs font-size)))
+		(setq x-ticks (car xs)
+		      print-format (cadr xs)
+		      x-tick-step 1
+		      x-label-step 1
+		      x-step-map (nth 2 xs))))
+	     ((memq 'time data-format)
+	      (setq x-values
+		    (cl-loop for val in values
+			     collect
+			     (time-convert
+			      (encode-time
+			       (decoded-time-set-defaults
+				(iso8601-parse-time
+				 (format "%06d" (plist-get val :x)))))
+			      'integer))
+		    x-min (car x-values)
+		    x-max (car (last x-values))
+		    stride (e/ xs (- x-max x-min))
+		    inhibit-compute-x-step t)
+	      (let ((xs (eplot--get-time-ticks x-min x-max xs font-size)))
 		(setq x-ticks (car xs)
 		      print-format (cadr xs)
 		      x-tick-step 1
@@ -1575,6 +1595,89 @@ nil means `top-down'."
 		     collect (list val
 				   (zerop (% year tick-step))
 				   (zerop (% year label-step))))))))
+
+(defun eplot--get-time-ticks (start end xs font-size &optional skip-until)
+  (let* ((duration (- end start))
+	 (limits
+	  (list
+	   (list (* 2 60) 'time
+		 (lambda (_d) t))
+	   (list (/ 2 60 60) 'time
+		 ;; Collect whole minutes.
+		 (lambda (decoded)
+		   (zerop (decoded-time-second decoded))))
+	   (list (/ 4 60 60) 'time
+		 ;; Collect fifteen minutes.
+		 (lambda (decoded)
+		   (and (zerop (decoded-time-second decoded))
+			(memq (decoded-time-minute decoded) '(0 15 30 45)))))
+	   (list (/ 8 60 60) 'time
+		 ;; Collect half hours.
+		 (lambda (decoded)
+		   (and (zerop (decoded-time-second decoded))
+			(memq (decoded-time-minute decoded) '(0 30)))))
+	   (list 1.0e+INF 'time
+		 ;; Collect whole hours.
+		 (lambda (decoded)
+		   (and (zerop (decoded-time-second decoded))
+			(zerop (decoded-time-minute decoded))))))))
+    ;; First we collect the potential ticks.
+    (while (or (>= duration (caar limits))
+	       (and skip-until (>= skip-until (caar limits))))
+      (pop limits))
+    (let* ((x-ticks (cl-loop for time from start upto end
+			     for decoded = (decode-time time)
+			     when (funcall (nth 2 (car limits)) decoded)
+			     collect time))
+	   (count (length x-ticks))
+	   (print-format (nth 1 (car limits)))
+	   (max-print (eplot--format-value (car x-ticks) print-format))
+	   (min-spacing (* (+ (length max-print) 2) (e/ font-size 2))))
+      (cond
+       ;; We have room for every X value.
+       ((< (* count min-spacing) xs)
+	(list x-ticks print-format))
+       ;; We have to prune X labels, but not grid lines.  (We shouldn't
+       ;; have a grid line more than every 10 pixels.)
+       ((< (* count 10) xs)
+	(if (not (cdr limits))
+	    (eplot--hour-ticks x-ticks xs font-size)
+	  (pop limits)
+	  (catch 'found
+	    (while limits
+	      (let ((candidate
+		     (cl-loop for val in x-ticks
+			      for decoded = (decode-time val)
+			      collect (list val t
+					    (not (not
+						  (funcall (nth 2 (car limits))
+							   decoded)))))))
+		(setq print-format (nth 1 (car limits)))
+		(let ((min-spacing (* (+ (length max-print) 2)
+				      (e/ font-size 2))))
+		  (when (< (* (seq-count (lambda (v) (nth 2 v)) candidate)
+			      min-spacing)
+			   xs)
+		    (throw 'found (list x-ticks print-format candidate)))))
+	      (pop limits))
+	    (eplot--hour-ticks x-ticks xs font-size))))
+       ;; We have to reduce both grid lines and labels.
+       (t
+	(eplot--get-time-ticks start end xs font-size (caar limits)))))))
+
+(defun eplot--hour-ticks (x-ticks xs font-size)
+  (let* ((hour-ticks (mapcar (lambda (time)
+			       (decoded-time-hour (decode-time time)))
+			     x-ticks))
+	 (xv (eplot--compute-x-ticks xs hour-ticks font-size 'year)))
+    (let ((tick-step (car xv))
+	  (label-step (cadr xv)))
+      (list x-ticks 'time
+	    (cl-loop for hour in hour-ticks
+		     for val in x-ticks
+		     collect (list val
+				   (zerop (% hour tick-step))
+				   (zerop (% hour label-step))))))))
 
 (defun eplot--int (number)
   (cond
