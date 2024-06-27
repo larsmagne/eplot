@@ -276,9 +276,15 @@ Possible values are `dark' and `light'.")
 (eplot-def (font string "sans-serif")
   "The font to use in titles, labels and legends.")
 
+(eplot-def (font-size number 12)
+  "The font size.")
+
 (eplot-def (chart-color string "black")
   "The foreground color to use in plots, axes, legends, etc.
 This is used as the default, but can be overridden per thing.")
+
+(eplot-def (background-color string "white")
+  "The background color.")
 
 (eplot-def (axes-color string (spec chart-color))
   "The color of the axes.")
@@ -288,15 +294,28 @@ This is used as the default, but can be overridden per thing.")
 
 (eplot-def (grid symbol xy)
   "What grid axes to do.
-Possible values are `xy', `x' and `y'.")
+Possible values are `xy', `x', `y' and `off'.")
 
 (eplot-def (grid-opacity number)
   "The opacity of the grid.
 This should either be nil or a value between 0 and 1, where 0 is
 fully transparent.")
 
+(eplot-def (grid-position symbol bottom)
+  "Whether to put the grid on top or under the plot.
+Possible values are `bottom' and `top''.")
+
+(eplot-def (legend symbol)
+  "Whether to do a legend.")
+
 (eplot-def (legend-color string (spec chart-color))
   "The color of legends (if any).")
+
+(eplot-def (legend-border-color string (spec chart-color))
+  "The border color of legends (if any).")
+
+(eplot-def (legend-background-color string (spec background-color))
+  "The background color of legends (if any).")
 
 (eplot-def (label-color string (spec axes-color))
   "The color of labels on the axes.")
@@ -313,18 +332,24 @@ fully transparent.")
 (eplot-def (frame-color string)
   "The color of the frame of the plot, if any.")
 
-(eplot-def (y-min number)
+(eplot-def (frame-width number)
+  "The width of the frame of the plot, if any.")
+
+(eplot-def (min number)
   "The minimum value in the chart.
 This is normally computed automatically, but can be overridden
  with this spec.")
 
-(eplot-def (y-max number)
+(eplot-def (max number)
   "The maximum value in the chart.
 This is normally computed automatically, but can be overridden
  with this spec.")
 
 (eplot-def (title string)
   "The title of the chart, if any.")
+
+(eplot-def (title-color string (spec chart-color))
+  "The color of the title.")
 
 (eplot-def (x-label string)
   "The label of the X axis, if any.")
@@ -350,26 +375,51 @@ This is normally computed automatically, but can be overridden
   '((grid-position top)
     (grid y)
     (grid-opacity 0.2)
-    (y-min 0)))
+    (min 0)))
 
 (defclass eplot-chart ()
   (
    (plots :initarg :plots)
+   (xs)
+   (ys)
+   (x-values :initform nil)
+   (x-type :initform nil)
+   (x-min)
+   (x-max)
+   (x-ticks)
+   (y-ticks)
+   (stride)
+   (print-format)
+   (x-tick-step)
+   (x-label-step)
+   (x-step-map :initform nil)
+   (y-tick-step)
+   (y-label-step)
+   (inhibit-compute-x-step :initform nil)
+   (set-min :initform nil)
+   (set-max :initform nil)
    ;; ---- CUT HERE ----
    (axes-color :initarg :axes-color :initform nil)
+   (background-color :initarg :background-color :initform nil)
    (border-color :initarg :border-color :initform nil)
    (border-width :initarg :border-width :initform nil)
    (chart-color :initarg :chart-color :initform nil)
    (font :initarg :font :initform nil)
+   (font-size :initarg :font-size :initform nil)
    (format :initarg :format :initform nil)
    (frame-color :initarg :frame-color :initform nil)
+   (frame-width :initarg :frame-width :initform nil)
    (grid :initarg :grid :initform nil)
    (grid-color :initarg :grid-color :initform nil)
    (grid-opacity :initarg :grid-opacity :initform nil)
+   (grid-position :initarg :grid-position :initform nil)
    (height :initarg :height :initform nil)
    (label-color :initarg :label-color :initform nil)
    (layout :initarg :layout :initform nil)
+   (legend :initarg :legend :initform nil)
    (legend-color :initarg :legend-color :initform nil)
+   (legend-background-color :initarg :legend-background-color :initform nil)
+   (legend-border-color :initarg :legend-border-color :initform nil)
    (margin-bottom :initarg :margin-bottom :initform nil)
    (margin-left :initarg :margin-left :initform nil)
    (margin-right :initarg :margin-right :initform nil)
@@ -377,12 +427,13 @@ This is normally computed automatically, but can be overridden
    (mode :initarg :mode :initform nil)
    (surround-color :initarg :surround-color :initform nil)
    (title :initarg :title :initform nil)
+   (title-color :initarg :title-color :initform nil)
    (width :initarg :width :initform nil)
    (x-axis-label-space :initarg :x-axis-label-space :initform nil)
    (x-label :initarg :x-label :initform nil)
    (y-label :initarg :y-label :initform nil)
-   (y-max :initarg :y-max :initform nil)
-   (y-min :initarg :y-min :initform nil)
+   (max :initarg :max :initform nil)
+   (min :initarg :min :initform nil)
    ;; ---- CUT HERE ----
    ))
 
@@ -404,13 +455,14 @@ This is normally computed automatically, but can be overridden
 	(setf (slot-value chart (car header))
 	      (if (and (consp default)
 		       (eq (car default) 'spec))
-		  (eplot--default (cadr default))))))
+		  (eplot--default (cadr default))
+		default))))
     ;; Then do the "meta" variables.
-    (when (eq (eplot--vs 'mode data) 'dark)
+    (when (eq (eplot--vy 'mode data) 'dark)
       (eplot--set-theme chart eplot-dark-defaults))
-    (when (eq (eplot--vs 'layout data) 'compact)
+    (when (eq (eplot--vy 'layout data) 'compact)
       (eplot--set-theme chart eplot-compact-defaults))
-    (when (eq (eplot--vs 'format data) 'bar-chart)
+    (when (eq (eplot--vy 'format data) 'bar-chart)
       (eplot--set-theme chart eplot-bar-chart-defaults))
     ;; Finally, use the data from the chart.
     (cl-loop for (type . value) in data
@@ -418,7 +470,17 @@ This is normally computed automatically, but can be overridden
 		  (let ((spec (cdr (assq type eplot--chart-headers))))
 		    (if (not spec)
 			(error "%s is not a valid spec" type)
-		      (setf (slot-value chart type) value)))))
+		      (setf (slot-value chart type)
+			    (cl-case (plist-get spec :type)
+			      (number
+			       (string-to-number value))
+			      (symbol
+			       (intern (downcase value)))
+			      (t
+			       value)))))))
+    (with-slots (min max set-min set-max) chart
+      (setq set-min min
+	    set-max max))
     chart))
 
 (defun eplot--set-theme (chart map)
@@ -439,113 +501,145 @@ This is normally computed automatically, but can be overridden
 (defun eplot--render (data &optional return-image)
   "Create the chart and display it.
 If RETURN-IMAGE is non-nil, return it instead of displaying it."
-  (let* ((factor (image-compute-scaling-factor))
-	 (width (eplot--vn 'width data
-			   (or (car eplot-default-size)
-			       (/ (* (window-pixel-width
- 				      (get-buffer-window "*eplot*" t))
-				     0.9)
-				  factor))))
-	 (height (eplot--vn 'height data
-			    (or (cadr eplot-default-size)
-				(/ (* (window-pixel-height
-				       (get-buffer-window "*eplot*" t))
-				      0.9)
-				   factor))))
-	 (format (eplot--vy 'format data 'normal))
-	 (layout (eplot--vy 'layout data 'normal))
-	 (dark (eq (eplot--vy 'mode data) 'dark))
-	 (compact (eq layout 'compact))
-	 (bar-chart (eq format 'bar-chart))
-	 (margin-left (eplot--vn 'margin-left data (if compact 30 70)))
-	 (margin-right (eplot--vn 'margin-right data (if compact 10 20)))
-	 (margin-top (eplot--vn 'margin-top data (if compact 20 40)))
-	 (margin-bottom (eplot--vn 'margin-bottom data (if compact 21 60)))
-	 (svg (svg-create width height))
-	 (font (eplot--vs 'font data eplot-font))
-	 (font-size (eplot--vn 'font data (if compact 12 14)))
-	 (xs (- width margin-left margin-right))
-	 (ys (- height margin-top margin-bottom))
-	 (chart-color (eplot--vs 'chart-color data (if dark "#c0c0c0" "black")))
-	 (axes-color (eplot--vs 'axes-color data chart-color))
-	 (grid-color (eplot--vs 'grid-color data
-				(if (and dark (not bar-chart))
-				    "#404040"
-				  "#e0e0e0")))
-	 (grid-position (eplot--vy 'grid-position data
-				   (if bar-chart 'top 'bottom)))
-	 (grid (eplot--vy 'grid data (if bar-chart 'y 'on)))
-	 (grid-opacity (eplot--vn 'grid-opacity data
-				  (if bar-chart 0.2)))
-	 (legend-color (eplot--vs 'legend-color data axes-color))
-	 (label-color (eplot--vs 'label-color data
-				 (if dark "white" legend-color)))
-	 (background-color (eplot--vs 'background-color data
-				      (if dark "#101010" "white")))
-	 ;; Default bar charts to always start at zero.
-	 (min (eplot--vn 'min data (and bar-chart 0)))
-	 (max (eplot--vn 'max data))
-	 x-type x-values x-ticks stride
-	 x-min x-max
-	 x-tick-step x-label-step
-	 (possibly-adjust-min t)
-	 print-format inhibit-compute-x-step x-step-map)
+  (let* ((chart (eplot--make-chart data))
+	 svg)
+    (with-slots ( width height xs ys
+		  margin-left margin-right margin-top margin-bottom
+		  grid-position)
+	chart
+      ;; Set the size of the chart based on the window it's going to
+      ;; be displayed in.  It uses the *eplot* window by default, or
+      ;; the current one if that isn't displayed.
+      (let ((factor (image-compute-scaling-factor)))
+	(unless width
+	  (setq width (/ (* (window-pixel-width
+ 			     (get-buffer-window "*eplot*" t))
+			    0.9)
+			 factor)))
+	(unless height
+	  (setq height (/ (* (window-pixel-height
+			      (get-buffer-window "*eplot*" t))
+			     0.9)
+			  factor))))
+      (setq svg (svg-create width height)
+	    xs (- width margin-left margin-right)
+	    ys (- height margin-top margin-bottom))
+      ;; Draw background/borders/titles/etc.
+      (eplot--draw-basics svg chart)
+      ;; Compute min/max based on all plots, and also compute x-ticks
+      ;; etc.
+      (eplot--compute-chart-dimensions chart)
+      ;; Analyze values and adjust values accordingly.
+      (eplot--adjust-chart chart)
+    
+      (when (eq grid-position 'top)
+	(eplot--draw-plots svg chart))
+
+      (eplot--draw-x-ticks svg chart)
+      (eplot--draw-y-ticks svg chart)
+      
+      ;; Draw axes.
+      (with-slots ( margin-left margin-right margin-margin-top
+		    margin-bottom axes-color)
+	  chart
+	(svg-line svg margin-left margin-top margin-left
+		  (+ (- height margin-bottom) 5)
+		  :stroke axes-color)
+	(svg-line svg (- margin-left 5) (- height margin-bottom)
+		  (- width margin-right) (- height margin-bottom)
+		  :stroke axes-color))
+    
+      (when (eq grid-position 'bottom)
+	(eplot--draw-plots svg chart))
+
+      (when-let ((frame-color (eplot--vs 'frame-color data)))
+	(svg-rectangle svg margin-left margin-top xs ys
+		       :stroke-width (eplot--vn 'frame-width data 1)
+		       :fill "none"
+		       :stroke-color frame-color))
+      (eplot--draw-legend svg chart))
+
+    (if return-image
+	svg
+      (svg-insert-image svg))))
+
+(defun eplot--draw-basics (svg chart)
+  (with-slots ( width height 
+		chart-color font font-size
+		margin-left margin-right margin-top margin-bottom
+		background-color label-color
+		xs ys)
+      chart
     ;; Add background.
     (svg-rectangle svg 0 0 width height
 		   :fill background-color)
-    (when-let ((surround-color (eplot--vs 'surround-color data)))
-      (svg-rectangle svg 0 0 width height
-		     :fill surround-color)
-      (svg-rectangle svg margin-left margin-top
-		     xs ys
-		     :fill (eplot--vs 'background-color data "white")))
-    (let ((border-width (eplot--vn 'border-width data))
-	  (border-color (eplot--vn 'border-color data)))
+    ;; Area between plot and edges.
+    (with-slots (surround-color) chart
+      (when surround-color
+	(svg-rectangle svg 0 0 width height
+		       :fill surround-color)
+	(svg-rectangle svg margin-left margin-top
+		       xs ys
+		       :fill background-color)))
+    ;; Border around the entire chart.
+    (with-slots (border-width border-color) chart
       (when (or border-width border-color)
 	(svg-rectangle svg 0 0 width height
 		       :stroke-width (or border-width 1)
 		       :fill "none"
 		       :stroke-color (or border-color chart-color))))
-    (when-let ((frame-color (eplot--vs 'frame-color data)))
-      (svg-rectangle svg margin-left margin-top xs ys
-		     :stroke-width (eplot--vn 'frame-width data 1)
-		     :fill "none"
-		     :stroke-color frame-color))
+    ;; Frame around the plot.
+    (with-slots (frame-width frame-color) chart
+      (when (or frame-width frame-color)
+	(svg-rectangle svg margin-left margin-top xs ys
+		       :stroke-width (or frame-width 1)
+		       :fill "none"
+		       :stroke-color (or frame-color chart-color))))
     ;; Title and legends.
-    (when-let ((title (eplot--vs 'title data)))
-      (svg-text svg title
-		:font-family font
-		:text-anchor "middle"
-		:font-weight "bold"
-		:font-size font-size
-		:fill (eplot--vs 'title-color data label-color)
-		:x (+ margin-left (/ (- width margin-left margin-right) 2))
-		:y (+ 3 (/ margin-top 2))))
-    (when-let ((label (eplot--vs 'x-label data)))
-      (svg-text svg label
-		:font-family font
-		:text-anchor "middle"
-		:font-weight "bold"
-		:font-size font-size
-		:fill (eplot--vs 'label-color data label-color)
-		:x (+ margin-left (/ (- width margin-left margin-right) 2))
-		:y (- height (/ margin-bottom 4))))
-    (when-let ((label (eplot--vs 'y-label data)))
-      (svg-text svg label
-		:font-family font
-		:text-anchor "middle"
-		:font-weight "bold"
-		:font-size font-size
-		:fill (eplot--vs 'label-color data label-color)
-		:transform
-		(format "translate(%s,%s) rotate(-90)"
-			(- (/ margin-left 2) (/ font-size 2))
-			(+ margin-top
-			   (/ (- height margin-bottom margin-top) 2)))))
-    ;; Set min/max based on all plots.
+    (with-slots (title title-color) chart
+      (when title
+	(svg-text svg title
+		  :font-family font
+		  :text-anchor "middle"
+		  :font-weight "bold"
+		  :font-size font-size
+		  :fill title-color
+		  :x (+ margin-left (/ (- width margin-left margin-right) 2))
+		  :y (+ 3 (/ margin-top 2)))))
+    (with-slots (x-label) chart
+      (when x-label
+	(svg-text svg x-label
+		  :font-family font
+		  :text-anchor "middle"
+		  :font-weight "bold"
+		  :font-size font-size
+		  :fill label-color
+		  :x (+ margin-left (/ (- width margin-left margin-right) 2))
+		  :y (- height (/ margin-bottom 4)))))
+    (with-slots (y-label) chart
+      (when y-label
+	(svg-text svg y-label
+		  :font-family font
+		  :text-anchor "middle"
+		  :font-weight "bold"
+		  :font-size font-size
+		  :fill label-color
+		  :transform
+		  (format "translate(%s,%s) rotate(-90)"
+			  (- (/ margin-left 2) (/ font-size 2))
+			  (+ margin-top
+			     (/ (- height margin-bottom margin-top) 2))))))))
+
+(defun eplot--compute-chart-dimensions (chart)
+  (with-slots ( min max plots x-values x-min x-max x-ticks stride
+		print-format font-size
+		xs
+		inhibit-compute-x-step x-type x-step-map format
+		x-tick-step x-label-step)
+      chart
     (let ((set-min min)
 	  (set-max max))
-      (dolist (plot (cdr (assq :plots data)))
+      (dolist (plot plots)
 	(let* ((values (cdr (assq :values plot)))
 	       (data-format (eplot--vyl 'data-format
 					(cdr (assq :headers plot))))
@@ -595,7 +689,7 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 	      (setq x-type 'one-dimensional
 		    stride (e/ xs
 			       ;; Fenceposting bar-chart vs everything else.
-			       (if bar-chart
+			       (if (eq format 'bar-chart)
 				   (length values)
 				 (1- (length values))))
 		    x-values (cl-loop for i from 0
@@ -605,204 +699,201 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 		    x-max (car (last x-values))
 		    x-ticks x-values))))
 	  (unless set-min
-	    (setq min (min (or min 1.0e+INF) (seq-min vals)))
-	    (unless (= min (car vals))
-	      (setq possibly-adjust-min nil)))
+	    (setq min (min (or min 1.0e+INF) (seq-min vals))))
 	  (unless set-max
-	    (setq max (max (or max -1.0e+INF) (seq-max vals)))))))
-    ;; Analyze values.
-    (let* ((values (cdr (assq :values (car (cdr (assq :plots data))))))
-	   (y-ticks (and max
-			 (eplot--get-ticks
-			  min
-			  ;; We get 2% more ticks to check whether we
-			  ;; should extend max.
-			  (if (eplot--vn 'max data) max (* max 1.02))
-			  ys)))
-	   y-tick-step y-label-step)
+	    (setq max (max (or max -1.0e+INF) (seq-max vals)))))))))
 
-      (if bar-chart
-	  (setq x-tick-step 1
-		x-label-step 1)
-	(unless inhibit-compute-x-step
-	  (let ((xt (eplot--compute-x-ticks
-		     xs x-values font-size print-format)))
-	    (setq x-tick-step (car xt)
-		  x-label-step (cadr xt)))))
-      (when max
-	(let ((yt (eplot--compute-y-ticks ys y-ticks font-size)))
-	  (setq y-tick-step (car yt)
-		y-label-step (cadr yt))))
-      ;; If max is less than 2% off from a pleasant number, then
-      ;; increase max.
-      (unless (eplot--vn 'max data)
-	(cl-loop for tick in (reverse y-ticks)
-		 when (and (< max tick)
-			   (< (e/ (- tick max) (- max min)) 0.02))
-		 return (progn
-			  (setq max tick)
-			  ;; Chop off any further ticks.
-			  (setcdr (member tick y-ticks) nil))))
+(defun eplot--adjust-chart (chart)
+  (with-slots ( x-tick-step x-label-step y-tick-step y-label-step
+		min max ys format inhibit-compute-x-step
+		y-ticks xs x-values font-size print-format
+		set-min set-max)
+      chart
+    (setq y-ticks (and max
+		       (eplot--get-ticks
+			min
+			;; We get 2% more ticks to check whether we
+			;; should extend max.
+			(if set-max max (* max 1.02))
+			ys)))
+    (if (eq format 'bar-chart)
+	(setq x-tick-step 1
+	      x-label-step 1)
+      (unless inhibit-compute-x-step
+	(let ((xt (eplot--compute-x-ticks
+		   xs x-values font-size print-format)))
+	  (setq x-tick-step (car xt)
+		x-label-step (cadr xt)))))
+    (when max
+      (let ((yt (eplot--compute-y-ticks ys y-ticks font-size)))
+	(setq y-tick-step (car yt)
+	      y-label-step (cadr yt))))
+    ;; If max is less than 2% off from a pleasant number, then
+    ;; increase max.
+    (unless set-max
+      (cl-loop for tick in (reverse y-ticks)
+	       when (and (< max tick)
+			 (< (e/ (- tick max) (- max min)) 0.02))
+	       return (progn
+			(setq max tick)
+			;; Chop off any further ticks.
+			(setcdr (member tick y-ticks) nil))))
 
-      (when y-ticks
-	(if (and (not (eplot--vn 'min data))
-		 (< (car y-ticks) min))
-	    (setq min (car y-ticks))
-	  ;; We may be extending the bottom of the chart to get pleasing
-	  ;; numbers.  We don't want to be drawing the chart on top of the
-	  ;; X axis, because the chart won't be visible there.
-	  (when (and (<= min (car y-ticks))
-		     possibly-adjust-min
-		     ;; But not if we start at origo, because that just
-		     ;; looks confusing.
-		     (not (zerop min)))
-	    (setq min (- (car y-ticks)
-			 ;; 2% of the value range.
-			 (* 0.02 (- (car (last y-ticks)) (car y-ticks))))))))
+    (when y-ticks
+      (if (and (not set-min)
+	       (< (car y-ticks) min))
+	  (setq min (car y-ticks))
+	;; We may be extending the bottom of the chart to get pleasing
+	;; numbers.  We don't want to be drawing the chart on top of the
+	;; X axis, because the chart won't be visible there.
+	(when (and nil
+		   (<= min (car y-ticks))
+		   ;; But not if we start at origo, because that just
+		   ;; looks confusing.
+		   (not (zerop min)))
+	  (setq min (- (car y-ticks)
+		       ;; 2% of the value range.
+		       (* 0.02 (- (car (last y-ticks)) (car y-ticks))))))))))
 
-      (when (eq grid-position 'top)
-	(eplot--draw-plots data chart-color height margin-bottom margin-left
-			   min max xs ys stride svg margin-top
-			   x-values x-min x-max))
-      ;; Make X ticks.
-      (cl-loop for xv in (or x-step-map x-ticks)
-	       for x = (if (consp xv) (car xv) xv)
-	       for do-tick = (if (consp xv)
-				 (nth 1 xv)
-			       (zerop (e% x x-tick-step)))
-	       for do-label = (if (consp xv)
-				  (nth 2 xv)
-				(zerop (e% x x-label-step)))
-	       for i from 0
-	       for label = (if bar-chart
-			       (eplot--vs 'label
-					  (plist-get (elt values x) :settings)
-					  (format "%s" x))
-			     (eplot--format-value x print-format))
-	       for px = (if bar-chart
-			    (+ margin-left (* x stride) (/ stride 2)
-			       (/ (* stride 0.1) 2))
-			  (+ margin-left
-			     (* (/ (- (* 1.0 x) x-min) (- x-max x-min))
-				xs)))
-	       ;; We might have one extra stride outside the area -- don't
-	       ;; draw it.
-	       when (<= px (- width margin-right))
-	       do
-	       (when do-tick
-		 ;; Draw little tick.
-		 (unless bar-chart
-		   (svg-line svg
-			     px (- height margin-bottom)
-			     px (+ (- height margin-bottom)
-				   (if do-label
-				       4
-				     2))
-			     :stroke legend-color))
-		 (when (or (eq grid 'on) (eq grid 'x))
-		   (svg-line svg px margin-top
-			     px (- height margin-bottom)
-			     :opacity grid-opacity
-			     :stroke grid-color)))
-	       (when (and do-label
-			  ;; We want to skip marking the first X value
-			  ;; unless we're a bar chart or we're a one
-			  ;; dimensional chart.
-			  (or bar-chart
-			      t
-			      (not (= x-min (car x-values)))
-			      (eq x-type 'one-dimensional)
-			      (and (not (zerop x)) (not (zerop i)))))
-		 (svg-text svg label
+(defun eplot--draw-x-ticks (svg chart)
+  (with-slots ( x-step-map x-ticks format layout print-format
+		margin-left margin-right margin-top margin-bottom
+		x-min x-max xs stride
+		width height
+		legend-color
+		grid grid-opacity grid-color
+		font font-size x-tick-step x-label-step)
+      chart
+    ;; Make X ticks.
+    (cl-loop for xv in (or x-step-map x-ticks)
+	     for x = (if (consp xv) (car xv) xv)
+	     for do-tick = (if (consp xv)
+			       (nth 1 xv)
+			     (zerop (e% x x-tick-step)))
+	     for do-label = (if (consp xv)
+				(nth 2 xv)
+			      (zerop (e% x x-label-step)))
+	     for i from 0
+	     for label = (if (equal format 'bar-chart)
+			     (eplot--vs 'label
+					(plist-get (elt values x) :settings)
+					(format "%s" x))
+			   (eplot--format-value x print-format))
+	     for px = (if (equal format 'bar-chart)
+			  (+ margin-left (* x stride) (/ stride 2)
+			     (/ (* stride 0.1) 2))
+			(+ margin-left
+			   (* (/ (- (* 1.0 x) x-min) (- x-max x-min))
+			      xs)))
+	     ;; We might have one extra stride outside the area -- don't
+	     ;; draw it.
+	     when (<= px (- width margin-right))
+	     do
+	     (when do-tick
+	       ;; Draw little tick.
+	       (unless (equal format 'bar-chart)
+		 (svg-line svg
+			   px (- height margin-bottom)
+			   px (+ (- height margin-bottom)
+				 (if do-label
+				     4
+				   2))
+			   :stroke legend-color))
+	       (when (or (eq grid 'xy) (eq grid 'x))
+		 (svg-line svg px margin-top
+			   px (- height margin-bottom)
+			   :opacity grid-opacity
+			   :stroke grid-color)))
+	     (when (and do-label
+			;; We want to skip marking the first X value
+			;; unless we're a bar chart or we're a one
+			;; dimensional chart.
+			(or (equal format 'bar-chart)
+			    t
+			    (not (= x-min (car x-values)))
+			    (eq x-type 'one-dimensional)
+			    (and (not (zerop x)) (not (zerop i)))))
+	       (svg-text svg label
+			 :font-family font
+			 :text-anchor "middle"
+			 :font-size font-size
+			 :fill legend-color
+			 :x px
+			 :y (+ (- height margin-bottom)
+			       font-size
+			       (if (equal format 'bar-chart)
+				   (if (equal layout 'compact) 3 5)
+				 2)))))))
+
+(defun eplot--draw-y-ticks (svg chart)
+  (with-slots ( y-ticks height width
+		margin-left margin-right margin-top margin-bottom
+		min max ys
+		y-tick-step y-label-step
+		grid grid-opacity grid-color
+		font font-size legend-color axes-color)
+      chart
+    ;; Make Y ticks.
+    (cl-loop for y in y-ticks
+	     for i from 0
+	     for py = (- (- height margin-bottom)
+			 (* (/ (- (* 1.0 y) min) (- max min))
+			    ys))
+	     do
+	     (when (and (<= margin-top py (- height margin-bottom))
+			(zerop (e% y y-tick-step)))
+	       (svg-line svg margin-left py
+			 (- margin-left 3) py
+			 :stroke-color axes-color)
+	       (when (or (eq grid 'xy) (eq grid 'y))
+		 (svg-line svg margin-left py
+			   (- width margin-right) py
+			   :opacity grid-opacity
+			   :stroke-color grid-color))
+	       (when (zerop (e% y y-label-step))
+		 (svg-text svg (eplot--format-y
+				y (- (cadr y-ticks) (car y-ticks)) nil)
 			   :font-family font
-			   :text-anchor "middle"
+			   :text-anchor "end"
 			   :font-size font-size
 			   :fill legend-color
-			   :x px
-			   :y (+ (- height margin-bottom)
-				 font-size
-				 (if bar-chart
-				     (if compact 3 5)
-				   2)))))
-      ;; Make Y ticks.
-      (cl-loop for y in y-ticks
-	       for i from 0
-	       for py = (- (- height margin-bottom)
-			   (* (/ (- (* 1.0 y) min) (- max min))
-			      ys))
-	       do
-	       (when (and (<= margin-top py (- height margin-bottom))
-			  (zerop (e% y y-tick-step)))
-		 (svg-line svg margin-left py
-			   (- margin-left 3) py
-			   :stroke-color axes-color)
-		 (when (or (eq grid 'on) (eq grid 'y))
-		   (svg-line svg margin-left py
-			     (- width margin-right) py
-			     :opacity grid-opacity
-			     :stroke-color grid-color))
-		 (when (zerop (e% y y-label-step))
-		   (svg-text svg (eplot--format-y
-				  y (- (cadr y-ticks) (car y-ticks)) nil)
-			     :font-family font
-			     :text-anchor "end"
-			     :font-size font-size
-			     :fill legend-color
-			     :x (- margin-left 6)
-			     :y (+ py (/ font-size 2) -2)))))
-      
-      ;; Draw axes.
-      (svg-line svg margin-left margin-top margin-left
-		(+ (- height margin-bottom) 5)
-		:stroke axes-color)
-      (svg-line svg (- margin-left 5) (- height margin-bottom)
-		(- width margin-right) (- height margin-bottom)
-		:stroke axes-color)
+			   :x (- margin-left 6)
+			   :y (+ py (/ font-size 2) -2)))))))
 
-      (when (eq grid-position 'bottom)
-	(eplot--draw-plots data chart-color height margin-bottom margin-left
-			   min max xs ys stride svg margin-top
-			   x-values x-min x-max))
-
-      (when-let ((frame-color (eplot--vs 'frame-color data)))
-	(svg-rectangle svg margin-left margin-top xs ys
-		       :stroke-width (eplot--vn 'frame-width data 1)
-		       :fill "none"
-		       :stroke-color frame-color))
-
-      (when (eplot--vs 'legend data)
-	(when-let ((names
-		    (cl-loop for plot in (cdr (assq :plots data))
-			     for headers = (cdr (assq :headers plot))
-			     for name = (eplot--vs 'name headers)
-			     when name
-			     collect
-			     (cons name (eplot--vs 'legend-color headers)))))
-	  (svg-rectangle svg (+ margin-left 20) (+ margin-top 20)
-			 (format "%dex"
-				 (+ 2
-				    (seq-max (mapcar (lambda (name)
-						       (length (car name)))
-						     names))))
-			 (* font-size (+ (length names) 2))
-			 :font-size font-size
-			 :fill-color (eplot--vs 'legend-background-color data
-						background-color)
-			 :stroke-color (eplot--vs 'legend-border-color data
-						  axes-color))
-	  (cl-loop for name in names
-		   for i from 0
-		   do (svg-text svg (car name)
-			       :font-family font
-			       :text-anchor "front"
-			       :font-size font-size
-			       :fill (or (cdr name) legend-color)
-			       :x (+ margin-left 25)
-			       :y (+ margin-top 40 (* i font-size)))))))
-
-    (if return-image
-	svg
-      (svg-insert-image svg))))
+(defun eplot--draw-legend (svg chart)
+  (with-slots ( legend plots
+		margin-left margin-top
+		font font-size
+		background-color axes-color
+		legend-color legend-background-color legend-border-color)
+      chart
+    (when (eq legend 'true)
+      (when-let ((names
+		  (cl-loop for plot in plots
+			   for headers = (cdr (assq :headers plot))
+			   for name = (eplot--vs 'name headers)
+			   when name
+			   collect
+			   (cons name (eplot--vs 'legend-color headers)))))
+	(svg-rectangle svg (+ margin-left 20) (+ margin-top 20)
+		       (format "%dex"
+			       (+ 2
+				  (seq-max (mapcar (lambda (name)
+						     (length (car name)))
+						   names))))
+		       (* font-size (+ (length names) 2))
+		       :font-size font-size
+		       :fill-color legend-background-color
+		       :stroke-color legend-border-color)
+	(cl-loop for name in names
+		 for i from 0
+		 do (svg-text svg (car name)
+			      :font-family font
+			      :text-anchor "front"
+			      :font-size font-size
+			      :fill (or (cdr name) legend-color)
+			      :x (+ margin-left 25)
+			      :y (+ margin-top 40 (* i font-size))))))))
 
 (defun eplot--format-y (y spacing whole)
   (cond
@@ -967,172 +1058,174 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 	      (list color))))
     (elt colors (mod n (length colors)))))
 
-(defun eplot--draw-plots (data default-color height
-			       margin-bottom margin-left
-			       min max xs ys
-			       stride svg margin-top
-			       x-values x-min x-max)
-  ;; Draw all the plots.
-  (cl-loop for plot in (reverse (cdr (assq :plots data)))
-	   for plot-number from 0
-	   for headers = (cdr (assq :headers plot))
-	   for values = (cdr (assq :values plot))
-	   for vals = (eplot--smooth
-		       (seq-map (lambda (v) (plist-get v :value)) values)
-		       (eplot--vy 'smoothing headers)
-		       xs)
-	   for polygon = nil
-	   for gradient = (eplot--parse-gradient (eplot--vs 'gradient headers))
-	   for lpy = nil
-	   for lpx = nil
-	   for style = (if (eq (eplot--vy 'format data) 'bar-chart)
-			   'bar
-			 (eplot--vy 'style headers 'line))
-	   for bar-gap = (* stride 0.1)
-	   do
-	   (unless gradient
-	     (when-let ((fill (eplot--vs 'fill headers)))
-	       (setq gradient `((from . ,fill) (to . ,fill)
-				(direction . top-down) (position . below)))))
-	   (when gradient
-	     (if (eq (eplot--vs 'position gradient) 'above)
-		 (push (cons margin-left margin-top) polygon)
-	       (push (cons margin-left (- height margin-bottom)) polygon)))
-	   (cl-loop
-	    for val in vals
-	    for value in values
-	    for x in x-values
-	    for i from 0
-	    for settings = (plist-get value :settings)
-	    for color = (eplot--vary-color
-			 (eplot--vs 'color settings
-				    (eplot--vs 'color headers default-color))
-			 i)
-	    for py = (- (- height margin-bottom)
-			(* (/ (- (* 1.0 val) min) (- max min))
-			   ys))
-	    for px = (if (eq style 'bar)
+(defun eplot--draw-plots (svg chart)
+  (with-slots ( plots chart-color height format
+		margin-bottom margin-left
+		min max xs ys
+		stride margin-top
+		x-values x-min x-max)
+      chart
+    ;; Draw all the plots.
+    (cl-loop for plot in (reverse plots)
+	     for plot-number from 0
+	     for headers = (cdr (assq :headers plot))
+	     for values = (cdr (assq :values plot))
+	     for vals = (eplot--smooth
+			 (seq-map (lambda (v) (plist-get v :value)) values)
+			 (eplot--vy 'smoothing headers)
+			 xs)
+	     for polygon = nil
+	     for gradient = (eplot--parse-gradient (eplot--vs 'gradient headers))
+	     for lpy = nil
+	     for lpx = nil
+	     for style = (if (eq format 'bar-chart)
+			     'bar
+			   (eplot--vy 'style headers 'line))
+	     for bar-gap = (* stride 0.1)
+	     do
+	     (unless gradient
+	       (when-let ((fill (eplot--vs 'fill headers)))
+		 (setq gradient `((from . ,fill) (to . ,fill)
+				  (direction . top-down) (position . below)))))
+	     (when gradient
+	       (if (eq (eplot--vs 'position gradient) 'above)
+		   (push (cons margin-left margin-top) polygon)
+		 (push (cons margin-left (- height margin-bottom)) polygon)))
+	     (cl-loop
+	      for val in vals
+	      for value in values
+	      for x in x-values
+	      for i from 0
+	      for settings = (plist-get value :settings)
+	      for color = (eplot--vary-color
+			   (eplot--vs 'color settings
+				      (eplot--vs 'color headers chart-color))
+			   i)
+	      for py = (- (- height margin-bottom)
+			  (* (/ (- (* 1.0 val) min) (- max min))
+			     ys))
+	      for px = (if (eq style 'bar)
+			   (+ margin-left
+			      (* (e/ (- x x-min) (- x-max x-min -1))
+				 xs))
 			 (+ margin-left
-			    (* (e/ (- x x-min) (- x-max x-min -1))
-			       xs))
-		       (+ margin-left
-			  (* (e/ (- x x-min) (- x-max x-min))
-			     xs)))
-	    do
-	    (cl-case style
-	      (bar
-	       (svg-rectangle svg
-			      (+ px bar-gap) py
-			      (- stride bar-gap) (- height margin-bottom py)
-			      :fill color))
-	      (impulse
-	       (let ((width (eplot--vn 'size settings
-				       (eplot--vn 'size headers 1))))
-		 (if (= width 1)
-		     (svg-line svg
-			       px py
-			       px (- height margin-bottom)
+			    (* (e/ (- x x-min) (- x-max x-min))
+			       xs)))
+	      do
+	      (cl-case style
+		(bar
+		 (svg-rectangle svg
+				(+ px bar-gap) py
+				(- stride bar-gap) (- height margin-bottom py)
+				:fill color))
+		(impulse
+		 (let ((width (eplot--vn 'size settings
+					 (eplot--vn 'size headers 1))))
+		   (if (= width 1)
+		       (svg-line svg
+				 px py
+				 px (- height margin-bottom)
+				 :stroke color)
+		     (svg-rectangle svg
+				    (- px (e/ width 2)) py
+				    width (- height py margin-bottom)
+				    :fill color))))
+		(point
+		 (svg-line svg px py (1+ px) (1+ py)
+			   :stroke color))
+		(line
+		 ;; If we're doing a gradient, we're just collecting
+		 ;; points and will draw the polygon later.
+		 (if gradient
+		     (push (cons px py) polygon)
+		   (when lpx
+		     (svg-line svg lpx lpy px py
+			       :stroke color))))
+		(square
+		 (if gradient
+		     (progn
+		       (when lpx
+			 (push (cons lpx py) polygon))
+		       (push (cons px py) polygon))
+		   (when lpx
+		     (svg-line svg lpx lpy px lpy
 			       :stroke color)
-		   (svg-rectangle svg
-				  (- px (e/ width 2)) py
-				  width (- height py margin-bottom)
-				  :fill color))))
-	      (point
-	       (svg-line svg px py (1+ px) (1+ py)
-			 :stroke color))
-	      (line
-	       ;; If we're doing a gradient, we're just collecting
-	       ;; points and will draw the polygon later.
-	       (if gradient
-		   (push (cons px py) polygon)
-		 (when lpx
-		   (svg-line svg lpx lpy px py
-			     :stroke color))))
-	      (square
-	       (if gradient
-		   (progn
+		     (svg-line svg px lpy px py
+			       :stroke color))))
+		(circle
+		 (svg-circle svg px py
+			     (eplot--vn 'size settings
+					(eplot--vn 'size headers 3))
+			     :stroke color
+			     :fill (eplot--vary-color
+				    (eplot--vs 'fill settings
+					       (eplot--vs 'fill headers "none"))
+				    i)))
+		(cross
+		 (let ((s (eplot--vn 'size headers 3)))
+		   (svg-line svg (- px s) (- py s)
+			     (+ px s) (+ py s)
+			     :stroke color)
+		   (svg-line svg (+ px s) (- py s)
+			     (- px s) (+ py s)
+			     :stroke color)))
+		(triangle
+		 (let ((s (eplot--vn 'size headers 5)))
+		   (svg-polygon svg
+				(list
+				 (cons (- px (e/ s 2)) (+ py (e/ s 2)))
+				 (cons px (- py (e/ s 2)))
+				 (cons (+ px (e/ s 2)) (+ py (e/ s 2))))
+				:stroke color
+				:fill-color (eplot--vs 'fill headers "none"))))
+		(rectangle
+		 (let ((s (eplot--vn 'size headers 3)))
+		   (svg-rectangle svg (- px (e/ s 2)) (- py (e/ s 2))
+				  s s
+				  :stroke color
+				  :fill-color (eplot--vs 'fill headers "none")))))
+	      (setq lpy py
+		    lpx px))
+
+	     ;; We're doing a gradient of some kind, so draw it now when
+	     ;; we've collected the polygon.
+	     (when polygon
+	       ;; We have a "between" chart, so collect the data points
+	       ;; from the "extra" values, too.
+	       (when (memq 'two-values (eplot--vyl 'data-format headers))
+		 (cl-loop
+		  for val in (nreverse
+			      (seq-map (lambda (v) (plist-get v :extra-value))
+				       values))
+		  for x from (1- (length vals)) downto 0
+		  for py = (- (- height margin-bottom)
+			      (* (/ (- (* 1.0 val) min) (- max min))
+				 ys))
+		  for px = (+ margin-left
+			      (* (e/ (- x x-min) (- x-max x-min))
+				 xs))
+		  do
+		  (cl-case style
+		    (line
+		     (push (cons px py) polygon))
+		    (square
 		     (when lpx
 		       (push (cons lpx py) polygon))
-		     (push (cons px py) polygon))
-		 (when lpx
-		   (svg-line svg lpx lpy px lpy
-			     :stroke color)
-		   (svg-line svg px lpy px py
-			     :stroke color))))
-	      (circle
-	       (svg-circle svg px py
-			   (eplot--vn 'size settings
-				      (eplot--vn 'size headers 3))
-			   :stroke color
-			   :fill (eplot--vary-color
-				  (eplot--vs 'fill settings
-					     (eplot--vs 'fill headers "none"))
-				  i)))
-	      (cross
-	       (let ((s (eplot--vn 'size headers 3)))
-		 (svg-line svg (- px s) (- py s)
-			   (+ px s) (+ py s)
-			   :stroke color)
-		 (svg-line svg (+ px s) (- py s)
-			   (- px s) (+ py s)
-			   :stroke color)))
-	      (triangle
-	       (let ((s (eplot--vn 'size headers 5)))
-		 (svg-polygon svg
-			      (list
-			       (cons (- px (e/ s 2)) (+ py (e/ s 2)))
-			       (cons px (- py (e/ s 2)))
-			       (cons (+ px (e/ s 2)) (+ py (e/ s 2))))
-			      :stroke color
-			      :fill-color (eplot--vs 'fill headers "none"))))
-	      (rectangle
-	       (let ((s (eplot--vn 'size headers 3)))
-		 (svg-rectangle svg (- px (e/ s 2)) (- py (e/ s 2))
-				s s
-				:stroke color
-				:fill-color (eplot--vs 'fill headers "none")))))
-	    (setq lpy py
-		  lpx px))
+		     (push (cons px py) polygon)))
+		  (setq lpx px lpy py)))
 
-	   ;; We're doing a gradient of some kind, so draw it now when
-	   ;; we've collected the polygon.
-	   (when polygon
-	     ;; We have a "between" chart, so collect the data points
-	     ;; from the "extra" values, too.
-	     (when (memq 'two-values (eplot--vyl 'data-format headers))
-	       (cl-loop
-		for val in (nreverse
-			    (seq-map (lambda (v) (plist-get v :extra-value))
-				     values))
-		for x from (1- (length vals)) downto 0
-		for py = (- (- height margin-bottom)
-			    (* (/ (- (* 1.0 val) min) (- max min))
-			       ys))
-		for px = (+ margin-left
-			    (* (e/ (- x x-min) (- x-max x-min))
-			       xs))
-		do
-		(cl-case style
-		  (line
-		   (push (cons px py) polygon))
-		  (square
-		   (when lpx
-		     (push (cons lpx py) polygon))
-		   (push (cons px py) polygon)))
-		(setq lpx px lpy py)))
-
-	     (if (eq (eplot--vs 'position gradient) 'above)
-		 (push (cons lpx margin-top) polygon)
-	       (push (cons lpx (- height margin-bottom)) polygon))
-	     (let ((id (format "gradient-%d" plot-number)))
-	       (eplot--gradient svg id 'linear
-				(eplot--stops (eplot--vs 'from gradient)
-					      (eplot--vs 'to gradient))
-				(eplot--vs 'direction gradient))
-	       (svg-polygon svg (nreverse polygon)
-			    :gradient id
-			    :stroke (eplot--vs 'fill-border headers))
-	       (setq polygon nil)))))
+	       (if (eq (eplot--vs 'position gradient) 'above)
+		   (push (cons lpx margin-top) polygon)
+		 (push (cons lpx (- height margin-bottom)) polygon))
+	       (let ((id (format "gradient-%d" plot-number)))
+		 (eplot--gradient svg id 'linear
+				  (eplot--stops (eplot--vs 'from gradient)
+						(eplot--vs 'to gradient))
+				  (eplot--vs 'direction gradient))
+		 (svg-polygon svg (nreverse polygon)
+			      :gradient id
+			      :stroke (eplot--vs 'fill-border headers))
+		 (setq polygon nil))))))
 
 (defun eplot--stops (from to)
   (append `((0 . ,from))
@@ -1418,3 +1511,6 @@ nil means `top-down'."
 ;;; Todo:
 
 ;; Time plot
+
+;; Define plot headers, and inject them the rights place.
+;; Allow 2x size generation?
