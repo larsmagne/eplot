@@ -5,4 +5,4 @@ Y-Label: Bugs Opened
 
 Data-Format: date
 Smoothing: moving-average
-Data: data-date1.txt
+Data-File: data-date1.txt

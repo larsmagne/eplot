@@ -2,8 +2,8 @@ Layout: compact
 Width: 300
 Height: 200
 
-Data: data1.txt
+Data-File: data1.txt
 
 Style: impulse
 Color: blue
-Data: data2.txt
+Data-File: data2.txt

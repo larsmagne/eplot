@@ -6,4 +6,4 @@ Y-Label: Money
 Margin-Left: 40
 Margin-Bottom: 40
 
-Data: data1.txt
+Data-File: data1.txt

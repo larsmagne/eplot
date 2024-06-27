@@ -2,4 +2,4 @@ Layout: compact
 Width: 300
 Height: 200
 
-Data: data1.txt
+Data-File: data1.txt

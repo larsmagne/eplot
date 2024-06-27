@@ -185,7 +185,7 @@ the data in between:
 	Data-Format: two-values
 	Style: square
 	Fill: lightblue
-	Fill-Border: black
+	Fill-Border-Color: black
 	Data: data-between.txt
 
 ![chart-between2.plt](/images/chart-between2.png)
@@ -393,3 +393,8 @@ before plotting.
 eplot isn't really geared towards doing 2D plots -- it's for time
 series and bar charts.  But it can do rudimentary 2D plots, but it
 lacks some of the control you'd expect.
+
+So there's a lot of different headers you can use to influence the
+look of the chart and the individual plots.  To get a list of them
+all, and their possible values, use the `M-x eplot-list-chart-headers'
+command.

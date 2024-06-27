@@ -3,4 +3,4 @@ Width: 300
 Height: 200
 
 Gradient: black red top-down above
-Data: data1.txt
+Data-File: data1.txt

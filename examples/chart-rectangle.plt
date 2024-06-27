@@ -3,4 +3,4 @@ Width: 300
 Height: 200
 
 Style: rectangle
-Data: data1.txt
+Data-File: data1.txt

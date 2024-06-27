@@ -4,4 +4,4 @@ Height: 200
 
 Style: circle
 Size: 8
-Data: data1.txt
+Data-File: data1.txt

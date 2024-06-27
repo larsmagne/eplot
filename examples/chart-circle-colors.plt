@@ -6,4 +6,4 @@ Style: circle
 Fill: vary
 Color: none
 Size: 8
-Data: data1.txt
+Data-File: data1.txt

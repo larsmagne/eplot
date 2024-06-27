@@ -7,9 +7,9 @@ Frame-Color: red
 Surround-Color: green
 Background-Color: blue
 Grid-Color: black
-Color: white
 Title: Title, background and border
 Axes-Color: black
 Title-Color: red
 
-Data: data1.txt
+Color: white
+Data-File: data1.txt

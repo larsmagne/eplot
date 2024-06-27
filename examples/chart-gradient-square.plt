@@ -4,4 +4,4 @@ Height: 200
 
 Gradient: black red
 Style: square
-Data: data1.txt
+Data-File: data1.txt

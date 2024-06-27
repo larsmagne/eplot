@@ -7,4 +7,4 @@ Border-Width: 1
 Data-Format: two-values
 Style: square
 Gradient: red black
-Data: data-between.txt
+Data-File: data-between.txt
