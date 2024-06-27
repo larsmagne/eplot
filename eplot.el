@@ -20,6 +20,7 @@
 
 ;;; Code:
 
+(require 'svg)
 (require 'cl-lib)
 (require 'face-remap)
 
