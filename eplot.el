@@ -568,20 +568,20 @@ square
 
 circle
   size: diameter of the circle
-  fill: color to fill the center
+  fill-color: color to fill the center
 
 cross
   size: length of the lines in the cross
 
 triangle
   size: length of the sides of the triangle
-  fill: color to fill the center
+  fill-color: color to fill the center
 
 rectangle
   size: length of the sides of the rectangle
-  fill: color to fill the center")
+  fill-color: color to fill the center")
 
-(eplot-pdef (fill string)
+(eplot-pdef (fill-color string)
   "Color to use to fill the plot styles that are closed shapes.
 I.e., circle, triangle and rectangle.")
 
@@ -1270,7 +1270,7 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 	     for bar-gap = (* stride 0.1)
 	     do
 	     (unless gradient
-	       (when-let ((fill (eplot--vs 'fill headers)))
+	       (when-let ((fill (eplot--vs 'fill-color headers)))
 		 (setq gradient `((from . ,fill) (to . ,fill)
 				  (direction . top-down) (position . below)))))
 	     (when gradient
@@ -1344,8 +1344,9 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 					(eplot--vn 'size headers 3))
 			     :stroke color
 			     :fill (eplot--vary-color
-				    (eplot--vs 'fill settings
-					       (eplot--vs 'fill headers "none"))
+				    (eplot--vs
+				     'fill-color settings
+				     (eplot--vs 'fill-color headers "none"))
 				    i)))
 		(cross
 		 (let ((s (eplot--vn 'size headers 3)))
@@ -1363,13 +1364,15 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 				 (cons px (- py (e/ s 2)))
 				 (cons (+ px (e/ s 2)) (+ py (e/ s 2))))
 				:stroke color
-				:fill-color (eplot--vs 'fill headers "none"))))
+				:fill-color (eplot--vs 'fill-color
+						       headers "none"))))
 		(rectangle
 		 (let ((s (eplot--vn 'size headers 3)))
 		   (svg-rectangle svg (- px (e/ s 2)) (- py (e/ s 2))
 				  s s
 				  :stroke color
-				  :fill-color (eplot--vs 'fill headers "none")))))
+				  :fill-color (eplot--vs 'fill-color
+							 headers "none")))))
 	      (setq lpy py
 		    lpx px))
 

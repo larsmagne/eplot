@@ -3,14 +3,14 @@ Width: 300
 Height: 200
 
 Style: circle
-Fill: none
+Fill-Color: none
 Color: black
 Size: 3
 41
 42.1
 42.1
 44.1
-43.6 # Size: 10, Fill: red
+43.6 # Size: 10, Fill-Color: red
 43.6
 42.9
 43
@@ -19,7 +19,7 @@ Size: 3
 44.5
 45.4
 45.9
-52   # Size: 10, Fill: blue
+52   # Size: 10, Fill-Color: blue
 53
 52.5
 51

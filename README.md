@@ -56,7 +56,7 @@ default is the "line" Style.
 ![chart-square.plt](/images/chart-square.png)
 
 	Style: triangle
-	Fill: #c0c0c0
+	Fill-Color: #c0c0c0
 
 Some styles also take a Fill parameter to specify the fill color.
 
@@ -102,7 +102,7 @@ There's a special color spec called "vary", and it results in choosing
 between some pre-defined legible colors:
 
 	Style: circle
-	Fill: vary
+	Fill-Color: vary
 	Color: none
 	Size: 8
 
@@ -119,12 +119,12 @@ You can also specify colors/sizes on a per-data point basis.  Here's
 an excerpt from a plt file that demonstrates that:
 
 	Style: circle
-	Fill: none
+	Fill-Color: none
 	41
 	42.1
 	42.1
 	44.1
-	43.6 # Size: 10, Fill: red
+	43.6 # Size: 10, Fill-Color: red
 	43.6
 	42.9
 	43
@@ -133,7 +133,7 @@ an excerpt from a plt file that demonstrates that:
 	44.5
 	45.4
 	45.9
-	52   # Size: 10, Fill: blue
+	52   # Size: 10, Fill-Color: blue
 	53
 
 ![chart-circle-sizes.plt](/images/chart-circle-sizes.png)
@@ -184,7 +184,7 @@ the data in between:
 
 	Data-Format: two-values
 	Style: square
-	Fill: lightblue
+	Fill-Color: lightblue
 	Fill-Border-Color: black
 	Data: data-between.txt
 
