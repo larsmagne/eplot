@@ -23,6 +23,8 @@
 (require 'svg)
 (require 'cl-lib)
 (require 'face-remap)
+(require 'eieio)
+(require 'iso8601)
 
 (defvar eplot-font "sans-serif"
   "The default font to use in the charts.
