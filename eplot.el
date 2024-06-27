@@ -33,9 +33,13 @@ This can be overridden with the `Font' header.")
 ;;; eplot modes.
 
 (defvar-keymap eplot-mode-map
-  "C-c C-c" #'eplot-update-view-buffer)
+  "C-c C-c" #'eplot-update-view-buffer
+  "C-c C-e" #'eplot-list-chart-headers)
 
-(define-derived-mode eplot-mode text-mode "eplot")
+(define-derived-mode eplot-mode text-mode "eplot"
+  "Major mode for editing charts.
+Use the \\[eplot-list-chart-headers] command to get a list of all
+possible chart headers.")
 
 (define-minor-mode eplot-minor-mode
   "Minor mode to issue commands from an eplot data buffer."
@@ -115,9 +119,7 @@ This can be overridden with the `Font' header.")
 	   (plot-headers
 	    ;; It's OK not to separate the plot headers from the chart
 	    ;; headers.  Collect them here, if any.
-	    (cl-loop for elem in '( smoothing gradient style fill color size
-				    data-format fill-border-color data-column
-				    data-file)
+	    (cl-loop for elem in (mapcar #'car eplot--plot-headers)
 		     for value = (eplot--vs elem data)
 		     when value
 		     collect (progn
@@ -552,7 +554,10 @@ xy: The first column is the X position.")
 (eplot-pdef (fill-border-color string)
   "Border around the fill area when using a fill/gradient style.")
 
-(eplot-pdef (data string)
+(eplot-pdef (size number)
+  "Size of elements in styles that have meaningful sizes.")
+
+(eplot-pdef (data-file string)
   "File where the data is.")
 
 (defun eplot--make-chart (data)
@@ -1614,6 +1619,29 @@ nil means `top-down'."
 		(call-process "convert" nil nil nil svg png)
 		(delete-file svg))))
 
+(defun eplot-list-chart-headers ()
+  "Pop to a buffer showing all chart parameters."
+  (interactive)
+  (pop-to-buffer "*eplot help*")
+  (let ((inhibit-read-only t))
+    (special-mode)
+    (erase-buffer)
+    (insert "The following headers influence the overall\nlook of the chart:\n\n")
+    (eplot--list-headers eplot--chart-headers)
+    (ensure-empty-lines 2)
+    (insert "The following headers are per plot:\n\n")
+    (eplot--list-headers eplot--plot-headers)
+    (goto-char (point-min))))
+
+(defun eplot--list-headers (headers)
+  (dolist (header headers)
+    (insert (propertize (capitalize (symbol-name (car header))) 'face 'bold)
+	    "\n")
+    (let ((start (point)))
+      (insert (plist-get (cdr header) :doc) "\n")
+      (indent-rigidly start (point) 2))
+    (ensure-empty-lines 1)))
+
 (provide 'eplot)
 
 ;;; eplot.el ends here
@@ -1625,8 +1653,6 @@ nil means `top-down'."
 ;; Define plot headers, and inject them the rights place.
 ;; Allow 2x size generation?
 
-;; Command to list parameters
-;; Mention in mode doc string
 ;; Autocomplete headers
 ;; Comments in .plt buffers.
 ;; font-lock in plt buffers
