@@ -27,7 +27,8 @@
   "The default font to use in the charts.
 This can be overridden with the `Font' header.")
 
-(setq auto-mode-alist (cons '("\\.plt" . eplot-mode) auto-mode-alist))
+(unless (assoc "\\.plt" auto-mode-alist)
+  (setq auto-mode-alist (cons '("\\.plt" . eplot-mode) auto-mode-alist)))
 
 ;;; eplot modes.
 
@@ -115,10 +116,16 @@ This can be overridden with the `Font' header.")
 	    ;; It's OK not to separate the plot headers from the chart
 	    ;; headers.  Collect them here, if any.
 	    (cl-loop for elem in '( smoothing gradient style fill color size
-				    data-format fill-border data)
+				    data-format fill-border-color data-column
+				    data-file)
 		     for value = (eplot--vs elem data)
 		     when value
-		     collect (cons elem value)))
+		     collect (progn
+			       ;; Remove these headers from the data
+			       ;; headers so that we don't get errors
+			       ;; on undefined headers.
+			       (setq data (delq (assq elem data) data))
+			       (cons elem value))))
 	   plots)
       ;; Then the values.
       (while-let ((plot (eplot--parse-values nil plot-headers)))
@@ -157,7 +164,7 @@ This can be overridden with the `Font' header.")
 		 (memq 'xy data-format)))
 	 (data-column (or (eplot--vn 'data-column headers)
 			  (eplot--vn 'data-column in-headers))))
-    (if-let ((data-file (eplot--vs 'data headers)))
+    (if-let ((data-file (eplot--vs 'data-file headers)))
 	(with-temp-buffer
 	  (insert-file-contents data-file)
 	  (setq values (cdr (assq :values (eplot--parse-values headers)))
@@ -367,9 +374,11 @@ This is normally computed automatically, but can be overridden
 
 (defvar eplot-dark-defaults
   '((chart-color "#c0c0c0")
+    (axes-color "#c0c0c0")
     (grid-color "#404040")
     (background-color "#101010")
-    (label-color "#101010")))
+    (label-color "#c0c0c0")
+    (legend-color "#c0c0c0")))
 
 (defvar eplot-bar-chart-defaults
   '((grid-position top)
@@ -444,6 +453,107 @@ This is normally computed automatically, but can be overridden
 			(string< (car s1) (car s2)))))
     (insert (format "   (%s :initarg :%s :initform nil)\n"
 		    (car spec) (car spec)))))
+
+;;; Parameters that are plot specific.
+
+(defvar eplot--plot-headers nil)
+
+(defmacro eplot-pdef (args doc-string)
+  (declare (indent defun))
+  `(eplot--pdef ',(nth 0 args) ',(nth 1 args) ',(nth 2 args) ,doc-string))
+
+(defun eplot--pdef (name type default doc)
+  (setq eplot--plot-headers (delq (assq name eplot--plot-headers)
+				   eplot--plot-headers))
+  (push (list name
+	      :type type
+	      :default default
+	      :doc doc)
+	eplot--plot-headers))
+
+(eplot-pdef (smoothing symbol)
+  "Smoothing algorithm to apply to the data, if any.
+Valid values are `moving-average' and, er, probably more to come.")
+
+(eplot-pdef (gradient string)
+  "Gradient to apply to the plot.
+The syntax is:
+
+  from-color to-color direction position
+
+The last two parameters are optional.
+
+direction is either `top-down' (the default), `bottom-up',
+`left-right' or `right-left').
+
+position is either `below' or `above'.
+
+to-color can be either a color name, or a string that defines
+stops and colors:
+
+   Gradient: black 25-purple-50-white-75-purple-black
+
+In that case, the second element specifies the percentage points
+of where each color ends, so the above starts with black, then at
+25% it's purple, then at 50% it's white, then it's back to purple
+again at 75%, before ending up at black at a 100% (but you don't
+have to include the 100% here -- it's understood).")
+
+(eplot-pdef (style symbol line)
+  "Style the plot should be drawn in.
+Valid values are listed below.  Some styles take additional
+optional parameters.
+
+line
+
+impulse
+  size: width of the impulse
+
+point
+
+square
+
+circle
+  size: diameter of the circle
+  fill: color to fill the center
+
+cross
+  size: length of the lines in the cross
+
+triangle
+  size: length of the sides of the triangle
+  fill: color to fill the center
+
+rectangle
+  size: length of the sides of the rectangle
+  fill: color to fill the center")
+
+(eplot-pdef (fill string)
+  "Color to use to fill the plot styles that are closed shapes.
+I.e., circle, triangle and rectangle.")
+
+(eplot-pdef (color string (spec chart-color))
+  "Color to draw the plot.")
+
+(eplot-pdef (data-format symbol single)
+  "Format of the data.
+By default, eplot assumes that each line has a single data point.
+This can also be `date', `time' and `xy'.
+
+date: The first column is a date on ISO8601 format (i.e., YYYYMMDD).
+
+time: The first column is a clock (i.e., HHMMSS).
+
+xy: The first column is the X position.")
+
+(eplot-pdef (data-column number 1)
+  "Column where the data is.")
+
+(eplot-pdef (fill-border-color string)
+  "Border around the fill area when using a fill/gradient style.")
+
+(eplot-pdef (data string)
+  "File where the data is.")
 
 (defun eplot--make-chart (data)
   "Make an `eplot-chart' object and initialize based on DATA."
@@ -760,7 +870,7 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 		margin-left margin-right margin-top margin-bottom
 		x-min x-max xs stride
 		width height
-		legend-color
+		axes-color label-color
 		grid grid-opacity grid-color
 		font font-size x-tick-step x-label-step)
       chart
@@ -798,7 +908,7 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 				 (if do-label
 				     4
 				   2))
-			   :stroke legend-color))
+			   :stroke axes-color))
 	       (when (or (eq grid 'xy) (eq grid 'x))
 		 (svg-line svg px margin-top
 			   px (- height margin-bottom)
@@ -817,7 +927,7 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 			 :font-family font
 			 :text-anchor "middle"
 			 :font-size font-size
-			 :fill legend-color
+			 :fill label-color
 			 :x px
 			 :y (+ (- height margin-bottom)
 			       font-size
@@ -831,7 +941,7 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 		min max ys
 		y-tick-step y-label-step
 		grid grid-opacity grid-color
-		font font-size legend-color axes-color)
+		font font-size axes-color label-color)
       chart
     ;; Make Y ticks.
     (cl-loop for y in y-ticks
@@ -856,7 +966,7 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 			   :font-family font
 			   :text-anchor "end"
 			   :font-size font-size
-			   :fill legend-color
+			   :fill label-color
 			   :x (- margin-left 6)
 			   :y (+ py (/ font-size 2) -2)))))))
 
@@ -1224,7 +1334,7 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 				  (eplot--vs 'direction gradient))
 		 (svg-polygon svg (nreverse polygon)
 			      :gradient id
-			      :stroke (eplot--vs 'fill-border headers))
+			      :stroke (eplot--vs 'fill-border-color headers))
 		 (setq polygon nil))))))
 
 (defun eplot--stops (from to)
@@ -1514,3 +1624,9 @@ nil means `top-down'."
 
 ;; Define plot headers, and inject them the rights place.
 ;; Allow 2x size generation?
+
+;; Command to list parameters
+;; Mention in mode doc string
+;; Autocomplete headers
+;; Comments in .plt buffers.
+;; font-lock in plt buffers
