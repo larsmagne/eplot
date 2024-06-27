@@ -56,20 +56,22 @@ possible chart headers."
 
 (defun eplot--complete-header ()
   (and (save-excursion
-	 (let ((start (point)))
-	   (goto-char (point-min))
-	   ;; We either have no separator...
-	   (or (not (re-search-forward "^[ \t]*\n" nil t))
-	       ;; Or we're before the separator.
-	       (< start (point)))))
-       (save-excursion
 	 (or (looking-at ".*:")
 	     (looking-at "[ \t]*$")))
        (lambda ()
 	 (let ((headers (mapcar
 			 (lambda (h)
 			   (capitalize (symbol-name (car h))))
-			 eplot--chart-headers))
+			 (save-excursion
+			   ;; If we're after the headers, then we want
+			   ;; to complete over the plot headers.  Otherwise,
+			   ;; complete over the chart headers.
+			   (if (and (not (bobp))
+				    (progn
+				      (forward-line -1)
+				      (re-search-backward "^[ \t]*$" nil t)))
+			       eplot--plot-headers
+			     eplot--chart-headers))))
 	       (completion-ignore-case t))
 	   (completion-in-region (pos-bol) (line-end-position) headers)
 	   'completion-attempted))))
