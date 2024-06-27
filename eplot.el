@@ -1715,7 +1715,8 @@ nil means `top-down'."
 	  (set-buffer "*test eplots*")
 	(pop-to-buffer "*test eplots*")
 	(when (< text-scale-mode-amount (abs (text-scale-min-amount)))
-	  (text-scale-decrease (abs (text-scale-min-amount)))))
+	  (ignore-errors
+	    (text-scale-decrease (abs (text-scale-min-amount))))))
       (erase-buffer)
       (cl-loop for file in (directory-files "examples" t
 					    (if main "^chart.*.plt\\'"
