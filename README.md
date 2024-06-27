@@ -398,3 +398,7 @@ So there's a lot of different headers you can use to influence the
 look of the chart and the individual plots.  To get a list of them
 all, and their possible values, use the `M-x eplot-list-chart-headers'
 command.
+
+You can have comments in a .plt buffer -- all lines that start with 
+a # are comments.
+

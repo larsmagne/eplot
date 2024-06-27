@@ -38,7 +38,9 @@ This can be overridden with the `Font' header.")
   "TAB" #'eplot-complete)
 
 (defvar eplot-font-lock-keywords
-  `(("^[^:]+:" . font-lock-keyword-face)))
+  `(("^[^:\n]+:" . font-lock-keyword-face)
+    ("^[ \t\n]*#.*" . font-lock-comment-face)
+    ("#.*" . font-lock-builtin-face)))
 
 (define-derived-mode eplot-mode text-mode "eplot"
   "Major mode for editing charts.
@@ -152,30 +154,36 @@ possible chart headers."
     (insert "\n\n")))
 
 (defun eplot--parse-buffer ()
-  (save-excursion
-    (goto-char (point-min))
-    ;; First headers.
-    (let* ((data (eplot--parse-headers))
-	   (plot-headers
-	    ;; It's OK not to separate the plot headers from the chart
-	    ;; headers.  Collect them here, if any.
-	    (cl-loop for elem in (mapcar #'car eplot--plot-headers)
-		     for value = (eplot--vs elem data)
-		     when value
-		     collect (progn
-			       ;; Remove these headers from the data
-			       ;; headers so that we don't get errors
-			       ;; on undefined headers.
-			       (setq data (delq (assq elem data) data))
-			       (cons elem value))))
-	   plots)
-      ;; Then the values.
-      (while-let ((plot (eplot--parse-values nil plot-headers)))
-	(setq plot-headers nil)
-	(push plot plots))
-      (when plots
-	(push (cons :plots (nreverse plots)) data))
-      data)))
+  (let ((buf (current-buffer)))
+    (with-temp-buffer
+      (insert-buffer-substring buf)
+      ;; Remove comments first.
+      (goto-char (point-min))
+      (while (re-search-forward "^[ \t]*#" nil t)
+	(delete-line))
+      (goto-char (point-min))
+      ;; First headers.
+      (let* ((data (eplot--parse-headers))
+	     (plot-headers
+	      ;; It's OK not to separate the plot headers from the chart
+	      ;; headers.  Collect them here, if any.
+	      (cl-loop for elem in (mapcar #'car eplot--plot-headers)
+		       for value = (eplot--vs elem data)
+		       when value
+		       collect (progn
+				 ;; Remove these headers from the data
+				 ;; headers so that we don't get errors
+				 ;; on undefined headers.
+				 (setq data (delq (assq elem data) data))
+				 (cons elem value))))
+	     plots)
+	;; Then the values.
+	(while-let ((plot (eplot--parse-values nil plot-headers)))
+	  (setq plot-headers nil)
+	  (push plot plots))
+	(when plots
+	  (push (cons :plots (nreverse plots)) data))
+	data))))
 
 (defun eplot--parse-headers ()
   (let ((data nil)
@@ -1690,7 +1698,4 @@ nil means `top-down'."
 
 ;; Time plot
 
-;; Define plot headers, and inject them the rights place.
 ;; Allow 2x size generation?
-
-;; Comments in .plt buffers.
