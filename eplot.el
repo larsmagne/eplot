@@ -37,12 +37,17 @@ This can be overridden with the `Font' header.")
   "C-c C-e" #'eplot-list-chart-headers
   "TAB" #'eplot-complete)
 
+(defvar eplot-font-lock-keywords
+  `(("^[^:]+:" . font-lock-keyword-face)))
+
 (define-derived-mode eplot-mode text-mode "eplot"
   "Major mode for editing charts.
 Use the \\[eplot-list-chart-headers] command to get a list of all
 possible chart headers."
   (setq-local completion-at-point-functions
-	      (cons 'eplot--complete-header completion-at-point-functions)))
+	      (cons 'eplot--complete-header completion-at-point-functions))
+  (setq-local font-lock-defaults
+	      '(eplot-font-lock-keywords nil nil)))
 
 (defun eplot-complete ()
   "Complete headers."
@@ -1689,4 +1694,3 @@ nil means `top-down'."
 ;; Allow 2x size generation?
 
 ;; Comments in .plt buffers.
-;; font-lock in plt buffers
