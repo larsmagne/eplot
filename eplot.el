@@ -34,12 +34,45 @@ This can be overridden with the `Font' header.")
 
 (defvar-keymap eplot-mode-map
   "C-c C-c" #'eplot-update-view-buffer
-  "C-c C-e" #'eplot-list-chart-headers)
+  "C-c C-e" #'eplot-list-chart-headers
+  "TAB" #'eplot-complete)
 
 (define-derived-mode eplot-mode text-mode "eplot"
   "Major mode for editing charts.
 Use the \\[eplot-list-chart-headers] command to get a list of all
-possible chart headers.")
+possible chart headers."
+  (setq-local completion-at-point-functions
+	      (cons 'eplot--complete-header completion-at-point-functions)))
+
+(defun eplot-complete ()
+  "Complete headers."
+  (interactive)
+  (cond
+   ((let ((completion-fail-discreetly t))
+      (completion-at-point))
+    ;; Completion was performed; nothing else to do.
+    nil)
+   (t (indent-relative))))
+
+(defun eplot--complete-header ()
+  (and (save-excursion
+	 (let ((start (point)))
+	   (goto-char (point-min))
+	   ;; We either have no separator...
+	   (or (not (re-search-forward "^[ \t]*\n" nil t))
+	       ;; Or we're before the separator.
+	       (< start (point)))))
+       (save-excursion
+	 (or (looking-at ".*:")
+	     (looking-at "[ \t]*$")))
+       (lambda ()
+	 (let ((headers (mapcar
+			 (lambda (h)
+			   (capitalize (symbol-name (car h))))
+			 eplot--chart-headers))
+	       (completion-ignore-case t))
+	   (completion-in-region (pos-bol) (line-end-position) headers)
+	   'completion-attempted))))
 
 (define-minor-mode eplot-minor-mode
   "Minor mode to issue commands from an eplot data buffer."
@@ -1653,6 +1686,5 @@ nil means `top-down'."
 ;; Define plot headers, and inject them the rights place.
 ;; Allow 2x size generation?
 
-;; Autocomplete headers
 ;; Comments in .plt buffers.
 ;; font-lock in plt buffers
