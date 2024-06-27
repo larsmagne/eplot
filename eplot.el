@@ -1803,9 +1803,3 @@ nil means `top-down'."
 (provide 'eplot)
 
 ;;; eplot.el ends here
-
-;;; Todo:
-
-;; Time plot
-
-;; Allow 2x size generation?
