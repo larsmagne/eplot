@@ -1880,7 +1880,7 @@ nil means `top-down'."
 					".svg")
 				       "images")
 	   for png = (file-name-with-extension svg ".png")
-	   when (or all (file-newer-than-file-p file png))
+	   when (or all (file-newer-than-file-p file (if write-svg svg png)))
 	   do (with-temp-buffer
 		(set-buffer-multibyte nil)
 		(svg-print image)
