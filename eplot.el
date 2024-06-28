@@ -227,6 +227,8 @@ you a clear, non-blurry version of the chart at any size."
     ;; Normal case.
     (let ((data (eplot--parse-buffer))
 	  (data-buffer (current-buffer)))
+      (unless data
+	(user-error "No data in the current buffer"))
       (save-current-buffer
 	(if (get-buffer-window "*eplot*" t)
 	    (set-buffer "*eplot*")
@@ -833,7 +835,7 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 	 svg)
     (with-slots ( width height xs ys
 		  margin-left margin-right margin-top margin-bottom
-		  grid-position)
+		  grid-position plots)
 	chart
       ;; Set the size of the chart based on the window it's going to
       ;; be displayed in.  It uses the *eplot* window by default, or
@@ -854,31 +856,34 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 	    ys (- height margin-top margin-bottom))
       ;; Draw background/borders/titles/etc.
       (eplot--draw-basics svg chart)
-      ;; Compute min/max based on all plots, and also compute x-ticks
-      ;; etc.
-      (eplot--compute-chart-dimensions chart)
-      ;; Analyze values and adjust values accordingly.
-      (eplot--adjust-chart chart)
-    
-      (when (eq grid-position 'top)
-	(eplot--draw-plots svg chart))
 
-      (eplot--draw-x-ticks svg chart)
-      (eplot--draw-y-ticks svg chart)
-      
-      ;; Draw axes.
-      (with-slots ( margin-left margin-right margin-margin-top
-		    margin-bottom axes-color)
-	  chart
-	(svg-line svg margin-left margin-top margin-left
-		  (+ (- height margin-bottom) 5)
-		  :stroke axes-color)
-	(svg-line svg (- margin-left 5) (- height margin-bottom)
-		  (- width margin-right) (- height margin-bottom)
-		  :stroke axes-color))
+      ;; Protect against being called in an empty buffer.
+      (when plots
+	;; Compute min/max based on all plots, and also compute x-ticks
+	;; etc.
+	(eplot--compute-chart-dimensions chart)
+	;; Analyze values and adjust values accordingly.
+	(eplot--adjust-chart chart)
     
-      (when (eq grid-position 'bottom)
-	(eplot--draw-plots svg chart))
+	(when (eq grid-position 'top)
+	  (eplot--draw-plots svg chart))
+
+	(eplot--draw-x-ticks svg chart)
+	(eplot--draw-y-ticks svg chart)
+      
+	;; Draw axes.
+	(with-slots ( margin-left margin-right margin-margin-top
+		      margin-bottom axes-color)
+	    chart
+	  (svg-line svg margin-left margin-top margin-left
+		    (+ (- height margin-bottom) 5)
+		    :stroke axes-color)
+	  (svg-line svg (- margin-left 5) (- height margin-bottom)
+		    (- width margin-right) (- height margin-bottom)
+		    :stroke axes-color))
+    
+	(when (eq grid-position 'bottom)
+	  (eplot--draw-plots svg chart)))
 
       (with-slots (frame-color frame-width) chart
 	(when (or frame-color frame-width)
