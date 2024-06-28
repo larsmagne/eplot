@@ -402,3 +402,12 @@ command.
 You can have comments in a .plt buffer -- all lines that start with 
 a # are comments.
 
+eplot-mode
+==========
+
+The major mode for editing .plt files is very simple.  It does some
+font-locking and then provides the following commands:
+
+C-c C-c: Display a buffer with the rendered image.
+C-c C-e: List all the different headers and document them.
+TAB:     Autocomplete headers.
