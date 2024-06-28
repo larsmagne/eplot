@@ -385,6 +385,17 @@ You can also use the date format to plot date series.  And another
 feature demonstrated here is that you can have eplot smooth the data
 before plotting.
 
+	Data-Format: time
+	144000 78.0
+	145003 170.1
+	150014 212.9
+	...
+	
+![time-chart-long.plt](/images/time-chart-long.svg)
+
+Similarly, you can also do intra-day time plots -- this takes a HHMMSS
+format.
+
 	Data-Format: xy
 	Data: data-circle.txt
 
