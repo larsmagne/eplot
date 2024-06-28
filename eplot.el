@@ -1279,6 +1279,10 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
     (format-time-string "%Y" value))
    ((eq print-format 'time)
     (format-time-string "%H:%M:%S" value))
+   ((eq print-format 'minute)
+    (format-time-string "%H:%M" value))
+   ((eq print-format 'hour)
+    (format-time-string "%H" value))
    (t
     (format "%s" value))))
 
@@ -1776,17 +1780,17 @@ nil means `top-down'."
 		 ;; Collect whole minutes.
 		 (lambda (decoded)
 		   (zerop (decoded-time-second decoded))))
-	   (list (/ 4 60 60) 'time
+	   (list (/ 4 60 60) 'minute
 		 ;; Collect fifteen minutes.
 		 (lambda (decoded)
 		   (and (zerop (decoded-time-second decoded))
 			(memq (decoded-time-minute decoded) '(0 15 30 45)))))
-	   (list (/ 8 60 60) 'time
+	   (list (/ 8 60 60) 'minute
 		 ;; Collect half hours.
 		 (lambda (decoded)
 		   (and (zerop (decoded-time-second decoded))
 			(memq (decoded-time-minute decoded) '(0 30)))))
-	   (list 1.0e+INF 'time
+	   (list 1.0e+INF 'hour
 		 ;; Collect whole hours.
 		 (lambda (decoded)
 		   (and (zerop (decoded-time-second decoded))
@@ -1842,7 +1846,7 @@ nil means `top-down'."
 	 (xv (eplot--compute-x-ticks xs hour-ticks font-size 'year)))
     (let ((tick-step (car xv))
 	  (label-step (cadr xv)))
-      (list x-ticks 'time
+      (list x-ticks 'hour
 	    (cl-loop for hour in hour-ticks
 		     for val in x-ticks
 		     collect (list val
