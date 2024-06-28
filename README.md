@@ -4,11 +4,11 @@ bar charts interactively.
 This is a work in progress and is probably not very useful generally
 yet, but here's the documentation so far:
 
-![movie-plot.plt](/images/movie-plot.png)
+![movie-plot.plt](/images/movie-plot.svg)
 
 Here's an example...
 
-![chart-legend.plt](/images/chart-legend.png)
+![chart-legend.plt](/images/chart-legend.svg)
 
 And here's another.
 
@@ -21,7 +21,7 @@ trivial-very-short.plt:
 
 Then say `M-x eplot' in this buffer, and you'll get this displayed:
 
-![trivial-very-short.plt](/images/trivial-very-short.png)
+![trivial-very-short.plt](/images/trivial-very-short.svg)
 
 To tweak the look of the chart, you add header lines to the buffer.
 In most of the examples below, the following header lines are present,
@@ -41,7 +41,7 @@ instead you can specify the location with a Data: plot header:
 
 	Data: data1.txt
 
-![chart-simple.plt](/images/chart-simple.png)
+![chart-simple.plt](/images/chart-simple.svg)
 
 This is the basic, default look of that data set.
 
@@ -53,37 +53,37 @@ default is the "line" Style.
 
 	Style: square
 
-![chart-square.plt](/images/chart-square.png)
+![chart-square.plt](/images/chart-square.svg)
 
 	Style: triangle
 	Fill-Color: #c0c0c0
 
 Some styles also take a Fill parameter to specify the fill color.
 
-![chart-triangle.plt](/images/chart-triangle.png)
+![chart-triangle.plt](/images/chart-triangle.svg)
 
 	Style: rectangle
 
-![chart-rectangle.plt](/images/chart-rectangle.png)
+![chart-rectangle.plt](/images/chart-rectangle.svg)
 
 	Size: 3
 	Color: red black green blue brown
 	Style: impulse
 
-![chart-impulse-wide.plt](/images/chart-impulse-wide.png)
+![chart-impulse-wide.plt](/images/chart-impulse-wide.svg)
 
 	Style: point
 
-![chart-point.plt](/images/chart-point.png)
+![chart-point.plt](/images/chart-point.svg)
 
 	Style: cross
 
-![chart-cross.plt](/images/chart-cross.png)
+![chart-cross.plt](/images/chart-cross.svg)
 
 	Style: circle
 	Size: 8
 
-![chart-circle.plt](/images/chart-circle.png)
+![chart-circle.plt](/images/chart-circle.svg)
 
 That's all the basic plotting styles.
 
@@ -96,7 +96,7 @@ colors.
 	Color: blue
 	Data: data2.txt
 
-![chart-two-plots.plt](/images/chart-two-plots.png)
+![chart-two-plots.plt](/images/chart-two-plots.svg)
 
 There's a special color spec called "vary", and it results in choosing
 between some pre-defined legible colors:
@@ -106,14 +106,14 @@ between some pre-defined legible colors:
 	Color: none
 	Size: 8
 
-![chart-circle-colors.plt](/images/chart-circle-colors.png)
+![chart-circle-colors.plt](/images/chart-circle-colors.svg)
 
 The "vary" isn't useful on all plot styles:
 
 	Color: vary
 	Data: data1.txt
 
-![chart-segment.plt](/images/chart-segment.png)
+![chart-segment.plt](/images/chart-segment.svg)
 
 You can also specify colors/sizes on a per-data point basis.  Here's
 an excerpt from a plt file that demonstrates that:
@@ -136,7 +136,7 @@ an excerpt from a plt file that demonstrates that:
 	52   # Size: 10, Fill-Color: blue
 	53
 
-![chart-circle-sizes.plt](/images/chart-circle-sizes.png)
+![chart-circle-sizes.plt](/images/chart-circle-sizes.svg)
 
 Bar charts are somewhat special.
 
@@ -147,7 +147,7 @@ Bar charts are somewhat special.
 	20
 	24
 
-![chart-bar.plt](/images/chart-bar.png)
+![chart-bar.plt](/images/chart-bar.svg)
 
 Each bar is displayed separately, and the labels on the X axis are
 displayed in the middle of the bars -- this is quite different from
@@ -161,7 +161,7 @@ the box plot on the same data set:
 	20
 	24
 
-![chart-bar-box.plt](/images/chart-bar-box.png)
+![chart-bar-box.plt](/images/chart-bar-box.svg)
 
 Anyway, the first bar box demonstrated the "vary" color again, but you can
 specify the colors yourself:
@@ -173,7 +173,7 @@ specify the colors yourself:
 	20 # Label: Oranges
 	24 # Label: Appanges
 
-![chart-color-list.plt](/images/chart-color-list.png)
+![chart-color-list.plt](/images/chart-color-list.svg)
 
 When it runs out of colors, it starts anew.  And another feature
 demonstrated here is that you can specify the labels on a per-item
@@ -188,7 +188,7 @@ the data in between:
 	Fill-Border-Color: black
 	Data: data-between.txt
 
-![chart-between2.plt](/images/chart-between2.png)
+![chart-between2.plt](/images/chart-between2.svg)
 
 	Mode: dark
 	Border-Width: 1
@@ -198,7 +198,7 @@ the data in between:
 	Gradient: red black
 	Data: data-between.txt
 
-![chart-between1.plt](/images/chart-between1.png)
+![chart-between1.plt](/images/chart-between1.svg)
 
 This is the same data set, but in "dark mode", and with a gradient
 between the values.  Oh, and a border, because why not.
@@ -209,7 +209,7 @@ between the values.  Oh, and a border, because why not.
 	42.1    59.88006
 	...
 
-![chart-second-column.plt](/images/chart-second-column.png)
+![chart-second-column.plt](/images/chart-second-column.svg)
 
 It can sometimes be convenient to have several data sets in the same
 file, but in different columns.  You can use the Data-Column header to
@@ -231,14 +231,14 @@ an example:
 
 	Data: data1.txt
 
-![chart-color.plt](/images/chart-color.png)
+![chart-color.plt](/images/chart-color.svg)
 
 Go wild!  But preferably not that wild.
 
 	Gradient: black red
 	Data: data1.txt
 
-![chart-gradient1.plt](/images/chart-gradient1.png)
+![chart-gradient1.plt](/images/chart-gradient1.svg)
 
 You can also plot the data using gradients.
 
@@ -246,19 +246,19 @@ You can also plot the data using gradients.
 	Style: square
 	Data: data1.txt
 
-![chart-gradient-square.plt](/images/chart-gradient-square.png)
+![chart-gradient-square.plt](/images/chart-gradient-square.svg)
 
 You can put the gradient above the chart instead:
 
 	Gradient: black red top-down above
 	Data: data1.txt
 
-![chart-gradient2.plt](/images/chart-gradient2.png)
+![chart-gradient2.plt](/images/chart-gradient2.svg)
 
 	Gradient: black red bottom-up
 	Data: data1.txt
 
-![chart-gradient3.plt](/images/chart-gradient3.png)
+![chart-gradient3.plt](/images/chart-gradient3.svg)
 
 You can specify the direction -- this one is basically just swapping the
 order of the colors.
@@ -266,14 +266,14 @@ order of the colors.
 	Gradient: black red right-left above
 	Data: data1.txt
 
-![chart-gradient4.plt](/images/chart-gradient4.png)
+![chart-gradient4.plt](/images/chart-gradient4.svg)
 
 But also right-left...
 
 	Gradient: black red left-right below
 	Data: data1.txt
 
-![chart-gradient6.plt](/images/chart-gradient6.png)
+![chart-gradient6.plt](/images/chart-gradient6.svg)
 
 ... and left-right.
 
@@ -283,14 +283,14 @@ But also right-left...
 	Gradient: black red top-down below
 	Data: data1.txt
 
-![chart-gradient5.plt](/images/chart-gradient5.png)
+![chart-gradient5.plt](/images/chart-gradient5.svg)
 
 And below the plot.
 
 	Gradient: black red left-right above
 	Data: data1.txt
 
-![chart-two-gradient1.plt](/images/chart-two-gradient1.png)
+![chart-two-gradient1.plt](/images/chart-two-gradient1.svg)
 
 You can plot the same data set twice with different gradients to get
 interesting results.
@@ -301,7 +301,7 @@ interesting results.
 	Gradient: black red bottom-up
 	Data: data1.txt
 
-![chart-two-gradient2.plt](/images/chart-two-gradient2.png)
+![chart-two-gradient2.plt](/images/chart-two-gradient2.svg)
 
 	Grid-Position: top
 	Grid-Color: black
@@ -312,7 +312,7 @@ interesting results.
 	Gradient: black red top-down below
 	Data: data1.txt
 
-![chart-two-gradient3.plt](/images/chart-two-gradient3.png)
+![chart-two-gradient3.plt](/images/chart-two-gradient3.svg)
 
 When using filled/gradient plots, it's often useful to put the grid on
 top of the charts.
@@ -326,7 +326,7 @@ top of the charts.
 	Gradient: yellow red top-down below
 	Data: data1.txt
 
-![chart-two-gradient4.plt](/images/chart-two-gradient4.png)
+![chart-two-gradient4.plt](/images/chart-two-gradient4.svg)
 
 Craazy.
 
@@ -340,7 +340,7 @@ Craazy.
 	Gradient: black red top-down below
 	Data: data1.txt
 
-![chart-two-gradient5.plt](/images/chart-two-gradient5.png)
+![chart-two-gradient5.plt](/images/chart-two-gradient5.svg)
 
 But when putting the grid on top like this, it's usually more visually
 pleasant to make the grid non-opaque.
@@ -348,7 +348,7 @@ pleasant to make the grid non-opaque.
 	Gradient: black 25-purple-50-white-75-purple-black
 	Data: data1.txt
 
-![chart-gradient-more-stops.plt](/images/chart-gradient-more-stops.png)
+![chart-gradient-more-stops.plt](/images/chart-gradient-more-stops.svg)
 
 You can also have more stops.  In that case, the second element
 specifies the percentage points of where each color ends, so the above
@@ -364,7 +364,7 @@ then it's back to purple again at 75%, before ending up at black at a
 
 	Data: data1.txt
 
-![chart-labels.plt](/images/chart-labels.png)
+![chart-labels.plt](/images/chart-labels.svg)
 
 You can put labels on the axes.  If you're using the compact layout
 (as we are in these examples), you have to open up some space for the
@@ -388,7 +388,7 @@ before plotting.
 	Data-Format: xy
 	Data: data-circle.txt
 
-![chart-xy-circle.plt](/images/chart-xy-circle.png)
+![chart-xy-circle.plt](/images/chart-xy-circle.svg)
 
 eplot isn't really geared towards doing 2D plots -- it's for time
 series and bar charts.  But it can do rudimentary 2D plots, but it

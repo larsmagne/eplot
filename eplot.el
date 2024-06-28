@@ -1863,7 +1863,11 @@ nil means `top-down'."
 		     (insert-file-contents file)
 		     (eplot--parse-buffer)))))
 
-(defun eplot-write-plots (&optional all)
+(defun eplot-write-svg-plots (&optional all)
+  (interactive "P")
+  (eplot-write-plots all t))
+
+(defun eplot-write-plots (&optional all write-svg)
   (interactive "P")
   (cl-loop for file in (directory-files "examples" t "[.]plt\\'")
 	   for image = (let ((default-directory (file-name-directory file)))
@@ -1881,8 +1885,9 @@ nil means `top-down'."
 		(set-buffer-multibyte nil)
 		(svg-print image)
 		(write-region (point-min) (point-max) svg)
-		(call-process "convert" nil nil nil svg png)
-		(delete-file svg))))
+		(unless write-svg
+		  (call-process "convert" nil nil nil svg png)
+		  (delete-file svg)))))
 
 (defun eplot-list-chart-headers ()
   "Pop to a buffer showing all chart parameters."
