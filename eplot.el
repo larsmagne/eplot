@@ -102,10 +102,65 @@ possible chart headers."
 (defvar-keymap eplot-minor-mode-map
   "H-l" #'eplot-eval-and-update)
 
+(defvar-keymap eplot-view-mode-map
+  "C-c C-w" #'eplot-view-write-file)
+
 (define-derived-mode eplot-view-mode special-mode "eplot view"
   "Major mode for displaying eplots."
   (setq-default revert-buffer-function #'eplot-update))
 
+(defun eplot-view-write-file (file)
+  "Write the current chart to a file.
+If you type in a file name that ends with something else than \"svg\",
+ImageMagick \"convert\" will be used to convert the image first."
+  (interactive "FWrite to file name: ")
+  (when (and (file-exists-p file)
+	     (not (yes-or-no-p "File exists, overwrite? ")))
+    (error "Not overwriting the file"))
+  (save-excursion
+    (goto-char (point-min))
+    (let ((match
+	   (text-property-search-forward 'display nil
+					 (lambda (_ e)
+					   (and (consp e)
+						(eq (car e) 'image))))))
+      (unless match
+	(error "Can't find an image in the current buffer"))
+      (let ((svg (plist-get (cdr (prop-match-value match)) :data))
+	    (tmp " *eplot convert*"))
+	(unless svg
+	  (error "Invalid image in the current buffer"))
+	(with-temp-buffer
+	  (set-buffer-multibyte nil)
+	  (svg-print svg)
+	  (if (string-match-p "\\.svg\\'" file)
+	      (write-region (point-min) (point-max) file)
+	    (unless (executable-find "convert")
+	      (error "ImageMagick convert isn't installed; can only save svg files"))
+	    (let (sfile)
+	      (unwind-protect
+		  (progn
+		    (setq sfile (make-temp-file "eplot" nil ".svg"))
+		    (write-region (point-min) (point-max) sfile nil 'silent)
+		    ;; We don't use `call-process-region', because
+		    ;; convert doesn't seem to like that?
+		    (let ((code (call-process
+				 "convert" nil (get-buffer-create tmp) nil
+				 sfile file)))
+		      (unless (zerop code)
+			(error "Error code %d: %s"
+			       code
+			       (with-current-buffer tmp
+				 (while (search-forward "[ \t\n]+" nil t)
+				   (replace-match " "))
+				 (string-trim (buffer-string)))))
+		      (message "Wrote %s" file)))
+		;; Clean-up.
+		(when (get-buffer tmp)
+		  (kill-buffer tmp))
+		(when (file-exists-p sfile)
+		  (delete-file sfile))))))))))
+  
 (defvar eplot-default-size '(600 400)
   "Default size for plots without a specified size.")
 
