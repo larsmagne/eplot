@@ -61,7 +61,7 @@ possible chart headers."
   (setq-local completion-at-point-functions
 	      (cons 'eplot--complete-header completion-at-point-functions))
   (setq-local font-lock-defaults
-	      '(eplot-font-lock-keywords nil nil)))
+	      '(eplot-font-lock-keywords nil nil ((?# . "<") (?\n . ">")))))
 
 (defun eplot-complete ()
   "Complete headers."
