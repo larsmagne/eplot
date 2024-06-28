@@ -618,14 +618,6 @@ This is normally computed automatically, but can be overridden
    ;; ---- CUT HERE ----
    ))
 
-;; Convenience function to generate the class above.
-(defun eplot--make-chart-slots ()
-  (dolist (spec (sort (copy-sequence eplot--chart-headers)
-		      (lambda (s1 s2)
-			(string< (car s1) (car s2)))))
-    (insert (format "   (%s :initarg :%s :initform nil)\n"
-		    (car spec) (car spec)))))
-
 ;;; Parameters that are plot specific.
 
 (defvar eplot--plot-headers nil)
@@ -758,14 +750,6 @@ Elements allowed are `two-values', `date' and `time'.")
    (style :initarg :style :initform nil)
    ;; ---- CUT HERE ----
    ))
-
-;; Convenience function to generate the class above.
-(defun eplot--make-plot-slots ()
-  (dolist (spec (sort (copy-sequence eplot--plot-headers)
-		      (lambda (s1 s2)
-			(string< (car s1) (car s2)))))
-    (insert (format "   (%s :initarg :%s :initform nil)\n"
-		    (car spec) (car spec)))))
 
 (defun eplot--make-plot (data)
   "Make an `eplot-plot' object and initialize based on DATA."
@@ -1910,44 +1894,6 @@ nil means `top-down'."
 	  (throw 'found five))
 	(setq five (* five 10))))))
 
-(defun eplot-test-plots (&optional main)
-  (interactive "P")
-  (save-current-buffer
-    (let ((spacer (svg-create 1 1))
-	  (width 0))
-      (svg-rectangle spacer 0 0 1 1 :fill "black")
-      (if (get-buffer-window "*test eplots*" t)
-	  (set-buffer "*test eplots*")
-	(pop-to-buffer "*test eplots*")
-	(when (< text-scale-mode-amount (abs (text-scale-min-amount)))
-	  (ignore-errors
-	    (text-scale-decrease (abs (text-scale-min-amount))))))
-      (erase-buffer)
-      (cl-loop for file in (directory-files "examples" t
-					    (if main "^chart.*.plt\\'"
-					      "plt\\'"))
-	       for i from 0
-	       do (let ((image-scaling-factor 1.2)
-			(start (point)))
-		    (eplot-parse-and-insert file)
-		    ;; So that you can hover over a chart and see its
-		    ;; file name.
-		    (put-text-property
-		     start (point) 'help-echo (file-name-nondirectory file))
-		    (let ((w (car (image-size
-				   (get-text-property start 'display) t))))
-		      (if (not (> (+ w width) (+ 80 (window-pixel-width))))
-			  (cl-incf width w)
-			(goto-char start)
-			(insert "\n\n")
-			(goto-char (point-max))
-			(setq width w))))
-	       (let ((start (point)))
-		 (svg-insert-image spacer)
-		 (put-text-property start (point) 'spacer t)))
-      (insert "\n\n")
-      (goto-char (point-min)))))
-
 (defun eplot-parse-and-insert (file)
   "Parse and insert a file in the current buffer."
   (interactive "fEplot file: ")
@@ -1955,32 +1901,6 @@ nil means `top-down'."
     (eplot--render (with-temp-buffer
 		     (insert-file-contents file)
 		     (eplot--parse-buffer)))))
-
-(defun eplot-write-svg-plots (&optional all)
-  (interactive "P")
-  (eplot-write-plots all t))
-
-(defun eplot-write-plots (&optional all write-svg)
-  (interactive "P")
-  (cl-loop for file in (directory-files "examples" t "[.]plt\\'")
-	   for image = (let ((default-directory (file-name-directory file)))
-			 (eplot--render (with-temp-buffer
-					  (insert-file-contents file)
-					  (eplot--parse-buffer))
-					t))
-	   for svg = (expand-file-name (file-name-with-extension
-					(file-name-nondirectory file)
-					".svg")
-				       "images")
-	   for png = (file-name-with-extension svg ".png")
-	   when (or all (file-newer-than-file-p file (if write-svg svg png)))
-	   do (with-temp-buffer
-		(set-buffer-multibyte nil)
-		(svg-print image)
-		(write-region (point-min) (point-max) svg)
-		(unless write-svg
-		  (call-process "convert" nil nil nil svg png)
-		  (delete-file svg)))))
 
 (defun eplot-list-chart-headers ()
   "Pop to a buffer showing all chart parameters."
