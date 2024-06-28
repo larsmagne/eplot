@@ -55,9 +55,14 @@ eplot-list-chart-headers' command."
   "C-c C-e" #'eplot-list-chart-headers
   "TAB" #'eplot-complete)
 
+;; # is working overtime in the syntax here:
+;;  It can be a color like Color: #e0e0e0, and
+;;  it can be a setting like 33 # Label: Apples,
+;;  when it starts a line it's a comment.
 (defvar eplot-font-lock-keywords
-  `(("^[^:\n]+:" . font-lock-keyword-face)
-    ("^[ \t\n]*#.*" . font-lock-comment-face)
+  `(("^[ \t\n]*#.*" . font-lock-comment-face)
+    ("^[^ :\n]+:" . font-lock-keyword-face)
+    ("#[0-9a-fA-F][0-9a-fA-F][0-9a-fA-F]\\([0-9a-fA-F][0-9a-fA-F][0-9a-fA-F]\\)?" . font-lock-variable-name-face)
     ("#.*" . font-lock-builtin-face)))
 
 (define-derived-mode eplot-mode text-mode "eplot"
@@ -67,7 +72,7 @@ possible chart headers."
   (setq-local completion-at-point-functions
 	      (cons 'eplot--complete-header completion-at-point-functions))
   (setq-local font-lock-defaults
-	      '(eplot-font-lock-keywords nil nil ((?# . "<") (?\n . ">")))))
+	      '(eplot-font-lock-keywords nil nil nil)))
 
 (defun eplot-complete ()
   "Complete headers."
