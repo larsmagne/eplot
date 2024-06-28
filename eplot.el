@@ -1361,28 +1361,21 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 		    (setq label-step (eplot--next-weed label-step))))
 		label-step)))))))
 
+(defvar eplot--pleasing-numbers '(1 2 5 10))
+
 (defun eplot--next-weed (weed)
   (let (digits series)
     (if (>= weed 1)
 	(setq digits (truncate (log weed 10))
 	      series (/ weed (expt 10 digits)))
       (setq digits (eplot--decimal-digits weed)
-	    series (* weed (expt 10 digits))))
-    (cond
-     ((= series 1)
+	    series (truncate (* weed (expt 10 digits)))))
+    (let ((next (cadr (memq series eplot--pleasing-numbers))))
+      (unless next
+	(error "Invalid weed: %s" weed))
       (if (>= weed 1)
-	  (* 2 (expt 10 digits))
-	(e/ 2 (expt 10 digits))))
-     ((= series 2)
-      (if (>= weed 1)
-	  (* 5 (expt 10 digits))
-	(e/ 5 (expt 10 digits))))
-     ((= series 5)
-      (if (>= weed 1)
-	  (* 10 (expt 10 digits))
-	(e/ 10 (expt 10 digits))))
-     (t
-      (error "Invalid weed: %s" weed)))))
+	  (* next (expt 10 digits))
+	(e/ next (expt 10 digits))))))
 
 (defun eplot--parse-gradient (string)
   (when string
