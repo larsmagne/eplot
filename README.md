@@ -379,7 +379,7 @@ labels.
 	20090104 152
 	...
 
-![date-chart2.plt](/images/date-chart2.png)
+![date-chart2.plt](/images/date-chart2.svg)
 
 You can also use the date format to plot date series.  And another
 feature demonstrated here is that you can have eplot smooth the data
