@@ -112,7 +112,10 @@ possible chart headers."
 (defun eplot-view-write-file (file)
   "Write the current chart to a file.
 If you type in a file name that ends with something else than \"svg\",
-ImageMagick \"convert\" will be used to convert the image first."
+ImageMagick \"convert\" will be used to convert the image first.
+
+If writing to a PNG file, \"rsvg-conver\" will be used instead if
+it exists as this usually gives better results."
   (interactive "FWrite to file name: ")
   (when (and (file-exists-p file)
 	     (not (yes-or-no-p "File exists, overwrite? ")))
@@ -127,7 +130,8 @@ ImageMagick \"convert\" will be used to convert the image first."
       (unless match
 	(error "Can't find an image in the current buffer"))
       (let ((svg (plist-get (cdr (prop-match-value match)) :data))
-	    (tmp " *eplot convert*"))
+	    (tmp " *eplot convert*")
+	    (executable "convert"))
 	(unless svg
 	  (error "Invalid image in the current buffer"))
 	(with-temp-buffer
@@ -135,8 +139,11 @@ ImageMagick \"convert\" will be used to convert the image first."
 	  (svg-print svg)
 	  (if (string-match-p "\\.svg\\'" file)
 	      (write-region (point-min) (point-max) file)
-	    (unless (executable-find "convert")
-	      (error "ImageMagick convert isn't installed; can only save svg files"))
+	    (if (and (string-match-p "\\.png\\'" file)
+		     (executable-find "rsvg-convert"))
+		(setq executable "rsvg-convert")
+	      (unless (executable-find executable)
+		(error "ImageMagick convert isn't installed; can only save svg files")))
 	    (let (sfile)
 	      (unwind-protect
 		  (progn
@@ -144,9 +151,15 @@ ImageMagick \"convert\" will be used to convert the image first."
 		    (write-region (point-min) (point-max) sfile nil 'silent)
 		    ;; We don't use `call-process-region', because
 		    ;; convert doesn't seem to like that?
-		    (let ((code (call-process
-				 "convert" nil (get-buffer-create tmp) nil
-				 sfile file)))
+		    (let ((code (if (equal executable "rsvg-convert")
+				    (call-process
+				     executable nil (get-buffer-create tmp) nil
+				     (format "--output=%s"
+					     (expand-file-name file))
+				     sfile)
+				  (call-process
+				   executable nil (get-buffer-create tmp) nil
+				   sfile file))))
 		      (unless (zerop code)
 			(error "Error code %d: %s"
 			       code
