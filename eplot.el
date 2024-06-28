@@ -463,7 +463,9 @@ Possible values are `dark' and `light'.")
 This is used as the default, but can be overridden per thing.")
 
 (eplot-def (background-color string "white")
-  "The background color.")
+  "The background color.
+If you want a chart with a transparent background, use the color
+\"none\".")
 
 (eplot-def (axes-color string (spec chart-color))
   "The color of the axes.")
