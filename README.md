@@ -427,3 +427,19 @@ If saving to a different format than SVG, the "convert" or
 The C-c C-w command needs "rsvg-convert", because it renders the SVG
 chart at a specific size.  This avoids scaling artefacts (blurring,
 etc), and you get a crisp, nice chart at any size you require.
+
+Installation
+============
+
+If you're installing this manually (I guess it'll be on an ELPA after
+it's finished), put something like the following in your Emacs init file:
+
+(push "~/src/eplot/" load-path)
+(autoload 'eplot "eplot" nil t)
+(autoload 'eplot-mode "eplot" nil t)
+(unless (assoc "\\.plt" auto-mode-alist)
+  (setq auto-mode-alist (cons '("\\.plt" . eplot-mode) auto-mode-alist)))
+
+Adjust the path you're pushing to load-path depending on where you put
+eplot.el.
+
