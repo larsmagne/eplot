@@ -411,3 +411,19 @@ font-locking and then provides the following commands:
 C-c C-c: Display a buffer with the rendered image.
 C-c C-e: List all the different headers and document them.
 TAB:     Autocomplete headers.
+
+eplot-view-mode
+===============
+
+The buffer used to display the charts uses another simple major mode
+with some convenient commands.
+
+C-c C-s: Save the image to a file.
+C-c C-w: Specify an image width and then save the file.
+
+If saving to a different format than SVG, the "convert" or
+"rsvg-convert" external programs are needed to do the conversion.
+
+The C-c C-w command needs "rsvg-convert", because it renders the SVG
+chart at a specific size.  This avoids scaling artefacts (blurring,
+etc), and you get a crisp, nice chart at any size you require.
