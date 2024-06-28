@@ -103,13 +103,14 @@ possible chart headers."
   "H-l" #'eplot-eval-and-update)
 
 (defvar-keymap eplot-view-mode-map
-  "C-c C-w" #'eplot-view-write-file)
+  "C-c C-s" #'eplot-view-write-file
+  "C-c C-w" #'eplot-view-write-scaled-file)
 
 (define-derived-mode eplot-view-mode special-mode "eplot view"
   "Major mode for displaying eplots."
   (setq-local revert-buffer-function #'eplot-update))
 
-(defun eplot-view-write-file (file)
+(defun eplot-view-write-file (file &optional width)
   "Write the current chart to a file.
 If you type in a file name that ends with something else than \"svg\",
 ImageMagick \"convert\" will be used to convert the image first.
@@ -131,7 +132,8 @@ it exists as this usually gives better results."
 	(error "Can't find an image in the current buffer"))
       (let ((svg (plist-get (cdr (prop-match-value match)) :data))
 	    (tmp " *eplot convert*")
-	    (executable "convert"))
+	    (executable (if width "rsvg-convert" "convert"))
+	    sfile ofile)
 	(unless svg
 	  (error "Invalid image in the current buffer"))
 	(with-temp-buffer
@@ -143,37 +145,65 @@ it exists as this usually gives better results."
 		     (executable-find "rsvg-convert"))
 		(setq executable "rsvg-convert")
 	      (unless (executable-find executable)
-		(error "ImageMagick convert isn't installed; can only save svg files")))
-	    (let (sfile)
-	      (unwind-protect
-		  (progn
-		    (setq sfile (make-temp-file "eplot" nil ".svg"))
-		    (write-region (point-min) (point-max) sfile nil 'silent)
-		    ;; We don't use `call-process-region', because
-		    ;; convert doesn't seem to like that?
-		    (let ((code (if (equal executable "rsvg-convert")
-				    (call-process
-				     executable nil (get-buffer-create tmp) nil
-				     (format "--output=%s"
-					     (expand-file-name file))
-				     sfile)
-				  (call-process
+		(error "%s isn't installed; can only save svg files"
+		       executable)))
+	    (when (and (equal executable "rsvg-convert")
+		       (not (string-match-p "\\.png\\'" file))
+		       (not (executable-find "convert")))
+	      (error "Can only write PNG files when scaling because \"convert\" isn't installed"))
+	    (unwind-protect
+		(progn
+		  (setq sfile (make-temp-file "eplot" nil ".svg")
+			ofile (make-temp-file "eplot" nil ".png"))
+		  (write-region (point-min) (point-max) sfile nil 'silent)
+		  ;; We don't use `call-process-region', because
+		  ;; convert doesn't seem to like that?
+		  (let ((code (if (equal executable "rsvg-convert")
+				  (apply
+				   #'call-process
 				   executable nil (get-buffer-create tmp) nil
-				   sfile file))))
-		      (unless (zerop code)
-			(error "Error code %d: %s"
-			       code
-			       (with-current-buffer tmp
-				 (while (search-forward "[ \t\n]+" nil t)
-				   (replace-match " "))
-				 (string-trim (buffer-string)))))
-		      (message "Wrote %s" file)))
-		;; Clean-up.
-		(when (get-buffer tmp)
-		  (kill-buffer tmp))
-		(when (file-exists-p sfile)
-		  (delete-file sfile))))))))))
-  
+				   `(,(format "--output=%s"
+					      (expand-file-name ofile))
+				     ,@(and width
+					    `(,(format "--width=%d" width)
+					      "--keep-aspect-ratio"))
+				     ,sfile))
+				(call-process
+				 executable nil (get-buffer-create tmp) nil
+				 sfile file))))
+		    (eplot--view-error code tmp)
+		    (when (file-exists-p ofile)
+		      (if (string-match-p "\\.png\\'" file)
+			  (rename-file ofile file)
+			(let ((code (call-process "convert" nil tmp nil
+						  ofile file)))
+			  (eplot--view-error code tmp))))
+		    (message "Wrote %s" file)))
+	      ;; Clean-up.
+	      (when (get-buffer tmp)
+		(kill-buffer tmp))
+	      (when (file-exists-p sfile)
+		(delete-file sfile))
+	      (when (file-exists-p ofile)
+		(delete-file sfile)))))))))
+
+(defun eplot--view-error (code tmp)
+  (unless (zerop code)
+    (error "Error code %d: %s"
+	   code
+	   (with-current-buffer tmp
+	     (while (search-forward "[ \t\n]+" nil t)
+	       (replace-match " "))
+	     (string-trim (buffer-string))))))
+
+(defun eplot-view-write-scaled-file (width file)
+  "Write the current chart to a rescaled to a file.
+The rescaling is done by \"rsvg-convert\", which has to be
+installed.  Rescaling is done when rendering, so this should give
+you a clear, non-blurry version of the chart at any size."
+  (interactive "nWidth: \nFWrite to file: ")
+  (eplot-view-write-file file width))
+
 (defvar eplot-default-size '(600 400)
   "Default size for plots without a specified size.")
 
