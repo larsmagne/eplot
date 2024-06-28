@@ -443,3 +443,28 @@ it's finished), put something like the following in your Emacs init file:
 Adjust the path you're pushing to load-path depending on where you put
 eplot.el.
 
+API
+===
+
+(Probably more to come here...)
+
+All the headers can have defaults set programmatically so that you can
+define an overall look that you prefer (and then override with
+explicit headers when you want).
+
+This is done with the eplot-set function:
+
+  (eplot-set 'width 600) 
+  (eplot-set 'height 300)
+  (eplot-set 'font "arial")
+  (eplot-set 'background-color "#ffe0e0")
+  (eplot-set 'grid-color "#c0c0c0")
+  
+![chart-simple.plt](/images/pink-plot.svg)
+
+You can put this in your Emacs init file or somewhere, but then you
+also need a
+
+  (require 'eplot)
+  
+first.

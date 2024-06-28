@@ -35,9 +35,15 @@
 (require 'eieio)
 (require 'iso8601)
 
-(defvar eplot-font "sans-serif"
-  "The default font to use in the charts.
-This can be overridden with the `Font' header.")
+(defun eplot-set (header value)
+  "Set the default value of HEADER to VALUE.
+To get a list of all possible HEADERs, use the `M-x
+eplot-list-chart-headers' command."
+  (let ((elem (or (assq header eplot--chart-headers)
+		  (assq header eplot--plot-headers))))
+    (unless elem
+      (error "No such header type: %s" header))
+    (plist-put (cdr elem) :default value)))
 
 (unless (assoc "\\.plt" auto-mode-alist)
   (setq auto-mode-alist (cons '("\\.plt" . eplot-mode) auto-mode-alist)))
@@ -203,9 +209,6 @@ installed.  Rescaling is done when rendering, so this should give
 you a clear, non-blurry version of the chart at any size."
   (interactive "nWidth: \nFWrite to file: ")
   (eplot-view-write-file file width))
-
-(defvar eplot-default-size '(600 400)
-  "Default size for plots without a specified size.")
 
 (defvar eplot--data-buffer nil)
 
