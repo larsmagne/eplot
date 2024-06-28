@@ -918,15 +918,16 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
     (with-slots ( background-image-file background-image-opacity
 		  background-image-cover)
 	chart
-      (apply #'svg-embed svg background-image-file "image/jpeg" nil
-	     :opacity background-image-opacity
-	     :preserveAspectRatio "xMidYMid slice"
-	     (if (memq background-image-cover '(all frame))
-		 `(:x 0 :y 0 :width ,width :height ,height)
-	       `(:x ,margin-left :y ,margin-top :width ,xs :height ,ys)))
-      (when (eq background-image-cover 'frame)
-	(svg-rectangle svg margin-left margin-right xs ys
-		       :fill background-color)))
+      (when background-image-file
+	(apply #'svg-embed svg background-image-file "image/jpeg" nil
+	       :opacity background-image-opacity
+	       :preserveAspectRatio "xMidYMid slice"
+	       (if (memq background-image-cover '(all frame))
+		   `(:x 0 :y 0 :width ,width :height ,height)
+		 `(:x ,margin-left :y ,margin-top :width ,xs :height ,ys)))
+	(when (eq background-image-cover 'frame)
+	  (svg-rectangle svg margin-left margin-right xs ys
+			 :fill background-color))))
     ;; Area between plot and edges.
     (with-slots (surround-color) chart
       (when surround-color
