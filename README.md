@@ -405,6 +405,29 @@ eplot isn't really geared towards doing 2D plots -- it's for time
 series and bar charts.  But it can do rudimentary 2D plots, but it
 lacks some of the control you'd expect.
 
+	Background-Image-File: background.jpg
+	Grid-Color: #333
+	Color: white
+	Data-File: data1.txt
+	
+![chart-background1.plt](/images/chart-background1.svg)
+
+You can put lovely wood grain images in the background to simulate
+being back in the 70s.
+
+	Background-Color: #888
+	Background-Image-File: background2.jpg
+	Background-Image-Cover: plot
+	Background-Image-Opacity: 0.6
+	Grid-Color: #333
+	Color: white
+	Data-File: data1.txt
+
+![chart-background2.plt](/images/chart-background2.svg)
+
+And you can put the background image over the entire chart, just
+behind the plot, or just in the frame.  And also adjust the opacity.
+
 So there's a lot of different headers you can use to influence the
 look of the chart and the individual plots.  To get a list of them
 all, and their possible values, use the `M-x eplot-list-chart-headers'

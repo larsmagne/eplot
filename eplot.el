@@ -536,6 +536,17 @@ This is normally computed automatically, but can be overridden
 (eplot-def (y-label string)
   "The label of the X axis, if any.")
 
+(eplot-def (background-image-file string)
+  "Use an image as the background.")
+
+(eplot-def (background-image-opacity number 1)
+  "The opacity of the background image.")
+
+(eplot-def (background-image-cover symbol all)
+  "Position of the background image.
+Valid values are `all' (the entire image), `plot' (the plot area)
+and `frame' (the surrounding area).")
+
 (defvar eplot-compact-defaults
   '((margin-left 30)
     (margin-right 10)
@@ -582,6 +593,9 @@ This is normally computed automatically, but can be overridden
    ;; ---- CUT HERE ----
    (axes-color :initarg :axes-color :initform nil)
    (background-color :initarg :background-color :initform nil)
+   (background-image-file :initarg :background-image-file :initform nil)
+   (background-image-opacity :initarg :background-image-opacity :initform nil)
+   (background-image-cover :initarg :background-image-cover :initform nil)
    (border-color :initarg :border-color :initform nil)
    (border-width :initarg :border-width :initform nil)
    (chart-color :initarg :chart-color :initform nil)
@@ -901,6 +915,18 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
     ;; Add background.
     (svg-rectangle svg 0 0 width height
 		   :fill background-color)
+    (with-slots ( background-image-file background-image-opacity
+		  background-image-cover)
+	chart
+      (apply #'svg-embed svg background-image-file "image/jpeg" nil
+	     :opacity background-image-opacity
+	     :preserveAspectRatio "xMidYMid slice"
+	     (if (memq background-image-cover '(all frame))
+		 `(:x 0 :y 0 :width ,width :height ,height)
+	       `(:x ,margin-left :y ,margin-top :width ,xs :height ,ys)))
+      (when (eq background-image-cover 'frame)
+	(svg-rectangle svg margin-left margin-right xs ys
+		       :fill background-color)))
     ;; Area between plot and edges.
     (with-slots (surround-color) chart
       (when surround-color
