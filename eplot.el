@@ -607,7 +607,7 @@ This is normally computed automatically, but can be overridden
    ))
 
 ;; Convenience function to generate the class above.
-(defun eplot--make-slots ()
+(defun eplot--make-chart-slots ()
   (dolist (spec (sort (copy-sequence eplot--chart-headers)
 		      (lambda (s1 s2)
 			(string< (car s1) (car s2)))))
@@ -718,18 +718,59 @@ xy: The first column is the X position.")
 (eplot-pdef (data-file string)
   "File where the data is.")
 
+(eplot-pdef (data-format symbol-list)
+  "List of symbols to describe the data format.
+Elements allowed are `two-values', `date' and `time'.")
+
+(eplot-pdef (name string)
+  "Name of the plot, which will be displayed if legends are switched on.")
+
+(eplot-pdef (legend-color string (spec chart-color))
+  "Color for the name to be displayed in the legend.")
+
+(defclass eplot-plot ()
+  (
+   (values :initarg :values)
+   ;; ---- CUT HERE ----
+   (color :initarg :color :initform nil)
+   (data-column :initarg :data-column :initform nil)
+   (data-file :initarg :data-file :initform nil)
+   (data-format :initarg :data-format :initform nil)
+   (fill-border-color :initarg :fill-border-color :initform nil)
+   (fill-color :initarg :fill-color :initform nil)
+   (gradient :initarg :gradient :initform nil)
+   (legend-color :initarg :legend-color :initform nil)
+   (name :initarg :name :initform nil)
+   (size :initarg :size :initform nil)
+   (smoothing :initarg :smoothing :initform nil)
+   (style :initarg :style :initform nil)
+   ;; ---- CUT HERE ----
+   ))
+
+;; Convenience function to generate the class above.
+(defun eplot--make-plot-slots ()
+  (dolist (spec (sort (copy-sequence eplot--plot-headers)
+		      (lambda (s1 s2)
+			(string< (car s1) (car s2)))))
+    (insert (format "   (%s :initarg :%s :initform nil)\n"
+		    (car spec) (car spec)))))
+
+(defun eplot--make-plot (data)
+  "Make an `eplot-plot' object and initialize based on DATA."
+  (let ((plot (make-instance 'eplot-plot
+			     :values (cdr (assq :values data)))))
+    ;; Get the program-defined defaults.
+    (eplot--object-defaults plot eplot--plot-headers)
+    (eplot--object-values plot (cdr (assq :headers data)) eplot--plot-headers)
+    plot))
+
 (defun eplot--make-chart (data)
   "Make an `eplot-chart' object and initialize based on DATA."
   (let ((chart (make-instance 'eplot-chart
-			      :plots (eplot--vs :plots data))))
+			      :plots (mapcar #'eplot--make-plot
+					     (eplot--vs :plots data)))))
     ;; First get the program-defined defaults.
-    (dolist (header eplot--chart-headers)
-      (when-let ((default (plist-get (cdr header) :default)))
-	(setf (slot-value chart (car header))
-	      (if (and (consp default)
-		       (eq (car default) 'spec))
-		  (eplot--default (cadr default))
-		default))))
+    (eplot--object-defaults chart eplot--chart-headers)
     ;; Then do the "meta" variables.
     (when (eq (eplot--vy 'mode data) 'dark)
       (eplot--set-theme chart eplot-dark-defaults))
@@ -738,23 +779,37 @@ xy: The first column is the X position.")
     (when (eq (eplot--vy 'format data) 'bar-chart)
       (eplot--set-theme chart eplot-bar-chart-defaults))
     ;; Finally, use the data from the chart.
-    (cl-loop for (type . value) in data
-	     do (unless (eq type :plots)
-		  (let ((spec (cdr (assq type eplot--chart-headers))))
-		    (if (not spec)
-			(error "%s is not a valid spec" type)
-		      (setf (slot-value chart type)
-			    (cl-case (plist-get spec :type)
-			      (number
-			       (string-to-number value))
-			      (symbol
-			       (intern (downcase value)))
-			      (t
-			       value)))))))
+    (eplot--object-values chart data eplot--chart-headers)
     (with-slots (min max set-min set-max) chart
       (setq set-min min
 	    set-max max))
     chart))
+
+(defun eplot--object-defaults (object headers)
+  (dolist (header headers)
+    (when-let ((default (plist-get (cdr header) :default)))
+      (setf (slot-value object (car header))
+	    (if (and (consp default)
+		     (eq (car default) 'spec))
+		(eplot--default (cadr default))
+	      default)))))
+
+(defun eplot--object-values (object data headers)
+  (cl-loop for (type . value) in data
+	   do (unless (eq type :plots)
+		(let ((spec (cdr (assq type headers))))
+		  (if (not spec)
+		      (error "%s is not a valid spec" type)
+		    (setf (slot-value object type)
+			  (cl-case (plist-get spec :type)
+			    (number
+			     (string-to-number value))
+			    (symbol
+			     (intern (downcase value)))
+			    (symbol-list
+			     (mapcar #'intern (split-string (downcase value))))
+			    (t
+			     value))))))))
 
 (defun eplot--set-theme (chart map)
   (cl-loop for (slot value) in map
@@ -825,11 +880,12 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
       (when (eq grid-position 'bottom)
 	(eplot--draw-plots svg chart))
 
-      (when-let ((frame-color (eplot--vs 'frame-color data)))
-	(svg-rectangle svg margin-left margin-top xs ys
-		       :stroke-width (eplot--vn 'frame-width data 1)
-		       :fill "none"
-		       :stroke-color frame-color))
+      (with-slots (frame-color frame-width) chart
+	(when (or frame-color frame-width)
+	  (svg-rectangle svg margin-left margin-top xs ys
+			 :stroke-width frame-width
+			 :fill "none"
+			 :stroke-color frame-color)))
       (eplot--draw-legend svg chart))
 
     (if return-image
@@ -913,88 +969,86 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
     (let ((set-min min)
 	  (set-max max))
       (dolist (plot plots)
-	(let* ((values (cdr (assq :values plot)))
-	       (data-format (eplot--vyl 'data-format
-					(cdr (assq :headers plot))))
-	       (vals (nconc (seq-map (lambda (v) (plist-get v :value)) values)
-			    (and (memq 'two-values data-format)
-				 (seq-map
-				  (lambda (v) (plist-get v :extra-value))
-				  values)))))
-	  ;; Set the x-values based on the first plot.
-	  (unless x-values
-	    (setq print-format (cond
-				((memq 'date data-format) 'date)
-				((memq 'time data-format) 'time)
-				(t 'number)))
-	    (cond
-	     ((memq 'xy data-format)
-	      (setq x-values (cl-loop for val in values
-				      collect (plist-get val :x))
-		    x-min (seq-min x-values)
-		    x-max (seq-max x-values)
-		    x-ticks (eplot--get-ticks x-min x-max xs)
-		    stride (e/ xs (- x-max x-min))))
-	     ((memq 'date data-format)
-	      (setq x-values
-		    (cl-loop for val in values
-			     collect
-			     (time-convert
-			      (encode-time
-			       (decoded-time-set-defaults
-				(iso8601-parse-date
-				 (format "%d" (plist-get val :x)))))
-			      'integer))
-		    x-min (seq-min x-values)
-		    x-max (seq-max x-values)
-		    stride (e/ xs (- x-max x-min))
-		    inhibit-compute-x-step t)
-	      (let ((xs (eplot--get-date-ticks x-min x-max xs font-size)))
-		(setq x-ticks (car xs)
-		      print-format (cadr xs)
-		      x-tick-step 1
-		      x-label-step 1
-		      x-step-map (nth 2 xs))))
-	     ((memq 'time data-format)
-	      (setq x-values
-		    (cl-loop for val in values
-			     collect
-			     (time-convert
-			      (encode-time
-			       (decoded-time-set-defaults
-				(iso8601-parse-time
-				 (format "%06d" (plist-get val :x)))))
-			      'integer))
-		    x-min (car x-values)
-		    x-max (car (last x-values))
-		    stride (e/ xs (- x-max x-min))
-		    inhibit-compute-x-step t)
-	      (let ((xs (eplot--get-time-ticks x-min x-max xs font-size)))
-		(setq x-ticks (car xs)
-		      print-format (cadr xs)
-		      x-tick-step 1
-		      x-label-step 1
-		      x-step-map (nth 2 xs))))
-	     (t
-	      ;; This is a one-dimensional plot -- we don't have X
-	      ;; values, really, so we just do zero to (1- (length
-	      ;; values)).
-	      (setq x-type 'one-dimensional
-		    stride (e/ xs
-			       ;; Fenceposting bar-chart vs everything else.
-			       (if (eq format 'bar-chart)
-				   (length values)
-				 (1- (length values))))
-		    x-values (cl-loop for i from 0
-				      repeat (length values)
-				      collect i)
-		    x-min (car x-values)
-		    x-max (car (last x-values))
-		    x-ticks x-values))))
-	  (unless set-min
-	    (setq min (min (or min 1.0e+INF) (seq-min vals))))
-	  (unless set-max
-	    (setq max (max (or max -1.0e+INF) (seq-max vals)))))))))
+	(with-slots (values data-format) plot
+	  (let* ((vals (nconc (seq-map (lambda (v) (plist-get v :value)) values)
+			      (and (memq 'two-values data-format)
+				   (seq-map
+				    (lambda (v) (plist-get v :extra-value))
+				    values)))))
+	    ;; Set the x-values based on the first plot.
+	    (unless x-values
+	      (setq print-format (cond
+				  ((memq 'date data-format) 'date)
+				  ((memq 'time data-format) 'time)
+				  (t 'number)))
+	      (cond
+	       ((memq 'xy data-format)
+		(setq x-values (cl-loop for val in values
+					collect (plist-get val :x))
+		      x-min (seq-min x-values)
+		      x-max (seq-max x-values)
+		      x-ticks (eplot--get-ticks x-min x-max xs)
+		      stride (e/ xs (- x-max x-min))))
+	       ((memq 'date data-format)
+		(setq x-values
+		      (cl-loop for val in values
+			       collect
+			       (time-convert
+				(encode-time
+				 (decoded-time-set-defaults
+				  (iso8601-parse-date
+				   (format "%d" (plist-get val :x)))))
+				'integer))
+		      x-min (seq-min x-values)
+		      x-max (seq-max x-values)
+		      stride (e/ xs (- x-max x-min))
+		      inhibit-compute-x-step t)
+		(let ((xs (eplot--get-date-ticks x-min x-max xs font-size)))
+		  (setq x-ticks (car xs)
+			print-format (cadr xs)
+			x-tick-step 1
+			x-label-step 1
+			x-step-map (nth 2 xs))))
+	       ((memq 'time data-format)
+		(setq x-values
+		      (cl-loop for val in values
+			       collect
+			       (time-convert
+				(encode-time
+				 (decoded-time-set-defaults
+				  (iso8601-parse-time
+				   (format "%06d" (plist-get val :x)))))
+				'integer))
+		      x-min (car x-values)
+		      x-max (car (last x-values))
+		      stride (e/ xs (- x-max x-min))
+		      inhibit-compute-x-step t)
+		(let ((xs (eplot--get-time-ticks x-min x-max xs font-size)))
+		  (setq x-ticks (car xs)
+			print-format (cadr xs)
+			x-tick-step 1
+			x-label-step 1
+			x-step-map (nth 2 xs))))
+	       (t
+		;; This is a one-dimensional plot -- we don't have X
+		;; values, really, so we just do zero to (1- (length
+		;; values)).
+		(setq x-type 'one-dimensional
+		      stride (e/ xs
+				 ;; Fenceposting bar-chart vs everything else.
+				 (if (eq format 'bar-chart)
+				     (length values)
+				   (1- (length values))))
+		      x-values (cl-loop for i from 0
+					repeat (length values)
+					collect i)
+		      x-min (car x-values)
+		      x-max (car (last x-values))
+		      x-ticks x-values))))
+	    (unless set-min
+	      (setq min (min (or min 1.0e+INF) (seq-min vals))))
+	    (unless set-max
+	      (setq max (max (or max -1.0e+INF) (seq-max vals))))))))))
 
 (defun eplot--adjust-chart (chart)
   (with-slots ( x-tick-step x-label-step y-tick-step y-label-step
@@ -1163,11 +1217,10 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
     (when (eq legend 'true)
       (when-let ((names
 		  (cl-loop for plot in plots
-			   for headers = (cdr (assq :headers plot))
-			   for name = (eplot--vs 'name headers)
+			   for name = (slot-value plot 'name)
 			   when name
 			   collect
-			   (cons name (eplot--vs 'legend-color headers)))))
+			   (cons name (slot-value plot 'legend-color)))))
 	(svg-rectangle svg (+ margin-left 20) (+ margin-top 20)
 		       (format "%dex"
 			       (+ 2
@@ -1361,23 +1414,22 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
     ;; Draw all the plots.
     (cl-loop for plot in (reverse plots)
 	     for plot-number from 0
-	     for headers = (cdr (assq :headers plot))
-	     for values = (cdr (assq :values plot))
+	     for values = (slot-value plot 'values)
 	     for vals = (eplot--smooth
 			 (seq-map (lambda (v) (plist-get v :value)) values)
-			 (eplot--vy 'smoothing headers)
+			 (slot-value plot 'smoothing)
 			 xs)
 	     for polygon = nil
-	     for gradient = (eplot--parse-gradient (eplot--vs 'gradient headers))
+	     for gradient = (eplot--parse-gradient (slot-value plot 'gradient))
 	     for lpy = nil
 	     for lpx = nil
 	     for style = (if (eq format 'bar-chart)
 			     'bar
-			   (eplot--vy 'style headers 'line))
+			   (slot-value plot 'style))
 	     for bar-gap = (* stride 0.1)
 	     do
 	     (unless gradient
-	       (when-let ((fill (eplot--vs 'fill-color headers)))
+	       (when-let ((fill (slot-value plot 'fill-color)))
 		 (setq gradient `((from . ,fill) (to . ,fill)
 				  (direction . top-down) (position . below)))))
 	     (when gradient
@@ -1391,8 +1443,7 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 	      for i from 0
 	      for settings = (plist-get value :settings)
 	      for color = (eplot--vary-color
-			   (eplot--vs 'color settings
-				      (eplot--vs 'color headers chart-color))
+			   (eplot--vs 'color settings (slot-value plot 'color))
 			   i)
 	      for py = (- (- height margin-bottom)
 			  (* (/ (- (* 1.0 val) min) (- max min))
@@ -1413,7 +1464,7 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 				:fill color))
 		(impulse
 		 (let ((width (eplot--vn 'size settings
-					 (eplot--vn 'size headers 1))))
+					 (or (slot-value plot 'size) 1))))
 		   (if (= width 1)
 		       (svg-line svg
 				 px py
@@ -1448,15 +1499,15 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 		(circle
 		 (svg-circle svg px py
 			     (eplot--vn 'size settings
-					(eplot--vn 'size headers 3))
+					(or (slot-value plot 'size) 3))
 			     :stroke color
 			     :fill (eplot--vary-color
 				    (eplot--vs
 				     'fill-color settings
-				     (eplot--vs 'fill-color headers "none"))
+				     (or (slot-value plot 'fill-color) "none"))
 				    i)))
 		(cross
-		 (let ((s (eplot--vn 'size headers 3)))
+		 (let ((s (or (slot-value plot 'size) 3)))
 		   (svg-line svg (- px s) (- py s)
 			     (+ px s) (+ py s)
 			     :stroke color)
@@ -1464,22 +1515,22 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 			     (- px s) (+ py s)
 			     :stroke color)))
 		(triangle
-		 (let ((s (eplot--vn 'size headers 5)))
+		 (let ((s (or (slot-value plot 'size) 5)))
 		   (svg-polygon svg
 				(list
 				 (cons (- px (e/ s 2)) (+ py (e/ s 2)))
 				 (cons px (- py (e/ s 2)))
 				 (cons (+ px (e/ s 2)) (+ py (e/ s 2))))
 				:stroke color
-				:fill-color (eplot--vs 'fill-color
-						       headers "none"))))
+				:fill-color
+				(or (slot-value plot 'fill-color) "none"))))
 		(rectangle
-		 (let ((s (eplot--vn 'size headers 3)))
+		 (let ((s (or (slot-value plot 'size) 3)))
 		   (svg-rectangle svg (- px (e/ s 2)) (- py (e/ s 2))
 				  s s
 				  :stroke color
-				  :fill-color (eplot--vs 'fill-color
-							 headers "none")))))
+				  :fill-color
+				  (or (slot-value plot 'fill-color) "none")))))
 	      (setq lpy py
 		    lpx px))
 
@@ -1488,7 +1539,7 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 	     (when polygon
 	       ;; We have a "between" chart, so collect the data points
 	       ;; from the "extra" values, too.
-	       (when (memq 'two-values (eplot--vyl 'data-format headers))
+	       (when (memq 'two-values (slot-value plot 'data-format))
 		 (cl-loop
 		  for val in (nreverse
 			      (seq-map (lambda (v) (plist-get v :extra-value))
@@ -1520,7 +1571,7 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 				  (eplot--vs 'direction gradient))
 		 (svg-polygon svg (nreverse polygon)
 			      :gradient id
-			      :stroke (eplot--vs 'fill-border-color headers))
+			      :stroke (slot-value plot 'fill-border-color))
 		 (setq polygon nil))))))
 
 (defun eplot--stops (from to)
