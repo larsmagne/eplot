@@ -305,7 +305,7 @@ you a clear, non-blurry version of the chart at any size."
 	type value)
     (while (looking-at "\\([^\n\t :]+\\):\\(.*\\)")
       (setq type (intern (downcase (match-string 1)))
-	    value (string-trim (match-string 2)))
+	    value (substring-no-properties (string-trim (match-string 2))))
       (forward-line 1)
       ;; Get continuation lines.
       (while (looking-at "[ \t]+\\(.*\\)")
@@ -357,7 +357,7 @@ you a clear, non-blurry version of the chart at any size."
 	    (setq this (nconc this (list :extra-value (pop numbers)))))
 	  (when settings
 	    (setq this (nconc this (list :settings settings))))
-	  (when this
+	  (when (plist-get this :value)
 	    (push this values)))
 	(forward-line 1))
       (setq values (nreverse values)))
@@ -1027,7 +1027,8 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 				(encode-time
 				 (decoded-time-set-defaults
 				  (iso8601-parse-time
-				   (format "%06d" (plist-get val :x)))))
+				   (format "%06d" (plist-get val :x)))
+				  0))
 				'integer))
 		      x-min (car x-values)
 		      x-max (car (last x-values))
@@ -1772,16 +1773,16 @@ nil means `top-down'."
 	  (list
 	   (list (* 2 60) 'time
 		 (lambda (_d) t))
-	   (list (/ 2 60 60) 'time
+	   (list (* 2 60 60) 'time
 		 ;; Collect whole minutes.
 		 (lambda (decoded)
 		   (zerop (decoded-time-second decoded))))
-	   (list (/ 4 60 60) 'minute
+	   (list (* 4 60 60) 'minute
 		 ;; Collect fifteen minutes.
 		 (lambda (decoded)
 		   (and (zerop (decoded-time-second decoded))
 			(memq (decoded-time-minute decoded) '(0 15 30 45)))))
-	   (list (/ 8 60 60) 'minute
+	   (list (* 8 60 60) 'minute
 		 ;; Collect half hours.
 		 (lambda (decoded)
 		   (and (zerop (decoded-time-second decoded))
@@ -1809,6 +1810,18 @@ nil means `top-down'."
 	(list x-ticks print-format))
        ;; We have to prune X labels, but not grid lines.  (We shouldn't
        ;; have a grid line more than every 10 pixels.)
+       ;; If we're plotting just seconds, then just weed out some seconds.
+       ((and (< (* count 10) xs)
+	     (= (caar limits) (* 2 60)))
+	(let ((xv (eplot--compute-x-ticks xs x-ticks font-size 'time)))
+	  (let ((tick-step (car xv))
+		(label-step (cadr xv)))
+	    (list x-ticks 'time
+		  (cl-loop for val in x-ticks
+			   collect (list val
+					 (zerop (% val tick-step))
+					 (zerop (% val label-step))))))))
+       ;; Normal case.
        ((< (* count 10) xs)
 	(if (not (cdr limits))
 	    (eplot--hour-ticks x-ticks xs font-size)
