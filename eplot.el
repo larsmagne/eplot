@@ -1836,7 +1836,8 @@ nil means `top-down'."
 	(eplot--get-time-ticks start end xs font-size (caar limits)))))))
 
 (defun eplot--hour-ticks (x-ticks xs font-size)
-  (let* ((hour-ticks (mapcar (lambda (time)
+  (let* ((eplot--pleasing-numbers '(1 3 6 12))
+	 (hour-ticks (mapcar (lambda (time)
 			       (decoded-time-hour (decode-time time)))
 			     x-ticks))
 	 (xv (eplot--compute-x-ticks xs hour-ticks font-size 'year)))
