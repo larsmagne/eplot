@@ -7,6 +7,7 @@ Axes-Color: #ccc
 Label-Color: #ccc
 
 Gradient: blue black
+# Gradient: blue black
 33 # Label: Apples
 20 # Label: Oranges
 24 # Label: Appanges
