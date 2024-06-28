@@ -454,17 +454,17 @@ explicit headers when you want).
 
 This is done with the eplot-set function:
 
-  (eplot-set 'width 600) 
-  (eplot-set 'height 300)
-  (eplot-set 'font "arial")
-  (eplot-set 'background-color "#ffe0e0")
-  (eplot-set 'grid-color "#c0c0c0")
+    (eplot-set 'width 600) 
+    (eplot-set 'height 300)
+    (eplot-set 'font "arial")
+    (eplot-set 'background-color "#ffe0e0")
+    (eplot-set 'grid-color "#c0c0c0")
   
 ![chart-simple.plt](/images/pink-plot.svg)
 
 You can put this in your Emacs init file or somewhere, but then you
 also need a
 
-  (require 'eplot)
+    (require 'eplot)
   
 first.
