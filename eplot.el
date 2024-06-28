@@ -17,6 +17,15 @@
 
 ;; The main entry point is `M-x eplot' in a buffer with time series
 ;; data.
+;;
+;; If installing manually, put something like the following in your
+;; Emacs init file (but adjust the path to where you've put eplot):
+;; 
+;; (push "~/src/eplot/" load-path)
+;; (autoload 'eplot "eplot" nil t)
+;; (autoload 'eplot-mode "eplot" nil t)
+;; (unless (assoc "\\.plt" auto-mode-alist)
+;;   (setq auto-mode-alist (cons '("\\.plt" . eplot-mode) auto-mode-alist)))
 
 ;;; Code:
 
