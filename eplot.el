@@ -348,12 +348,14 @@ you a clear, non-blurry version of the chart at any size."
 	  ;; we're using.
 	  (when data-column
 	    (setq numbers (nthcdr (1- data-column) numbers)))
-	  (setq this (nconc this (list :value (pop numbers))))
+	  (when numbers
+	    (setq this (nconc this (list :value (pop numbers)))))
 	  (when two-values
 	    (setq this (nconc this (list :extra-value (pop numbers)))))
 	  (when settings
 	    (setq this (nconc this (list :settings settings))))
-	  (push this values))
+	  (when this
+	    (push this values)))
 	(forward-line 1))
       (setq values (nreverse values)))
     (and values
