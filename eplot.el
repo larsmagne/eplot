@@ -107,7 +107,7 @@ possible chart headers."
 
 (define-derived-mode eplot-view-mode special-mode "eplot view"
   "Major mode for displaying eplots."
-  (setq-default revert-buffer-function #'eplot-update))
+  (setq-local revert-buffer-function #'eplot-update))
 
 (defun eplot-view-write-file (file)
   "Write the current chart to a file.
