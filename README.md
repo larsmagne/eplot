@@ -428,6 +428,16 @@ being back in the 70s.
 And you can put the background image over the entire chart, just
 behind the plot, or just in the frame.  And also adjust the opacity.
 
+	Chart-Color: white
+	Grid-Color: #444
+	Background-Gradient: blue black right-left
+	Data-File: data1.txt
+	Gradient: red black
+
+![chart-gradient-background.plt](/images/chart-gradient-background.svg)
+
+You can also have a gradient over the entire background, of course.
+
 So there's a lot of different headers you can use to influence the
 look of the chart and the individual plots.  To get a list of them
 all, and their possible values, use the `M-x eplot-list-chart-headers'

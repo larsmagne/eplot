@@ -467,6 +467,9 @@ This is used as the default, but can be overridden per thing.")
 If you want a chart with a transparent background, use the color
 \"none\".")
 
+(eplot-def (background-gradient string)
+  "Use this to get a gradient color in the background.")
+
 (eplot-def (axes-color string (spec chart-color))
   "The color of the axes.")
 
@@ -595,6 +598,7 @@ and `frame' (the surrounding area).")
    ;; ---- CUT HERE ----
    (axes-color :initarg :axes-color :initform nil)
    (background-color :initarg :background-color :initform nil)
+   (background-gradient :initarg :background-gradient :initform nil)
    (background-image-file :initarg :background-image-file :initform nil)
    (background-image-opacity :initarg :background-image-opacity :initform nil)
    (background-image-cover :initarg :background-image-cover :initform nil)
@@ -915,8 +919,19 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 		xs ys)
       chart
     ;; Add background.
-    (svg-rectangle svg 0 0 width height
-		   :fill background-color)
+    (with-slots (background-gradient) chart
+      (let ((gradient (eplot--parse-gradient background-gradient))
+	    id)
+	(when gradient
+	  (setq id (format "gradient-%s" (make-temp-name "grad")))
+	  (eplot--gradient svg id 'linear
+			   (eplot--stops (eplot--vs 'from gradient)
+					 (eplot--vs 'to gradient))
+			   (eplot--vs 'direction gradient)))
+	(apply #'svg-rectangle svg 0 0 width height
+	       (if gradient
+		   `(:gradient ,id)
+		 `(:fill ,background-color)))))
     (with-slots ( background-image-file background-image-opacity
 		  background-image-cover)
 	chart
