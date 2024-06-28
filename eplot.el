@@ -1027,8 +1027,7 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 				(encode-time
 				 (decoded-time-set-defaults
 				  (iso8601-parse-time
-				   (format "%06d" (plist-get val :x)))
-				  0))
+				   (format "%06d" (plist-get val :x)))))
 				'integer))
 		      x-min (car x-values)
 		      x-max (car (last x-values))
@@ -1777,6 +1776,10 @@ nil means `top-down'."
 		 ;; Collect whole minutes.
 		 (lambda (decoded)
 		   (zerop (decoded-time-second decoded))))
+	   (list (* 3 60 60) 'minute
+		 ;; Collect five minutes.
+		 (lambda (decoded)
+		   (zerop (% (decoded-time-minute decoded) 5))))
 	   (list (* 4 60 60) 'minute
 		 ;; Collect fifteen minutes.
 		 (lambda (decoded)
@@ -1821,7 +1824,7 @@ nil means `top-down'."
 			   collect (list val
 					 (zerop (% val tick-step))
 					 (zerop (% val label-step))))))))
-       ;; Normal case.
+       ;; Normal case for pruning labels, but not grid lines.
        ((< (* count 10) xs)
 	(if (not (cdr limits))
 	    (eplot--hour-ticks x-ticks xs font-size)
