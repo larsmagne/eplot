@@ -1119,7 +1119,8 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 		width height
 		axes-color label-color
 		grid grid-opacity grid-color
-		font font-size x-tick-step x-label-step)
+		font font-size x-tick-step x-label-step
+		plots)
       chart
     ;; Make X ticks.
     (cl-loop for xv in (or x-step-map x-ticks)
@@ -1131,9 +1132,11 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 				(nth 2 xv)
 			      (zerop (e% x x-label-step)))
 	     for i from 0
+	     for value = (and (equal format 'bar-chart)
+			      (elt (slot-value (car plots) 'values) i))
 	     for label = (if (equal format 'bar-chart)
 			     (eplot--vs 'label
-					(plist-get (elt values x) :settings)
+					(plist-get value :settings)
 					(format "%s" x))
 			   (eplot--format-value x print-format))
 	     for px = (if (equal format 'bar-chart)
@@ -1465,10 +1468,20 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 	      do
 	      (cl-case style
 		(bar
-		 (svg-rectangle svg
-				(+ px bar-gap) py
-				(- stride bar-gap) (- height margin-bottom py)
-				:fill color))
+		 (if (not gradient)
+		     (svg-rectangle
+		      svg (+ px bar-gap) py
+		      (- stride bar-gap) (- height margin-bottom py)
+		      :fill color)
+		   (let ((id (format "gradient-%s" (make-temp-name "grad"))))
+		     (eplot--gradient svg id 'linear
+				      (eplot--stops (eplot--vs 'from gradient)
+						    (eplot--vs 'to gradient))
+				      (eplot--vs 'direction gradient))
+		     (svg-rectangle
+		      svg (+ px bar-gap) py
+		      (- stride bar-gap) (- height margin-bottom py)
+		      :gradient id))))
 		(impulse
 		 (let ((width (eplot--vn 'size settings
 					 (or (slot-value plot 'size) 1))))
