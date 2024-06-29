@@ -328,7 +328,7 @@ you a clear, non-blurry version of the chart at any size."
 	(setq value (concat value " " (string-trim (match-string 1))))
 	(forward-line 1))
       (push (cons type value) data))
-    data))
+    (nreverse data)))
 
 (defun eplot--parse-values (&optional in-headers data-headers)
   ;; Skip past separator lines.
@@ -807,6 +807,7 @@ Elements allowed are `two-values', `date' and `time'.")
       (eplot--set-theme chart eplot-bar-chart-defaults))
     ;; Finally, use the data from the chart.
     (eplot--object-values chart data eplot--chart-headers)
+    ;; Note when min/max are explicitly set.
     (with-slots (min max set-min set-max) chart
       (setq set-min min
 	    set-max max))
@@ -825,21 +826,28 @@ Elements allowed are `two-values', `date' and `time'.")
 		  default))))))
 
 (defun eplot--object-values (object data headers)
-  (cl-loop for (type . value) in data
-	   do (unless (eq type :plots)
-		(let ((spec (cdr (assq type headers))))
+  (cl-loop for (name . value) in data
+	   do (unless (eq name :plots)
+		(let ((spec (cdr (assq name headers))))
 		  (if (not spec)
-		      (error "%s is not a valid spec" type)
-		    (setf (slot-value object type)
-			  (cl-case (plist-get spec :type)
-			    (number
-			     (string-to-number value))
-			    (symbol
-			     (intern (downcase value)))
-			    (symbol-list
-			     (mapcar #'intern (split-string (downcase value))))
-			    (t
-			     value))))))))
+		      (error "%s is not a valid spec" name)
+		    (let ((value 
+			   (cl-case (plist-get spec :type)
+			     (number
+			      (string-to-number value))
+			     (symbol
+			      (intern (downcase value)))
+			     (symbol-list
+			      (mapcar #'intern (split-string (downcase value))))
+			     (t
+			      value))))
+		      (setf (slot-value object name) value)
+		      (eplot--set-dependent-values object name value)))))))
+
+(defun eplot--set-dependent-values (object name value)
+  (dolist (slot (gethash name (eplot--dependecy-graph)))
+    (setf (slot-value object slot) value)
+    (eplot--set-dependent-values object slot value)))
 
 (defun eplot--set-theme (chart map)
   (cl-loop for (slot value) in map
@@ -855,6 +863,15 @@ Elements allowed are `two-values', `date' and `time'.")
 	       (eq (car default) 'spec))
 	  (eplot--default (cadr default))
 	default))))
+
+(defun eplot--dependecy-graph ()
+  (let ((table (make-hash-table)))
+    (dolist (elem eplot--chart-headers)
+      (let ((default (plist-get (cdr elem) :default)))
+	(when (and (consp default)
+		   (eq (car default) 'spec))
+	  (push (car elem) (gethash (cadr default) table)))))
+    table))
 
 (defun eplot--render (data &optional return-image)
   "Create the chart and display it.
