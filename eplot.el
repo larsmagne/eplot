@@ -2099,10 +2099,10 @@ nil means `top-down'."
   '((("Size"
       ("sw" "Width")
       ("sh" "Height")
-      ("sml" "Margin-Left")
-      ("smt" "Margin-Top")
-      ("smr" "Margin-Right")
-      ("smb" "Margin-Bottom"))
+      ("sl" "Margin-Left")
+      ("st" "Margin-Top")
+      ("sr" "Margin-Right")
+      ("sb" "Margin-Bottom"))
      ("Colors"
       ("ca" "Axes-Color")
       ("cb" "Border-Color")
@@ -2113,15 +2113,15 @@ nil means `top-down'."
      ("Background"
       ("bc" "Background-Color")
       ("bg" "Background-Gradient")
-      ("bif" "Background-Image-File")
-      ("bic" "Background-Image-Cover")
-      ("bio" "Background-Image-Opacity")))
+      ("bi" "Background-Image-File")
+      ("bv" "Background-Image-Cover")
+      ("bo" "Background-Image-Opacity")))
     (("General"
       ("bt" "Title")
-      ("bf" "Font-Size")
+      ("bs" "Font-Size")
       ("bf" "Font")
-      ("bf" "Format")
-      ("bf" "Frame-Width")
+      ("bo" "Format")
+      ("bw" "Frame-Width")
       ("bh" "Header-File")
       ("bd" "Data-File")
       ("bi" "Min")
@@ -2139,17 +2139,17 @@ nil means `top-down'."
       ("go" "Grid-Opacity")
       ("gp" "Grid-Position"))
      ("Plot"
+      ("ps" "Style")
       ("pc" "Color")
-      ("pd" "Data-Column")
+      ("po" "Data-Column")
       ("pf" "Data-File")
-      ("pf" "Data-format")
-      ("pb" "Fill-Border-Color")
-      ("pf" "Fill-Color")
+      ("pr" "Data-format")
+      ("pn" "Fill-Border-Color")
+      ("pi" "Fill-Color")
       ("pg" "Gradient")
       ("pn" "Name")
-      ("ps" "Size")
-      ("po" "Smoothing")
-      ("ps" "Style")))))
+      ("pz" "Size")
+      ("pm" "Smoothing")))))
 
 (defun eplot--define-transients ()
   (cl-loop for row in eplot--transients
@@ -2186,6 +2186,10 @@ nil means `top-down'."
 	    (read-number (format "Value for %s (%s): " action type)))
 	   ((string-match "color" (downcase action))
 	    (read-color (format "Value for %s (color): " action)))
+	   ((string-match "gradient" (downcase action))
+	    (eplot--read-gradient (format "Value for %s (gradient): " action)))
+	   ((string-match "file" (downcase action))
+	    (read-file-name (format "File for %s (gradient): " action)))
 	   ((eq type 'symbol)
 	    (intern
 	     (completing-read (format "Value for %s: " action)
@@ -2193,6 +2197,9 @@ nil means `top-down'."
 	   (t
 	    (read-string (format "Value for %s (string): " action)))))
     (eplot-update-view-buffer)))
+
+(defun eplot--read-gradient (prompt)
+  (read-string prompt))
   
 (eval `(transient-define-prefix eplot-customize ()
 	 "Customize Chart"
