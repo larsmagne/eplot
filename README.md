@@ -438,6 +438,14 @@ behind the plot, or just in the frame.  And also adjust the opacity.
 
 You can also have a gradient over the entire background, of course.
 
+	Header-File: external-headers.plt
+
+If you're plotting a lot of charts, you usually want to have the same
+basic parameters.  So you can put those in one file, and then include
+them like this.  You can also use the `M-x eplot-with-headers'
+command, which will plot using the data in the current buffer, but
+taking the headers from that file.
+
 So there's a lot of different headers you can use to influence the
 look of the chart and the individual plots.  To get a list of them
 all, and their possible values, use the `M-x eplot-list-chart-headers'

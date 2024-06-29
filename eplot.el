@@ -233,6 +233,11 @@ you a clear, non-blurry version of the chart at any size."
   (interactive)
   (eplot-update-view-buffer))
 
+(defun eplot-with-headers (header-file)
+  "Plot the data in the current buffer using headers from a file."
+  (interactive "fHeader file: ")
+  )
+
 (defun eplot-update-view-buffer ()
   "Update the eplot view buffer based on the current data buffer."
   (interactive)
@@ -327,8 +332,15 @@ you a clear, non-blurry version of the chart at any size."
       (while (looking-at "[ \t]+\\(.*\\)")
 	(setq value (concat value " " (string-trim (match-string 1))))
 	(forward-line 1))
-      (push (cons type value) data))
-    (nreverse data)))
+      (if (eq type 'header-file)
+	  (setq data (nconc data
+			    (with-temp-buffer
+			      (insert-file-contents value)
+			      (eplot--parse-headers))))
+	;; We don't use `push' here because we want to preserve order
+	;; also when inserting headers from other files.
+	(setq data (nconc data (list (cons type value))))))
+    data))
 
 (defun eplot--parse-values (&optional in-headers data-headers)
   ;; Skip past separator lines.
@@ -563,6 +575,9 @@ This is normally computed automatically, but can be overridden
 Valid values are `all' (the entire image), `plot' (the plot area)
 and `frame' (the surrounding area).")
 
+(eplot-def (header-file string)
+  "File where the headers are.")
+
 (defvar eplot-compact-defaults
   '((margin-left 30)
     (margin-right 10)
@@ -625,6 +640,7 @@ and `frame' (the surrounding area).")
    (grid-color :initarg :grid-color :initform nil)
    (grid-opacity :initarg :grid-opacity :initform nil)
    (grid-position :initarg :grid-position :initform nil)
+   (header-file :initarg :header-file :initform nil)
    (height :initarg :height :initform nil)
    (label-color :initarg :label-color :initform nil)
    (layout :initarg :layout :initform nil)
