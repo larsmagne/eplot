@@ -457,15 +457,17 @@ you a clear, non-blurry version of the chart at any size."
 
 (defmacro eplot-def (args doc-string)
   (declare (indent defun))
-  `(eplot--def ',(nth 0 args) ',(nth 1 args) ',(nth 2 args) ,doc-string))
+  `(eplot--def ',(nth 0 args) ',(nth 1 args) ',(nth 2 args) ',(nth 3 args)
+	       ,doc-string))
 
-(defun eplot--def (name type default doc)
+(defun eplot--def (name type default valid doc)
   (setq eplot--chart-headers (delq (assq name eplot--chart-headers)
 				   eplot--chart-headers))
   (push (list name
 	      :type type
 	      :default default
-	      :doc doc)
+	      :doc doc
+	      :valid valid)
 	eplot--chart-headers))
 
 (eplot-def (width number)
@@ -474,15 +476,15 @@ you a clear, non-blurry version of the chart at any size."
 (eplot-def (height number)
   "The height of the entire chart.")
 
-(eplot-def (format symbol normal)
+(eplot-def (format symbol normal (normal bar-chart))
   "The overall format of the chart.
 Possible values are `normal' and `bar-chart'.")
 
-(eplot-def (layout symbol)
+(eplot-def (layout symbol (normal compact))
   "The general layout of the chart.
 Possible values are `normal' and `compact'.")
 
-(eplot-def (mode symbol)
+(eplot-def (mode symbol light (dark light))
   "Dark/light mode.
 Possible values are `dark' and `light'.")
 
@@ -525,7 +527,7 @@ If you want a chart with a transparent background, use the color
 (eplot-def (grid-color string "#e0e0e0")
   "The color of the grid.")
 
-(eplot-def (grid symbol xy)
+(eplot-def (grid symbol xy (xy x y off))
   "What grid axes to do.
 Possible values are `xy', `x', `y' and `off'.")
 
@@ -534,11 +536,11 @@ Possible values are `xy', `x', `y' and `off'.")
 This should either be nil or a value between 0 and 1, where 0 is
 fully transparent.")
 
-(eplot-def (grid-position symbol bottom)
+(eplot-def (grid-position symbol bottom (bottom top))
   "Whether to put the grid on top or under the plot.
 Possible values are `bottom' and `top''.")
 
-(eplot-def (legend symbol)
+(eplot-def (legend symbol nil (t nil))
   "Whether to do a legend.")
 
 (eplot-def (legend-color string (spec chart-color))
@@ -596,7 +598,7 @@ This is normally computed automatically, but can be overridden
 (eplot-def (background-image-opacity number 1)
   "The opacity of the background image.")
 
-(eplot-def (background-image-cover symbol all)
+(eplot-def (background-image-cover symbol all (all plot frame))
   "Position of the background image.
 Valid values are `all' (the entire image), `plot' (the plot area)
 and `frame' (the surrounding area).")
@@ -697,18 +699,20 @@ and `frame' (the surrounding area).")
 
 (defmacro eplot-pdef (args doc-string)
   (declare (indent defun))
-  `(eplot--pdef ',(nth 0 args) ',(nth 1 args) ',(nth 2 args) ,doc-string))
+  `(eplot--pdef ',(nth 0 args) ',(nth 1 args) ',(nth 2 args) ',(nth 3 args)
+		,doc-string))
 
-(defun eplot--pdef (name type default doc)
+(defun eplot--pdef (name type default valid doc)
   (setq eplot--plot-headers (delq (assq name eplot--plot-headers)
 				   eplot--plot-headers))
   (push (list name
 	      :type type
 	      :default default
+	      :valid valid
 	      :doc doc)
 	eplot--plot-headers))
 
-(eplot-pdef (smoothing symbol)
+(eplot-pdef (smoothing symbol nil (moving-average nil))
   "Smoothing algorithm to apply to the data, if any.
 Valid values are `moving-average' and, er, probably more to come.")
 
@@ -736,7 +740,8 @@ of where each color ends, so the above starts with black, then at
 again at 75%, before ending up at black at a 100% (but you don't
 have to include the 100% here -- it's understood).")
 
-(eplot-pdef (style symbol line)
+(eplot-pdef (style symbol line ( line impulse point square cricle cross
+				 triangle rectangle))
   "Style the plot should be drawn in.
 Valid values are listed below.  Some styles take additional
 optional parameters.
@@ -772,7 +777,7 @@ I.e., circle, triangle and rectangle.")
 (eplot-pdef (color string (spec chart-color))
   "Color to draw the plot.")
 
-(eplot-pdef (data-format symbol single)
+(eplot-pdef (data-format symbol single (single date time xy))
   "Format of the data.
 By default, eplot assumes that each line has a single data point.
 This can also be `date', `time' and `xy'.
@@ -795,7 +800,7 @@ xy: The first column is the X position.")
 (eplot-pdef (data-file string)
   "File where the data is.")
 
-(eplot-pdef (data-format symbol-list)
+(eplot-pdef (data-format symbol-list nil (nil two-values date time))
   "List of symbols to describe the data format.
 Elements allowed are `two-values', `date' and `time'.")
 
@@ -2072,66 +2077,107 @@ nil means `top-down'."
       (indent-rigidly start (point) 2))
     (ensure-empty-lines 1)))
 
-(define-transient-command eplot-customize ()
-  "Customize Chart"
-  [["Size"
-   ("sw" "Width" eplot--cus)
-   ("sh" "Height" eplot--cus)
-   ("sml" "Margin-Left" eplot--cus)
-   ("smt" "Margin-Top" eplot--cus)
-   ("smr" "Margin-Right" eplot--cus)
-   ("smb" "Margin-Bottom" eplot--cus)]
-   ["Colors"
-   ("ca" "Axes-Color" eplot--cus)
-   ("cb" "Border-Color" eplot--cus)
-   ("cc" "Chart-Color" eplot--cus)
-   ("cf" "Frame-Color" eplot--cus)
-   ("cs" "Surround-Color" eplot--cus)
-   ("ct" "Title-Color" eplot--cus)]
-  ["Background"
-   ("bc" "Background-Color" eplot--cus)
-   ("bg" "Background-Gradient" eplot--cus)
-   ("bif" "Background-Image-File" eplot--cus)
-   ("bic" "Background-Image-Cover" eplot--cus)
-   ("bio" "Background-Image-Opacity" eplot--cus)]]
-  [["General"
-    ("bt" "Title" eplot--cus)
-    ("bf" "Font-Size" eplot--cus)
-    ("bf" "Font" eplot--cus)
-    ("bf" "Format" eplot--cus)
-    ("bf" "Frame-Width" eplot--cus)
-    ("bh" "Header-File" eplot--cus)
-    ("bd" "Data-File" eplot--cus)
-    ("bi" "Min" eplot--cus)
-    ("ba" "Max" eplot--cus)
-    ("bm" "Mode" eplot--cus)]
-   ["Legend, Axes & Grid"
-    ("ll" "Legend" eplot--cus)
-    ("lb" "Legend-Background-Color" eplot--cus)
-    ("lo" "Legend-Borrder-Color" eplot--cus)
-    ("lc" "Legend-Color" eplot--cus)
-    ("xs" "X-Axis-Label-Space" eplot--cus)
-    ("xx" "X-Label" eplot--cus)
-    ("xy" "Y-label" eplot--cus)
-    ("gf" "Grid-Color" eplot--cus)
-    ("go" "Grid-Opacity" eplot--cus)
-    ("gp" "Grid-Position" eplot--cus)]
-   ["Plot"
-    ("pc" "Color" eplot--cus)
-    ("pd" "Data-Column" eplot--cus)
-    ("pf" "Data-File" eplot--cus)
-    ("pf" "Data-format" eplot--cus)
-    ("pb" "Fill-Border-Color" eplot--cus)
-    ("pf" "Fill-Color" eplot--cus)
-    ("pg" "Gradient" eplot--cus)
-    ("pn" "Name" eplot--cus)
-    ("ps" "Size" eplot--cus)
-    ("po" "Smoothing" eplot--cus)
-    ("ps" "Style" eplot--cus)]])
+(defvar eplot--transients
+  '((("Size"
+      ("sw" "Width")
+      ("sh" "Height")
+      ("sml" "Margin-Left")
+      ("smt" "Margin-Top")
+      ("smr" "Margin-Right")
+      ("smb" "Margin-Bottom"))
+     ("Colors"
+      ("ca" "Axes-Color")
+      ("cb" "Border-Color")
+      ("cc" "Chart-Color")
+      ("cf" "Frame-Color")
+      ("cs" "Surround-Color")
+      ("ct" "Title-Color"))
+     ("Background"
+      ("bc" "Background-Color")
+      ("bg" "Background-Gradient")
+      ("bif" "Background-Image-File")
+      ("bic" "Background-Image-Cover")
+      ("bio" "Background-Image-Opacity")))
+    (("General"
+      ("bt" "Title")
+      ("bf" "Font-Size")
+      ("bf" "Font")
+      ("bf" "Format")
+      ("bf" "Frame-Width")
+      ("bh" "Header-File")
+      ("bd" "Data-File")
+      ("bi" "Min")
+      ("ba" "Max")
+      ("bm" "Mode"))
+     ("Legend, Axes & Grid"
+      ("ll" "Legend")
+      ("lb" "Legend-Background-Color")
+      ("lo" "Legend-Borrder-Color")
+      ("lc" "Legend-Color")
+      ("xs" "X-Axis-Label-Space")
+      ("xx" "X-Label")
+      ("xy" "Y-label")
+      ("gf" "Grid-Color")
+      ("go" "Grid-Opacity")
+      ("gp" "Grid-Position"))
+     ("Plot"
+      ("pc" "Color")
+      ("pd" "Data-Column")
+      ("pf" "Data-File")
+      ("pf" "Data-format")
+      ("pb" "Fill-Border-Color")
+      ("pf" "Fill-Color")
+      ("pg" "Gradient")
+      ("pn" "Name")
+      ("ps" "Size")
+      ("po" "Smoothing")
+      ("ps" "Style")))))
 
-(defun eplot--cus ()
-  (interactive)
-  )
+(defun eplot--define-transients ()
+  (cl-loop for row in eplot--transients
+	   collect (cl-coerce
+		    (cl-loop for column in row
+			     collect
+			     (cl-coerce
+			      (cons (pop column)
+				    (mapcar #'eplot--define-transient column))
+			      'vector))
+		    'vector)))
+
+(defun eplot--define-transient (action)
+  (list (nth 0 action)
+	(nth 1 action)
+	(lambda ()
+	  (interactive)
+	  (eplot--execute-transient (nth 1 action)))))
+
+(defvar eplot--transient-settings nil)
+
+(defun eplot--execute-transient (action)
+  (unless eplot--transient-settings
+    (setq-local eplot--transient-settings (make-hash-table)))
+  (let* ((name (intern (downcase action)))
+	 (spec (assq name (append eplot--chart-headers eplot--plot-headers)))
+	 (type (plist-get (cdr spec) :type)))
+    ;; Sanity check.
+    (unless spec
+      (error "No such header type: %s" name))
+    (setf (gethash name eplot--transient-settings)
+	  (cond
+	   ((eq type 'number)
+	    (read-number (format "Value for %s (%s): " action type)))
+	   ((string-match "color" (downcase action))
+	    (read-color (format "Value for %s (color): " action)))
+	   ((eq type 'symbol)
+	    (intern
+	     (completing-read (format "Value for %s: " action)
+			      (plist-get (cdr spec) :valid))))
+	   (t
+	    (read-string (format "Value for %s (string): " action)))))))
+  
+(eval `(transient-define-prefix eplot-customize ()
+	 "Customize Chart"
+	 ,@(eplot--define-transients)))
 
 (provide 'eplot)
 
