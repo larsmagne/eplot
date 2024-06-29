@@ -1544,7 +1544,17 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 			     'bar
 			   (slot-value plot 'style))
 	     for bar-gap = (* stride 0.1)
+	     for clip-id = (format "url(#clip-%d)" plot-number)
 	     do
+	     (svg--append
+	      svg
+	      (dom-node 'clipPath
+			`((id . ,(format "clip-%d" plot-number)))
+			(dom-node 'rect
+				  `((x . ,margin-left)
+				    (y . , margin-top)
+				    (width . ,xs)
+				    (height . ,ys)))))
 	     (unless gradient
 	       (when-let ((fill (slot-value plot 'fill-color)))
 		 (setq gradient `((from . ,fill) (to . ,fill)
@@ -1579,6 +1589,7 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 		     (svg-rectangle
 		      svg (+ px bar-gap) py
 		      (- stride bar-gap) (- height margin-bottom py)
+		      :clip-path clip-id
 		      :fill color)
 		   (let ((id (format "gradient-%s" (make-temp-name "grad"))))
 		     (eplot--gradient svg id 'linear
@@ -1588,6 +1599,7 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 		     (svg-rectangle
 		      svg (+ px bar-gap) py
 		      (- stride bar-gap) (- height margin-bottom py)
+		      :clip-path clip-id
 		      :gradient id))))
 		(impulse
 		 (let ((width (eplot--vn 'size settings
@@ -1596,13 +1608,16 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 		       (svg-line svg
 				 px py
 				 px (- height margin-bottom)
+				 :clip-path clip-id
 				 :stroke color)
 		     (svg-rectangle svg
 				    (- px (e/ width 2)) py
 				    width (- height py margin-bottom)
+				    :clip-path clip-id
 				    :fill color))))
 		(point
 		 (svg-line svg px py (1+ px) (1+ py)
+			   :clip-path clip-id
 			   :stroke color))
 		(line
 		 ;; If we're doing a gradient, we're just collecting
@@ -1611,6 +1626,7 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 		     (push (cons px py) polygon)
 		   (when lpx
 		     (svg-line svg lpx lpy px py
+			       :clip-path clip-id
 			       :stroke color))))
 		(square
 		 (if gradient
@@ -1620,13 +1636,16 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 		       (push (cons px py) polygon))
 		   (when lpx
 		     (svg-line svg lpx lpy px lpy
+			       :clip-path clip-id
 			       :stroke color)
 		     (svg-line svg px lpy px py
+			       :clip-path clip-id
 			       :stroke color))))
 		(circle
 		 (svg-circle svg px py
 			     (eplot--vn 'size settings
 					(or (slot-value plot 'size) 3))
+			     :clip-path clip-id
 			     :stroke color
 			     :fill (eplot--vary-color
 				    (eplot--vs
@@ -1637,9 +1656,11 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 		 (let ((s (or (slot-value plot 'size) 3)))
 		   (svg-line svg (- px s) (- py s)
 			     (+ px s) (+ py s)
+			     :clip-path clip-id
 			     :stroke color)
 		   (svg-line svg (+ px s) (- py s)
 			     (- px s) (+ py s)
+			     :clip-path clip-id
 			     :stroke color)))
 		(triangle
 		 (let ((s (or (slot-value plot 'size) 5)))
@@ -1648,6 +1669,7 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 				 (cons (- px (e/ s 2)) (+ py (e/ s 2)))
 				 (cons px (- py (e/ s 2)))
 				 (cons (+ px (e/ s 2)) (+ py (e/ s 2))))
+				:clip-path clip-id
 				:stroke color
 				:fill-color
 				(or (slot-value plot 'fill-color) "none"))))
@@ -1655,6 +1677,7 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 		 (let ((s (or (slot-value plot 'size) 3)))
 		   (svg-rectangle svg (- px (e/ s 2)) (- py (e/ s 2))
 				  s s
+				  :clip-path clip-id
 				  :stroke color
 				  :fill-color
 				  (or (slot-value plot 'fill-color) "none")))))
@@ -1697,6 +1720,7 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 						(eplot--vs 'to gradient))
 				  (eplot--vs 'direction gradient))
 		 (svg-polygon svg (nreverse polygon)
+			      :clip-path clip-id
 			      :gradient id
 			      :stroke (slot-value plot 'fill-border-color))
 		 (setq polygon nil))))))
