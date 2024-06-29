@@ -919,19 +919,7 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 		xs ys)
       chart
     ;; Add background.
-    (with-slots (background-gradient) chart
-      (let ((gradient (eplot--parse-gradient background-gradient))
-	    id)
-	(when gradient
-	  (setq id (format "gradient-%s" (make-temp-name "grad")))
-	  (eplot--gradient svg id 'linear
-			   (eplot--stops (eplot--vs 'from gradient)
-					 (eplot--vs 'to gradient))
-			   (eplot--vs 'direction gradient)))
-	(apply #'svg-rectangle svg 0 0 width height
-	       (if gradient
-		   `(:gradient ,id)
-		 `(:fill ,background-color)))))
+    (eplot--draw-background chart svg 0 0 width height)
     (with-slots ( background-image-file background-image-opacity
 		  background-image-cover)
 	chart
@@ -943,8 +931,7 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 		   `(:x 0 :y 0 :width ,width :height ,height)
 		 `(:x ,margin-left :y ,margin-top :width ,xs :height ,ys)))
 	(when (eq background-image-cover 'frame)
-	  (svg-rectangle svg margin-left margin-right xs ys
-			 :fill background-color))))
+	  (eplot--draw-background chart svg margin-left margin-right xs ys))))
     ;; Area between plot and edges.
     (with-slots (surround-color) chart
       (when surround-color
@@ -1001,6 +988,21 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 			  (- (/ margin-left 2) (/ font-size 2))
 			  (+ margin-top
 			     (/ (- height margin-bottom margin-top) 2))))))))
+
+(defun eplot--draw-background (chart svg left top width height)
+  (with-slots (background-gradient background-color) chart
+    (let ((gradient (eplot--parse-gradient background-gradient))
+	  id)
+      (when gradient
+	(setq id (format "gradient-%s" (make-temp-name "grad")))
+	(eplot--gradient svg id 'linear
+			 (eplot--stops (eplot--vs 'from gradient)
+				       (eplot--vs 'to gradient))
+			 (eplot--vs 'direction gradient)))
+      (apply #'svg-rectangle svg left top width height
+	     (if gradient
+		 `(:gradient ,id)
+	       `(:fill ,background-color))))))
 
 (defun eplot--compute-chart-dimensions (chart)
   (with-slots ( min max plots x-values x-min x-max x-ticks stride
