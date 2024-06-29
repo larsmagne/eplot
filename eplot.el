@@ -35,15 +35,26 @@
 (require 'eieio)
 (require 'iso8601)
 
+(defvar eplot--user-defaults (make-hash-table))
+
 (defun eplot-set (header value)
   "Set the default value of HEADER to VALUE.
 To get a list of all possible HEADERs, use the `M-x
-eplot-list-chart-headers' command."
+eplot-list-chart-headers' command.
+
+Also see `eplot-reset'."
   (let ((elem (or (assq header eplot--chart-headers)
 		  (assq header eplot--plot-headers))))
     (unless elem
       (error "No such header type: %s" header))
-    (plist-put (cdr elem) :default value)))
+    (setf (gethash header eplot--user-defaults) value)))
+
+(defun eplot-reset (&optional header)
+  "Reset HEADER to defaults.
+If HEADER is nil or not present, reset everything to defaults."
+  (if header
+      (remhash header eplot--user-defaults)
+    (setq eplot--user-defaults (make-hash-table))))
 
 (unless (assoc "\\.plt" auto-mode-alist)
   (setq auto-mode-alist (cons '("\\.plt" . eplot-mode) auto-mode-alist)))
@@ -805,10 +816,13 @@ Elements allowed are `two-values', `date' and `time'.")
   (dolist (header headers)
     (when-let ((default (plist-get (cdr header) :default)))
       (setf (slot-value object (car header))
-	    (if (and (consp default)
-		     (eq (car default) 'spec))
-		(eplot--default (cadr default))
-	      default)))))
+	    ;; Allow overrides via `eplot-set'.
+	    (or (gethash (car header) eplot--user-defaults)
+		(if (and (consp default)
+			 (eq (car default) 'spec))
+		    ;; Chase dependencies.
+		    (eplot--default (cadr default))
+		  default))))))
 
 (defun eplot--object-values (object data headers)
   (cl-loop for (type . value) in data
