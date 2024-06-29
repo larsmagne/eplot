@@ -236,9 +236,12 @@ you a clear, non-blurry version of the chart at any size."
 (defun eplot-with-headers (header-file)
   "Plot the data in the current buffer using headers from a file."
   (interactive "fHeader file: ")
-  )
+  (eplot-update-view-buffer
+   (with-temp-buffer
+     (insert-file-contents header-file)
+     (eplot--parse-headers))))
 
-(defun eplot-update-view-buffer ()
+(defun eplot-update-view-buffer (&optional headers)
   "Update the eplot view buffer based on the current data buffer."
   (interactive)
   ;; This is mainly useful during implementation.
@@ -253,6 +256,7 @@ you a clear, non-blurry version of the chart at any size."
 	  (data-buffer (current-buffer)))
       (unless data
 	(user-error "No data in the current buffer"))
+      (setq data (eplot--inject-headers data headers))
       (save-current-buffer
 	(if (get-buffer-window "*eplot*" t)
 	    (set-buffer "*eplot*")
@@ -266,6 +270,27 @@ you a clear, non-blurry version of the chart at any size."
 	  (insert "\n")
 	  (when-let ((win (get-buffer-window "*eplot*" t)))
 	    (set-window-point win (point-min))))))))
+
+(defun eplot--inject-headers (data headers)
+  ;; It's OK not to separate the plot headers from the chart
+  ;; headers.  Collect them here, if any.
+  (when-let ((plot-headers
+	      (cl-loop for elem in (mapcar #'car eplot--plot-headers)
+		       for value = (eplot--vs elem headers)
+		       when value
+		       collect (progn
+				 ;; Remove these headers from the data
+				 ;; headers so that we don't get errors
+				 ;; on undefined headers.
+				 (setq headers (delq (assq elem headers)
+						     headers))
+				 (cons elem value)))))
+    (dolist (plot (cdr (assq :plots data)))
+      (let ((headers (assq :headers plot)))
+	(if headers
+	    (nconc headers plot-headers)
+	  (nconc plot (list (list :headers plot-headers)))))))
+  (append data headers))
 
 (defun eplot-eval-and-update ()
   "Helper command when developing."
