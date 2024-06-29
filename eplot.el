@@ -1245,7 +1245,10 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 	     for label = (if (equal format 'bar-chart)
 			     (eplot--vs 'label
 					(plist-get value :settings)
-					(format "%s" x))
+					;; When we're doing bar charts, we
+					;; want default labeling to start with
+					;; 1 and not zero.
+					(format "%s" (1+ x)))
 			   (eplot--format-value x print-format))
 	     for px = (if (equal format 'bar-chart)
 			  (+ margin-left (* x stride) (/ stride 2)
