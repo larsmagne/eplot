@@ -34,6 +34,7 @@
 (require 'face-remap)
 (require 'eieio)
 (require 'iso8601)
+(require 'transient)
 
 (defvar eplot--user-defaults (make-hash-table))
 
@@ -2059,13 +2060,77 @@ nil means `top-down'."
     (goto-char (point-min))))
 
 (defun eplot--list-headers (headers)
-  (dolist (header headers)
+  (dolist (header (sort (copy-sequence headers) (lambda (e1 e2)
+						  (string< (car e1) (car e2)))))
     (insert (propertize (capitalize (symbol-name (car header))) 'face 'bold)
 	    "\n")
     (let ((start (point)))
       (insert (plist-get (cdr header) :doc) "\n")
       (indent-rigidly start (point) 2))
     (ensure-empty-lines 1)))
+
+(define-transient-command eplot-customize ()
+  "Customize Chart"
+  ["Colors"
+   ("ca" "Axes-Color" eplot--cus)
+   ("cb" "Border-Color" eplot--cus)
+   ("cc" "Chart-Color" eplot--cus)
+   ("cf" "Frame-Color" eplot--cus)
+   ("cs" "Surround-Color" eplot--cus)
+   ("ct" "Title-Color" eplot--cus)]
+  ["Background"
+   ("bc" "Background-Color" eplot--cus)
+   ("bg" "Background-Gradient" eplot--cus)
+   ("bif" "Background-Image-File" eplot--cus)
+   ("bic" "Background-Image-Cover" eplot--cus)
+   ("bio" "Background-Image-Opacity" eplot--cus)]
+  ["General"
+   ("bt" "Title" eplot--cus)
+   ("bf" "Font-Size" eplot--cus)
+   ("bf" "Font" eplot--cus)
+   ("bf" "Format" eplot--cus)
+   ("bf" "Frame-Width" eplot--cus)
+   ("bh" "Header-File" eplot--cus)
+   ("bd" "Data-File" eplot--cus)
+   ("bi" "Min" eplot--cus)
+   ("ba" "Max" eplot--cus)
+   ("bm" "Mode" eplot--cus)]
+  ["Grid"
+   ("gf" "Grid-Color" eplot--cus)
+   ("go" "Grid-Opacity" eplot--cus)
+   ("gp" "Grid-Position" eplot--cus)]
+  ["Size"
+   ("sw" "Width" eplot--cus)
+   ("sh" "Height" eplot--cus)
+   ("sml" "Margin-Left" eplot--cus)
+   ("smt" "Margin-Top" eplot--cus)
+   ("smr" "Margin-Right" eplot--cus)
+   ("smb" "Margin-Bottom" eplot--cus)]
+  ["Legend"
+   ("ll" "Legend" eplot--cus)
+   ("lb" "Legend-Background-Color" eplot--cus)
+   ("lo" "Legend-Borrder-Color" eplot--cus)
+   ("lc" "Legend-Color" eplot--cus)]
+  ["Axes"
+   ("xs" "X-Axis-Label-Space" eplot--cus)
+   ("xx" "X-Label" eplot--cus)
+   ("xy" "Y-label" eplot--cus)]
+  ["Plot"
+   ("pc" "Color" eplot--cus)
+   ("pd" "Data-Column" eplot--cus)
+   ("pf" "Data-File" eplot--cus)
+   ("pf" "Data-format" eplot--cus)
+   ("pb" "Fill-Border-Color" eplot--cus)
+   ("pf" "Fill-Color" eplot--cus)
+   ("pg" "Gradient" eplot--cus)
+   ("pn" "Name" eplot--cus)
+   ("ps" "Size" eplot--cus)
+   ("po" "Smoothing" eplot--cus)
+   ("ps" "Style" eplot--cus)])
+
+(defun eplot--cus ()
+  (interactive)
+  )
 
 (provide 'eplot)
 
