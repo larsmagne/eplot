@@ -253,8 +253,9 @@ you a clear, non-blurry version of the chart at any size."
 	(when-let ((win (get-buffer-window "*eplot*" t)))
 	  (set-window-point win (point-min))))
     ;; Normal case.
-    (let ((data (eplot--parse-buffer))
-	  (data-buffer (current-buffer)))
+    (let* ((eplot--user-defaults (eplot--settings-table))
+	   (data (eplot--parse-buffer))
+	   (data-buffer (current-buffer)))
       (unless data
 	(user-error "No data in the current buffer"))
       (setq data (eplot--inject-headers data headers))
@@ -271,6 +272,19 @@ you a clear, non-blurry version of the chart at any size."
 	  (insert "\n")
 	  (when-let ((win (get-buffer-window "*eplot*" t)))
 	    (set-window-point win (point-min))))))))
+
+(defun eplot--settings-table ()
+  (cond
+   ((not eplot--transient-settings)
+    eplot--user-defaults)
+   (t
+    ;; We have to merge the tables.
+    (let ((table (make-hash-table)))
+      (maphash (lambda (k v) (setf (gethash k table) v))
+	       eplot--user-defaults)
+      (maphash (lambda (k v) (setf (gethash k table) v))
+	       eplot--transient-settings)
+      table))))
 
 (defun eplot--inject-headers (data headers)
   ;; It's OK not to separate the plot headers from the chart
@@ -852,6 +866,10 @@ Elements allowed are `two-values', `date' and `time'.")
       (eplot--set-theme chart eplot-compact-defaults))
     (when (eq (eplot--vy 'format data) 'bar-chart)
       (eplot--set-theme chart eplot-bar-chart-defaults))
+    ;; Set defaults from user settings/transients.
+    (maphash (lambda (name value)
+	       (setf (slot-value chart name) value))
+	     eplot--user-defaults)
     ;; Finally, use the data from the chart.
     (eplot--object-values chart data eplot--chart-headers)
     ;; Note when min/max are explicitly set.
@@ -2173,7 +2191,8 @@ nil means `top-down'."
 	     (completing-read (format "Value for %s: " action)
 			      (plist-get (cdr spec) :valid))))
 	   (t
-	    (read-string (format "Value for %s (string): " action)))))))
+	    (read-string (format "Value for %s (string): " action)))))
+    (eplot-update-view-buffer)))
   
 (eval `(transient-define-prefix eplot-customize ()
 	 "Customize Chart"
