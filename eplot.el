@@ -65,6 +65,7 @@ If HEADER is nil or not present, reset everything to defaults."
 (defvar-keymap eplot-mode-map
   "C-c C-c" #'eplot-update-view-buffer
   "C-c C-e" #'eplot-list-chart-headers
+  "C-c C-m" #'eplot-customize
   "TAB" #'eplot-complete)
 
 ;; # is working overtime in the syntax here:
@@ -869,7 +870,8 @@ Elements allowed are `two-values', `date' and `time'.")
       (eplot--set-theme chart eplot-bar-chart-defaults))
     ;; Set defaults from user settings/transients.
     (maphash (lambda (name value)
-	       (setf (slot-value chart name) value))
+	       (when (assq name eplot--chart-headers)
+		 (setf (slot-value chart name) value)))
 	     eplot--user-defaults)
     ;; Finally, use the data from the chart.
     (eplot--object-values chart data eplot--chart-headers)
