@@ -909,20 +909,24 @@ Elements allowed are `two-values', `date' and `time'.")
 	      (assq 'font-size data))
       (with-slots ( title x-title y-title
 		    margin-top margin-bottom margin-left
-		    font-size)
+		    font-size font font-weight)
 	  chart
-	(when (and title
-		   (and (not (assq 'margin-top eplot--user-defaults))
-			(not (assq 'margin-top data))))
-	  (cl-incf margin-top (* font-size 1.4)))
-	(when (and x-title
-		   (and (not (assq 'margin-bottom eplot--user-defaults))
-			(not (assq 'margin-bottom data))))
-	  (cl-incf margin-bottom (* font-size 1.4)))
-	(when (and y-title
-		   (and (not (assq 'margin-left eplot--user-defaults))
-			(not (assq 'margin-left data))))
-	  (cl-incf margin-left (* font-size 1.4)))))
+	(when (or title x-title y-title)
+	  (let ((text-height
+		 (eplot--text-height (concat title x-title y-title)
+				     font font-weight font-size)))
+	    (when (and title
+		       (and (not (assq 'margin-top eplot--user-defaults))
+			    (not (assq 'margin-top data))))
+	      (cl-incf margin-top (* text-height 1.4)))
+	    (when (and x-title
+		       (and (not (assq 'margin-bottom eplot--user-defaults))
+			    (not (assq 'margin-bottom data))))
+	      (cl-incf margin-bottom (* text-height 1.4)))
+	    (when (and y-title
+		       (and (not (assq 'margin-left eplot--user-defaults))
+			    (not (assq 'margin-left data))))
+	      (cl-incf margin-left (* text-height 1.4)))))))
     chart))
 
 (defun eplot--meta (chart data slot value defaults)
