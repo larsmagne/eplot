@@ -1448,7 +1448,16 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 			     :y (+ py (/ text-height 2) -1))
 		   (cl-incf lnum)))))))
 
+(defvar eplot--text-height-cache (make-hash-table :test #'equal))
+
 (defun eplot--text-height (text font font-weight font-size)
+  (let ((key (list text font font-weight font-size)))
+    (or (gethash key eplot--text-height-cache)
+	(let ((height (eplot--text-height-1 text font font-weight font-size)))
+	  (setf (gethash key eplot--text-height-cache) height)
+	  height))))
+
+(defun eplot--text-height-1 (text font font-weight font-size)
   (if (not (executable-find "convert"))
       font-size
     (let* ((size (* font-size 10))
@@ -1512,7 +1521,7 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 			      :font-family font
 			      :text-anchor "front"
 			      :font-size font-size
-			      :font-size font-weight
+			      :font-weight font-weight
 			      :fill (or (cdr name) legend-color)
 			      :x (+ margin-left 25)
 			      :y (+ margin-top 40 (* i font-size))))))))
