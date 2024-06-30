@@ -114,7 +114,9 @@ possible chart headers."
        (lambda ()
 	 (let ((headers (mapcar
 			 (lambda (h)
-			   (capitalize (symbol-name (car h))))
+			   (if (looking-at ".*:")
+			       (capitalize (symbol-name (car h)))
+			     (concat (capitalize (symbol-name (car h))) ": ")))
 			 (save-excursion
 			   ;; If we're after the headers, then we want
 			   ;; to complete over the plot headers.  Otherwise,
