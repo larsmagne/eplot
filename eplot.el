@@ -884,12 +884,9 @@ Elements allowed are `two-values', `date' and `time'.")
     ;; First get the program-defined defaults.
     (eplot--object-defaults chart eplot--chart-headers)
     ;; Then do the "meta" variables.
-    (when (eq (eplot--vy 'mode data) 'dark)
-      (eplot--set-theme chart eplot-dark-defaults))
-    (when (eq (eplot--vy 'layout data) 'compact)
-      (eplot--set-theme chart eplot-compact-defaults))
-    (when (eq (eplot--vy 'format data) 'bar-chart)
-      (eplot--set-theme chart eplot-bar-chart-defaults))
+    (eplot--meta chart data 'mode 'dark eplot-dark-defaults)
+    (eplot--meta chart data 'layout 'compact eplot-compact-defaults)
+    (eplot--meta chart data 'format 'bar-chart eplot-bar-chart-defaults)
     ;; Set defaults from user settings/transients.
     (maphash (lambda (name value)
 	       (when (assq name eplot--chart-headers)
@@ -903,6 +900,11 @@ Elements allowed are `two-values', `date' and `time'.")
       (setq set-min min
 	    set-max max))
     chart))
+
+(defun eplot--meta (chart data slot value defaults)
+  (when (or (eq (gethash slot eplot--user-defaults) value)
+	    (eq (eplot--vy slot data) value))
+    (eplot--set-theme chart defaults)))
 
 (defun eplot--object-defaults (object headers)
   (dolist (header headers)
@@ -2289,8 +2291,9 @@ nil means `top-down'."
 
 (defun eplot--reset-transient ()
   (interactive)
-  (setq-local eplot--transient-settings (make-hash-table))
-  (eplot-update-view-buffer))
+  (with-current-buffer (or eplot--data-buffer (current-buffer))
+    (setq-local eplot--transient-settings (make-hash-table))
+    (eplot-update-view-buffer)))
 
 (eval `(transient-define-prefix eplot-customize ()
 	 "Customize Chart"
