@@ -871,7 +871,8 @@ Elements allowed are `two-values', `date' and `time'.")
     ;; Set defaults from user settings/transients.
     (maphash (lambda (name value)
 	       (when (assq name eplot--chart-headers)
-		 (setf (slot-value chart name) value)))
+		 (setf (slot-value chart name) value)
+		 (eplot--set-dependent-values chart name value)))
 	     eplot--user-defaults)
     ;; Finally, use the data from the chart.
     (eplot--object-values chart data eplot--chart-headers)
@@ -930,7 +931,7 @@ Elements allowed are `two-values', `date' and `time'.")
       (if (and (consp default)
 	       (eq (car default) 'spec))
 	  (eplot--default (cadr default))
-	default))))
+	(or (gethash slot eplot--user-defaults) default)))))
 
 (defun eplot--dependecy-graph ()
   (let ((table (make-hash-table)))
