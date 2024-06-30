@@ -2275,7 +2275,8 @@ nil means `top-down'."
       ("gi" "Min")
       ("ga" "Max")
       ("gm" "Mode")
-      ("gr" "Reset" eplot--reset-transient))
+      ("gr" "Reset" eplot--reset-transient)
+      ("gv" "Save" eplot--save-transient))
      ("Legend, Axes & Grid"
       ("ll" "Legend")
       ("lb" "Legend-Background-Color")
@@ -2375,6 +2376,19 @@ nil means `top-down'."
   (with-current-buffer (or eplot--data-buffer (current-buffer))
     (setq-local eplot--transient-settings nil)
     (eplot-update-view-buffer)))
+
+(defun eplot--save-transient (file)
+  (interactive "FSave parameters to file: ")
+  (when (and (file-exists-p file)
+	     (not (yes-or-no-p "File exists; overwrite? ")))
+    (user-error "Exiting"))
+  (let ((settings (with-current-buffer (or eplot--data-buffer (current-buffer))
+		    eplot--transient-settings)))
+    (with-temp-buffer
+      (cl-loop for (name . value) in settings
+	       do (insert (capitalize (symbol-name name)) ": "
+			  (format "%s" value) "\n"))
+      (write-region (point-min) (point-max) file))))
 
 (eval `(transient-define-prefix eplot-customize ()
 	 "Customize Chart"
