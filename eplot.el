@@ -134,7 +134,8 @@ possible chart headers."
 
 (define-derived-mode eplot-view-mode special-mode "eplot view"
   "Major mode for displaying eplots."
-  (setq-local revert-buffer-function #'eplot-update))
+  (setq-local revert-buffer-function #'eplot-update
+	      cursor-type nil))
 
 (defun eplot-view-write-file (file &optional width)
   "Write the current chart to a file.
@@ -899,6 +900,26 @@ Elements allowed are `two-values', `date' and `time'.")
     (with-slots (min max set-min set-max) chart
       (setq set-min min
 	    set-max max))
+    ;; If not set, recompute the margins based on the font sizes (if
+    ;; the font size has been changed from defaults).
+    (when (or (gethash 'font-size eplot--user-defaults)
+	      (assq 'font-size data))
+      (with-slots ( title x-title y-title
+		    margin-top margin-bottom margin-left
+		    font-size)
+	  chart
+	(when (and title
+		   (and (not (gethash 'margin-top eplot--user-defaults))
+			(not (assq 'margin-top data))))
+	  (cl-incf margin-top (* font-size 1.4)))
+	(when (and x-title
+		   (and (not (gethash 'margin-bottom eplot--user-defaults))
+			(not (assq 'margin-bottom data))))
+	  (cl-incf margin-bottom (* font-size 1.4)))
+	(when (and y-title
+		   (and (not (gethash 'margin-left eplot--user-defaults))
+			(not (assq 'margin-left data))))
+	  (cl-incf margin-left (* font-size 1.4)))))
     chart))
 
 (defun eplot--meta (chart data slot value defaults)
