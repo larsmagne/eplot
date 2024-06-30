@@ -2120,16 +2120,17 @@ nil means `top-down'."
       ("bv" "Background-Image-Cover")
       ("bo" "Background-Image-Opacity")))
     (("General"
-      ("bt" "Title")
-      ("bs" "Font-Size")
-      ("bf" "Font")
-      ("bo" "Format")
-      ("bw" "Frame-Width")
-      ("bh" "Header-File")
-      ("bd" "Data-File")
-      ("bi" "Min")
-      ("ba" "Max")
-      ("bm" "Mode"))
+      ("gt" "Title")
+      ("gs" "Font-Size")
+      ("gf" "Font")
+      ("go" "Format")
+      ("gw" "Frame-Width")
+      ("gh" "Header-File")
+      ("gd" "Data-File")
+      ("gi" "Min")
+      ("ga" "Max")
+      ("gm" "Mode")
+      ("gr" "Reset" eplot--reset-transient))
      ("Legend, Axes & Grid"
       ("ll" "Legend")
       ("lb" "Legend-Background-Color")
@@ -2168,9 +2169,12 @@ nil means `top-down'."
 (defun eplot--define-transient (action)
   (list (nth 0 action)
 	(nth 1 action)
-	(lambda ()
-	  (interactive)
-	  (eplot--execute-transient (nth 1 action)))))
+	;; Allow explicit commands.
+	(or (nth 2 action)
+	    ;; Make a command for altering a setting.
+	    (lambda ()
+	      (interactive)
+	      (eplot--execute-transient (nth 1 action))))))
 
 (defvar eplot--transient-settings nil)
 
@@ -2203,7 +2207,12 @@ nil means `top-down'."
 
 (defun eplot--read-gradient (prompt)
   (read-string prompt))
-  
+
+(defun eplot--reset-transient ()
+  (interactive)
+  (setq-local eplot--transient-settings (make-hash-table))
+  (eplot-update-view-buffer))
+
 (eval `(transient-define-prefix eplot-customize ()
 	 "Customize Chart"
 	 ,@(eplot--define-transients)))
