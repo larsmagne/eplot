@@ -1358,32 +1358,62 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 		label-font label-font-size
 		font font-size axes-color label-color)
       chart
-    ;; Make Y ticks.
-    (cl-loop for y in y-ticks
-	     for i from 0
-	     for py = (- (- height margin-bottom)
-			 (* (/ (- (* 1.0 y) min) (- max min))
-			    ys))
-	     do
-	     (when (and (<= margin-top py (- height margin-bottom))
-			(zerop (e% y y-tick-step)))
-	       (svg-line svg margin-left py
-			 (- margin-left 3) py
-			 :stroke-color axes-color)
-	       (when (or (eq grid 'xy) (eq grid 'y))
+    ;; First collect all the labels we're thinking about outputting.
+    (let ((y-labels
+	   (cl-loop for y in y-ticks
+		    for py = (- (- height margin-bottom)
+				(* (/ (- (* 1.0 y) min) (- max min))
+				   ys))
+		    when (and (<= margin-top py (- height margin-bottom))
+			      (zerop (e% y y-tick-step))
+			      (zerop (e% y y-label-step)))
+		    collect (eplot--format-y
+			     y (- (cadr y-ticks) (car y-ticks)) nil))))
+      ;; Check the labels to see whether we have too many digits for
+      ;; what we're actually going to display.  Man, this is a lot of
+      ;; back-and-forth and should be rewritten to be less insanely
+      ;; inefficient.
+      (when (= (seq-count (lambda (label)
+			    (string-match "\\." label))
+			  y-labels)
+	       (length y-labels))
+	(setq y-labels
+	      (cl-loop with max = (cl-loop for label in y-labels
+					   maximize (eplot--decimal-digits
+						     (string-to-number label)))
+		       for label in y-labels
+		       collect (format (if (zerop max)
+					   "%d"
+					 (format "%%.%df" max))
+				       (string-to-number label)))))
+      (setq y-labels (cl-coerce y-labels 'vector))
+      ;; Make Y ticks.
+      (cl-loop with lnum = 0
+	       for y in y-ticks
+	       for i from 0
+	       for py = (- (- height margin-bottom)
+			   (* (/ (- (* 1.0 y) min) (- max min))
+			      ys))
+	       do
+	       (when (and (<= margin-top py (- height margin-bottom))
+			  (zerop (e% y y-tick-step)))
 		 (svg-line svg margin-left py
-			   (- width margin-right) py
-			   :opacity grid-opacity
-			   :stroke-color grid-color))
-	       (when (zerop (e% y y-label-step))
-		 (svg-text svg (eplot--format-y
-				y (- (cadr y-ticks) (car y-ticks)) nil)
-			   :font-family label-font
-			   :text-anchor "end"
-			   :font-size label-font-size
-			   :fill label-color
-			   :x (- margin-left 6)
-			   :y (+ py (/ font-size 2) -2)))))))
+			   (- margin-left 3) py
+			   :stroke-color axes-color)
+		 (when (or (eq grid 'xy) (eq grid 'y))
+		   (svg-line svg margin-left py
+			     (- width margin-right) py
+			     :opacity grid-opacity
+			     :stroke-color grid-color))
+		 (when (zerop (e% y y-label-step))
+		   (svg-text svg (elt y-labels lnum)
+			     :font-family label-font
+			     :text-anchor "end"
+			     :font-size label-font-size
+			     :fill label-color
+			     :x (- margin-left 6)
+			     :y (+ py (/ font-size 2) -2))
+		   (cl-incf lnum)))))))
 
 (defun eplot--draw-legend (svg chart)
   (with-slots ( legend plots
