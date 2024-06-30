@@ -493,16 +493,13 @@ you a clear, non-blurry version of the chart at any size."
   "The height of the entire chart.")
 
 (eplot-def (format symbol normal (normal bar-chart))
-  "The overall format of the chart.
-Possible values are `normal' and `bar-chart'.")
+  "The overall format of the chart.")
 
 (eplot-def (layout symbol (normal compact))
-  "The general layout of the chart.
-Possible values are `normal' and `compact'.")
+  "The general layout of the chart.")
 
 (eplot-def (mode symbol light (dark light))
-  "Dark/light mode.
-Possible values are `dark' and `light'.")
+  "Dark/light mode.")
 
 (eplot-def (margin-left number 70)
   "The left margin.")
@@ -544,8 +541,7 @@ If you want a chart with a transparent background, use the color
   "The color of the grid.")
 
 (eplot-def (grid symbol xy (xy x y off))
-  "What grid axes to do.
-Possible values are `xy', `x', `y' and `off'.")
+  "What grid axes to do.")
 
 (eplot-def (grid-opacity number)
   "The opacity of the grid.
@@ -553,8 +549,7 @@ This should either be nil or a value between 0 and 1, where 0 is
 fully transparent.")
 
 (eplot-def (grid-position symbol bottom (bottom top))
-  "Whether to put the grid on top or under the plot.
-Possible values are `bottom' and `top''.")
+  "Whether to put the grid on top or under the plot.")
 
 (eplot-def (legend symbol nil (t nil))
   "Whether to do a legend.")
@@ -2090,12 +2085,17 @@ nil means `top-down'."
     (goto-char (point-min))))
 
 (defun eplot--list-headers (headers)
-  (dolist (header (sort (copy-sequence headers) (lambda (e1 e2)
-						  (string< (car e1) (car e2)))))
+  (dolist (header (sort (copy-sequence headers)
+			(lambda (e1 e2)
+			  (string< (car e1) (car e2)))))
     (insert (propertize (capitalize (symbol-name (car header))) 'face 'bold)
 	    "\n")
     (let ((start (point)))
       (insert (plist-get (cdr header) :doc) "\n")
+      (when-let ((valid (plist-get (cdr header) :valid)))
+	(insert "Possible values are: "
+		(mapconcat (lambda (v) (format "`%s'" v)) valid ", ")
+		".\n"))
       (indent-rigidly start (point) 2))
     (ensure-empty-lines 1)))
 
