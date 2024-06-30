@@ -1249,7 +1249,8 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 (defun eplot--adjust-chart (chart)
   (with-slots ( x-tick-step x-label-step y-tick-step y-label-step
 		min max ys format inhibit-compute-x-step
-		y-ticks xs x-values font-size print-format
+		y-ticks xs x-values print-format
+		label-font-size
 		set-min set-max)
       chart
     (setq y-ticks (and max
@@ -1264,11 +1265,11 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 	      x-label-step 1)
       (unless inhibit-compute-x-step
 	(let ((xt (eplot--compute-x-ticks
-		   xs x-values font-size print-format)))
+		   xs x-values label-font-size print-format)))
 	  (setq x-tick-step (car xt)
 		x-label-step (cadr xt)))))
     (when max
-      (let ((yt (eplot--compute-y-ticks ys y-ticks font-size)))
+      (let ((yt (eplot--compute-y-ticks ys y-ticks label-font-size)))
 	(setq y-tick-step (car yt)
 	      y-label-step (cadr yt))))
     ;; If max is less than 2% off from a pleasant number, then
@@ -1305,7 +1306,7 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 		width height
 		axes-color label-color
 		grid grid-opacity grid-color
-		font font-size x-tick-step x-label-step
+		font x-tick-step x-label-step
 		label-font label-font-size
 		plots)
       chart
@@ -1382,7 +1383,7 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 		y-tick-step y-label-step
 		grid grid-opacity grid-color
 		label-font label-font-size
-		font font-size axes-color label-color)
+		axes-color label-color)
       chart
     ;; First collect all the labels we're thinking about outputting.
     (let ((y-labels
@@ -1415,6 +1416,8 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
       (setq y-labels (cl-coerce y-labels 'vector))
       ;; Make Y ticks.
       (cl-loop with lnum = 0
+	       with text-height = (eplot--text-height "012" label-font
+						      'normal label-font-size)
 	       for y in y-ticks
 	       for i from 0
 	       for py = (- (- height margin-bottom)
@@ -1438,8 +1441,42 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 			     :font-size label-font-size
 			     :fill label-color
 			     :x (- margin-left 6)
-			     :y (+ py (/ font-size 2) -2))
+			     :y (+ py (/ text-height 2) -1))
 		   (cl-incf lnum)))))))
+
+(defun eplot--text-height (text font font-weight font-size)
+  (if (not (executable-find "convert"))
+      font-size
+    (let* ((size (* font-size 10))
+	   (svg (svg-create size size))
+	   height)
+      (svg-rectangle svg 0 0 size size :fill "black")
+      (svg-text svg text
+		:font-family font
+		:text-anchor "middle"
+		:font-size font-size
+		:font-weight font-weight
+		:fill "white"
+		:x (/ size 2)
+		:y (/ size 2))
+      (with-temp-buffer
+	(set-buffer-multibyte nil)
+	(svg-print svg)
+	(let ((file (concat (make-temp-name "/tmp/eplot") ".svg")))
+	  (unwind-protect
+	      (progn
+		(write-region (point-min) (point-max) file nil 'silent)
+		(erase-buffer)
+		(when (zerop
+		       (call-process "convert"
+				     nil t nil
+				     "-trim" "+repage" file "info:-"))
+		  (goto-char (point-min))
+		  (when (re-search-forward " [0-9]+x\\([0-9]+\\)" nil t)
+		    (setq height (string-to-number (match-string 1))))))
+	    (when (file-exists-p file)
+	      (delete-file file)))))
+      (or height font-size))))
 
 (defun eplot--draw-legend (svg chart)
   (with-slots ( legend plots
