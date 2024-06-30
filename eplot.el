@@ -64,6 +64,7 @@ If HEADER is nil or not present, reset everything to defaults."
 
 (defvar-keymap eplot-mode-map
   "C-c C-c" #'eplot-update-view-buffer
+  "C-c C-p" #'eplot-switch-view-buffer
   "C-c C-e" #'eplot-list-chart-headers
   "C-c C-v" #'eplot-customize
   "TAB" #'eplot-complete)
@@ -249,6 +250,11 @@ you a clear, non-blurry version of the chart at any size."
    (with-temp-buffer
      (insert-file-contents header-file)
      (eplot--parse-headers))))
+
+(defun eplot-switch-view-buffer ()
+  "Switch to the eplot view buffer and render the chart."
+  (interactive)
+  (pop-to-buffer-same-window "*eplot*"))
 
 (defun eplot-update-view-buffer (&optional headers)
   "Update the eplot view buffer based on the current data buffer."
@@ -1104,7 +1110,7 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 		  :fill label-color
 		  :transform
 		  (format "translate(%s,%s) rotate(-90)"
-			  (- (/ margin-left 2) (/ font-size 2))
+			  (- (/ margin-left 2) (/ font-size 2) -10)
 			  (+ margin-top
 			     (/ (- height margin-bottom margin-top) 2))))))))
 
