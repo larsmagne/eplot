@@ -36,7 +36,7 @@
 (require 'iso8601)
 (require 'transient)
 
-(defvar eplot--user-defaults (make-hash-table))
+(defvar eplot--user-defaults nil)
 
 (defun eplot-set (header value)
   "Set the default value of HEADER to VALUE.
@@ -48,14 +48,23 @@ Also see `eplot-reset'."
 		  (assq header eplot--plot-headers))))
     (unless elem
       (error "No such header type: %s" header))
-    (setf (gethash header eplot--user-defaults) value)))
+    (eplot--add-default header value)))
+
+(defun eplot--add-default (header value)
+  ;; We want to preserve the order defaults have been added, so that
+  ;; we can apply them in the same order.  This makes a difference
+  ;; when we're dealing with specs that have inheritence.
+  (setq eplot--user-defaults (delq (assq header eplot--user-defaults)
+				   eplot--user-defaults))
+  (setq eplot--user-defaults (list (cons header value))))
 
 (defun eplot-reset (&optional header)
   "Reset HEADER to defaults.
 If HEADER is nil or not present, reset everything to defaults."
   (if header
-      (remhash header eplot--user-defaults)
-    (setq eplot--user-defaults (make-hash-table))))
+      (setq eplot--user-defaults (delq (assq header eplot--user-defaults)
+				       eplot--user-defaults))
+    (setq eplot--user-defaults nil)))
 
 (unless (assoc "\\.plt" auto-mode-alist)
   (setq auto-mode-alist (cons '("\\.plt" . eplot-mode) auto-mode-alist)))
@@ -255,9 +264,9 @@ you a clear, non-blurry version of the chart at any size."
 (defun eplot-switch-view-buffer ()
   "Switch to the eplot view buffer and render the chart."
   (interactive)
-  (pop-to-buffer-same-window "*eplot*"))
+  (eplot-update-view-buffer nil t))
 
-(defun eplot-update-view-buffer (&optional headers)
+(defun eplot-update-view-buffer (&optional headers switch)
   "Update the eplot view buffer based on the current data buffer."
   (interactive)
   ;; This is mainly useful during implementation.
@@ -277,7 +286,9 @@ you a clear, non-blurry version of the chart at any size."
       (setq data (eplot--inject-headers data headers))
       (if (get-buffer-window "*eplot*" t)
 	  (set-buffer "*eplot*")
-	(pop-to-buffer "*eplot*"))
+	(if switch
+	    (pop-to-buffer-same-window "*eplot*")
+	  (pop-to-buffer "*eplot*")))
       (let ((inhibit-read-only t))
 	(erase-buffer)
 	(unless (eq major-mode 'eplot-view-mode)
@@ -290,17 +301,9 @@ you a clear, non-blurry version of the chart at any size."
       (select-window window))))
 
 (defun eplot--settings-table ()
-  (cond
-   ((not eplot--transient-settings)
-    eplot--user-defaults)
-   (t
-    ;; We have to merge the tables.
-    (let ((table (make-hash-table)))
-      (maphash (lambda (k v) (setf (gethash k table) v))
-	       eplot--user-defaults)
-      (maphash (lambda (k v) (setf (gethash k table) v))
-	       eplot--transient-settings)
-      table))))
+  (if (not eplot--transient-settings)
+      eplot--user-defaults
+    (append eplot--user-defaults eplot--transient-settings)))
 
 (defun eplot--inject-headers (data headers)
   ;; It's OK not to separate the plot headers from the chart
@@ -889,11 +892,11 @@ Elements allowed are `two-values', `date' and `time'.")
     (eplot--meta chart data 'layout 'compact eplot-compact-defaults)
     (eplot--meta chart data 'format 'bar-chart eplot-bar-chart-defaults)
     ;; Set defaults from user settings/transients.
-    (maphash (lambda (name value)
-	       (when (assq name eplot--chart-headers)
-		 (setf (slot-value chart name) value)
-		 (eplot--set-dependent-values chart name value)))
-	     eplot--user-defaults)
+    (cl-loop for (name . value) in eplot--user-defaults
+	     when (assq name eplot--chart-headers)
+	     do
+	     (setf (slot-value chart name) value)
+	     (eplot--set-dependent-values chart name value))
     ;; Finally, use the data from the chart.
     (eplot--object-values chart data eplot--chart-headers)
     ;; Note when min/max are explicitly set.
@@ -902,28 +905,28 @@ Elements allowed are `two-values', `date' and `time'.")
 	    set-max max))
     ;; If not set, recompute the margins based on the font sizes (if
     ;; the font size has been changed from defaults).
-    (when (or (gethash 'font-size eplot--user-defaults)
+    (when (or (assq 'font-size eplot--user-defaults)
 	      (assq 'font-size data))
       (with-slots ( title x-title y-title
 		    margin-top margin-bottom margin-left
 		    font-size)
 	  chart
 	(when (and title
-		   (and (not (gethash 'margin-top eplot--user-defaults))
+		   (and (not (assq 'margin-top eplot--user-defaults))
 			(not (assq 'margin-top data))))
 	  (cl-incf margin-top (* font-size 1.4)))
 	(when (and x-title
-		   (and (not (gethash 'margin-bottom eplot--user-defaults))
+		   (and (not (assq 'margin-bottom eplot--user-defaults))
 			(not (assq 'margin-bottom data))))
 	  (cl-incf margin-bottom (* font-size 1.4)))
 	(when (and y-title
-		   (and (not (gethash 'margin-left eplot--user-defaults))
+		   (and (not (assq 'margin-left eplot--user-defaults))
 			(not (assq 'margin-left data))))
 	  (cl-incf margin-left (* font-size 1.4)))))
     chart))
 
 (defun eplot--meta (chart data slot value defaults)
-  (when (or (eq (gethash slot eplot--user-defaults) value)
+  (when (or (eq (cdr (assq slot eplot--user-defaults)) value)
 	    (eq (eplot--vy slot data) value))
     (eplot--set-theme chart defaults)))
 
@@ -932,7 +935,7 @@ Elements allowed are `two-values', `date' and `time'.")
     (when-let ((default (plist-get (cdr header) :default)))
       (setf (slot-value object (car header))
 	    ;; Allow overrides via `eplot-set'.
-	    (or (gethash (car header) eplot--user-defaults)
+	    (or (cdr (assq (car header) eplot--user-defaults))
 		(if (and (consp default)
 			 (eq (car default) 'spec))
 		    ;; Chase dependencies.
@@ -976,7 +979,7 @@ Elements allowed are `two-values', `date' and `time'.")
       (if (and (consp default)
 	       (eq (car default) 'spec))
 	  (eplot--default (cadr default))
-	(or (gethash slot eplot--user-defaults) default)))))
+	(or (cdr (assq slot eplot--user-defaults)) default)))))
 
 (defun eplot--dependecy-graph ()
   (let ((table (make-hash-table)))
@@ -1650,7 +1653,7 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 			 xs)
 	     for polygon = nil
 	     for gradient = (eplot--parse-gradient
-			     (or (gethash 'gradient eplot--user-defaults)
+			     (or (cdr (assq 'gradient eplot--user-defaults))
 				 (slot-value plot 'gradient)))
 	     for lpy = nil
 	     for lpx = nil
@@ -2273,30 +2276,35 @@ nil means `top-down'."
 (defun eplot--execute-transient (action)
   (with-current-buffer (or eplot--data-buffer (current-buffer))
     (unless eplot--transient-settings
-      (setq-local eplot--transient-settings (make-hash-table)))
+      (setq-local eplot--transient-settings nil))
     (let* ((name (intern (downcase action)))
 	   (spec (assq name (append eplot--chart-headers eplot--plot-headers)))
 	   (type (plist-get (cdr spec) :type)))
       ;; Sanity check.
       (unless spec
 	(error "No such header type: %s" name))
-      (setf (gethash name eplot--transient-settings)
-	    (cond
-	     ((eq type 'number)
-	      (read-number (format "Value for %s (%s): " action type)))
-	     ((string-match "color" (downcase action))
-	      (read-color (format "Value for %s (color): " action)))
-	     ((string-match "gradient" (downcase action))
-	      (eplot--read-gradient action))
-	     ((string-match "file" (downcase action))
-	      (read-file-name (format "File for %s: " action)))
-	     ((eq type 'symbol)
-	      (intern
-	       (completing-read (format "Value for %s: " action)
-				(plist-get (cdr spec) :valid)
-				nil t)))
-	     (t
-	      (read-string (format "Value for %s (string): " action)))))
+      (setq eplot--transient-settings
+	    (append
+	     eplot--transient-settings
+	     (list
+	      (cons
+	       name
+	       (cond
+		((eq type 'number)
+		 (read-number (format "Value for %s (%s): " action type)))
+		((string-match "color" (downcase action))
+		 (read-color (format "Value for %s (color): " action)))
+		((string-match "gradient" (downcase action))
+		 (eplot--read-gradient action))
+		((string-match "file" (downcase action))
+		 (read-file-name (format "File for %s: " action)))
+		((eq type 'symbol)
+		 (intern
+		  (completing-read (format "Value for %s: " action)
+				   (plist-get (cdr spec) :valid)
+				   nil t)))
+		(t
+		 (read-string (format "Value for %s (string): " action))))))))
       (eplot-update-view-buffer))))
 
 (defun eplot--read-gradient (action)
@@ -2313,7 +2321,7 @@ nil means `top-down'."
 (defun eplot--reset-transient ()
   (interactive)
   (with-current-buffer (or eplot--data-buffer (current-buffer))
-    (setq-local eplot--transient-settings (make-hash-table))
+    (setq-local eplot--transient-settings nil)
     (eplot-update-view-buffer)))
 
 (eval `(transient-define-prefix eplot-customize ()
