@@ -65,7 +65,7 @@ If HEADER is nil or not present, reset everything to defaults."
 (defvar-keymap eplot-mode-map
   "C-c C-c" #'eplot-update-view-buffer
   "C-c C-e" #'eplot-list-chart-headers
-  "C-c C-m" #'eplot-customize
+  "C-c C-v" #'eplot-customize
   "TAB" #'eplot-complete)
 
 ;; # is working overtime in the syntax here:
