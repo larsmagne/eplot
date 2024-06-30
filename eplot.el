@@ -751,7 +751,7 @@ of where each color ends, so the above starts with black, then at
 again at 75%, before ending up at black at a 100% (but you don't
 have to include the 100% here -- it's understood).")
 
-(eplot-pdef (style symbol line ( line impulse point square cricle cross
+(eplot-pdef (style symbol line ( line impulse point square circle cross
 				 triangle rectangle))
   "Style the plot should be drawn in.
 Valid values are listed below.  Some styles take additional
@@ -1566,7 +1566,9 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 			 (slot-value plot 'smoothing)
 			 xs)
 	     for polygon = nil
-	     for gradient = (eplot--parse-gradient (slot-value plot 'gradient))
+	     for gradient = (eplot--parse-gradient
+			     (or (gethash 'gradient eplot--user-defaults)
+				 (slot-value plot 'gradient)))
 	     for lpy = nil
 	     for lpx = nil
 	     for style = (if (eq format 'bar-chart)
@@ -2198,19 +2200,28 @@ nil means `top-down'."
 	   ((string-match "color" (downcase action))
 	    (read-color (format "Value for %s (color): " action)))
 	   ((string-match "gradient" (downcase action))
-	    (eplot--read-gradient (format "Value for %s (gradient): " action)))
+	    (eplot--read-gradient action))
 	   ((string-match "file" (downcase action))
-	    (read-file-name (format "File for %s (gradient): " action)))
+	    (read-file-name (format "File for %s: " action)))
 	   ((eq type 'symbol)
 	    (intern
 	     (completing-read (format "Value for %s: " action)
-			      (plist-get (cdr spec) :valid))))
+			      (plist-get (cdr spec) :valid)
+			      nil t)))
 	   (t
 	    (read-string (format "Value for %s (string): " action)))))
     (eplot-update-view-buffer)))
 
-(defun eplot--read-gradient (prompt)
-  (read-string prompt))
+(defun eplot--read-gradient (action)
+  (format "%s %s %s %s"
+	  (read-color (format "%s from color: " action))
+	  (read-color (format "%s to color: " action))
+	  (completing-read (format "%s direction: " action)
+			   '(top-down bottom-up left-right right-left)
+			   nil t)
+	  (completing-read (format "%s position: " action)
+			   '(below above)
+			   nil t)))
 
 (defun eplot--reset-transient ()
   (interactive)
