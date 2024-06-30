@@ -232,7 +232,8 @@ you a clear, non-blurry version of the chart at any size."
 (defun eplot-view-customize ()
   "Customize the settings for the chart in the current buffer."
   (interactive)
-  (eplot-customize))
+  (with-suppressed-warnings ((interactive-only eplot-customize))
+    (eplot-customize)))
 
 (defvar eplot--data-buffer nil)
 
@@ -521,7 +522,7 @@ you a clear, non-blurry version of the chart at any size."
 (eplot-def (margin-bottom number 60)
   "The bottom margin.")
 
-(eplot-def (x-axis-label-space number 5)
+(eplot-def (x-axis-title-space number 5)
   "The space between the X axis and the label.")
 
 (eplot-def (font string "sans-serif")
@@ -532,6 +533,12 @@ you a clear, non-blurry version of the chart at any size."
 
 (eplot-def (font-weight symbol bold (bold normal))
   "The font weight.")
+
+(eplot-def (label-font string (spec font))
+  "The font to use for axes labels.")
+
+(eplot-def (label-font-size number (spec font-size))
+  "The font size to use for axes labels.")
 
 (eplot-def (chart-color string "black")
   "The foreground color to use in plots, axes, legends, etc.
@@ -608,11 +615,11 @@ This is normally computed automatically, but can be overridden
 (eplot-def (title-color string (spec chart-color))
   "The color of the title.")
 
-(eplot-def (x-label string)
-  "The label of the X axis, if any.")
+(eplot-def (x-title string)
+  "The title of the X axis, if any.")
 
-(eplot-def (y-label string)
-  "The label of the X axis, if any.")
+(eplot-def (y-title string)
+  "The title of the X axis, if any.")
 
 (eplot-def (background-image-file string)
   "Use an image as the background.")
@@ -634,7 +641,7 @@ and `frame' (the surrounding area).")
     (margin-top 20)
     (margin-bottom 21)
     (font-size 12)
-    (x-axis-label-space 3)))
+    (x-axis-title-space 3)))
 
 (defvar eplot-dark-defaults
   '((chart-color "#c0c0c0")
@@ -675,9 +682,9 @@ and `frame' (the surrounding area).")
    (axes-color :initarg :axes-color :initform nil)
    (background-color :initarg :background-color :initform nil)
    (background-gradient :initarg :background-gradient :initform nil)
+   (background-image-cover :initarg :background-image-cover :initform nil)
    (background-image-file :initarg :background-image-file :initform nil)
    (background-image-opacity :initarg :background-image-opacity :initform nil)
-   (background-image-cover :initarg :background-image-cover :initform nil)
    (border-color :initarg :border-color :initform nil)
    (border-width :initarg :border-width :initform nil)
    (chart-color :initarg :chart-color :initform nil)
@@ -694,25 +701,27 @@ and `frame' (the surrounding area).")
    (header-file :initarg :header-file :initform nil)
    (height :initarg :height :initform nil)
    (label-color :initarg :label-color :initform nil)
+   (label-font :initarg :label-font :initform nil)
+   (label-font-size :initarg :label-font-size :initform nil)
    (layout :initarg :layout :initform nil)
    (legend :initarg :legend :initform nil)
-   (legend-color :initarg :legend-color :initform nil)
    (legend-background-color :initarg :legend-background-color :initform nil)
    (legend-border-color :initarg :legend-border-color :initform nil)
+   (legend-color :initarg :legend-color :initform nil)
    (margin-bottom :initarg :margin-bottom :initform nil)
    (margin-left :initarg :margin-left :initform nil)
    (margin-right :initarg :margin-right :initform nil)
    (margin-top :initarg :margin-top :initform nil)
+   (max :initarg :max :initform nil)
+   (min :initarg :min :initform nil)
    (mode :initarg :mode :initform nil)
    (surround-color :initarg :surround-color :initform nil)
    (title :initarg :title :initform nil)
    (title-color :initarg :title-color :initform nil)
    (width :initarg :width :initform nil)
-   (x-axis-label-space :initarg :x-axis-label-space :initform nil)
-   (x-label :initarg :x-label :initform nil)
-   (y-label :initarg :y-label :initform nil)
-   (max :initarg :max :initform nil)
-   (min :initarg :min :initform nil)
+   (x-axis-title-space :initarg :x-axis-title-space :initform nil)
+   (x-title :initarg :x-title :initform nil)
+   (y-title :initarg :y-title :initform nil)
    ;; ---- CUT HERE ----
    ))
 
@@ -1075,9 +1084,9 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 		  :fill title-color
 		  :x (+ margin-left (/ (- width margin-left margin-right) 2))
 		  :y (+ 3 (/ margin-top 2)))))
-    (with-slots (x-label) chart
-      (when x-label
-	(svg-text svg x-label
+    (with-slots (x-title) chart
+      (when x-title
+	(svg-text svg x-title
 		  :font-family font
 		  :text-anchor "middle"
 		  :font-weight font-weight
@@ -1085,9 +1094,9 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 		  :fill label-color
 		  :x (+ margin-left (/ (- width margin-left margin-right) 2))
 		  :y (- height (/ margin-bottom 4)))))
-    (with-slots (y-label) chart
-      (when y-label
-	(svg-text svg y-label
+    (with-slots (y-title) chart
+      (when y-title
+	(svg-text svg y-title
 		  :font-family font
 		  :text-anchor "middle"
 		  :font-weight font-weight
@@ -1265,6 +1274,7 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 		axes-color label-color
 		grid grid-opacity grid-color
 		font font-size x-tick-step x-label-step
+		label-font label-font-size
 		plots)
       chart
     ;; Make X ticks.
@@ -1322,13 +1332,13 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 			    (eq x-type 'one-dimensional)
 			    (and (not (zerop x)) (not (zerop i)))))
 	       (svg-text svg label
-			 :font-family font
+			 :font-family label-font
 			 :text-anchor "middle"
-			 :font-size font-size
+			 :font-size label-font-size
 			 :fill label-color
 			 :x px
 			 :y (+ (- height margin-bottom)
-			       font-size
+			       label-font-size
 			       (if (equal format 'bar-chart)
 				   (if (equal layout 'compact) 3 5)
 				 2)))))))
@@ -1339,6 +1349,7 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 		min max ys
 		y-tick-step y-label-step
 		grid grid-opacity grid-color
+		label-font label-font-size
 		font font-size axes-color label-color)
       chart
     ;; Make Y ticks.
@@ -1361,9 +1372,9 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 	       (when (zerop (e% y y-label-step))
 		 (svg-text svg (eplot--format-y
 				y (- (cadr y-ticks) (car y-ticks)) nil)
-			   :font-family font
+			   :font-family label-font
 			   :text-anchor "end"
-			   :font-size font-size
+			   :font-size label-font-size
 			   :fill label-color
 			   :x (- margin-left 6)
 			   :y (+ py (/ font-size 2) -2)))))))
@@ -1371,7 +1382,7 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 (defun eplot--draw-legend (svg chart)
   (with-slots ( legend plots
 		margin-left margin-top
-		font font-size
+		font font-size font-weight
 		background-color axes-color
 		legend-color legend-background-color legend-border-color)
       chart
@@ -1398,6 +1409,7 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 			      :font-family font
 			      :text-anchor "front"
 			      :font-size font-size
+			      :font-size font-weight
 			      :fill (or (cdr name) legend-color)
 			      :x (+ margin-left 25)
 			      :y (+ margin-top 40 (* i font-size))))))))
@@ -2155,9 +2167,11 @@ nil means `top-down'."
       ("lb" "Legend-Background-Color")
       ("lo" "Legend-Borrder-Color")
       ("lc" "Legend-Color")
-      ("xs" "X-Axis-Label-Space")
-      ("xx" "X-Label")
-      ("xy" "Y-label")
+      ("xs" "X-Axis-Title-Space")
+      ("xx" "X-Title")
+      ("xy" "Y-Title")
+      ("xf" "Label-Font")
+      ("xz" "Label-Font-Size")
       ("il" "Grid-Color")
       ("io" "Grid-Opacity")
       ("ip" "Grid-Position"))

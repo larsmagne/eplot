@@ -3,8 +3,8 @@ Mode: dark
 Width: 400
 Height: 400
 Title: Movies And Their Grades
-X-Label: Grade
-Y-Label: Number of Movies
+X-Title: Grade
+Y-Title: Number of Movies
 
 Color: vary
 8   # Label: ☐
