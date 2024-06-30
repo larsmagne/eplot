@@ -522,6 +522,9 @@ you a clear, non-blurry version of the chart at any size."
 (eplot-def (font-size number 12)
   "The font size.")
 
+(eplot-def (font-weight symbol bold (bold normal))
+  "The font weight.")
+
 (eplot-def (chart-color string "black")
   "The foreground color to use in plots, axes, legends, etc.
 This is used as the default, but can be overridden per thing.")
@@ -672,6 +675,7 @@ and `frame' (the surrounding area).")
    (chart-color :initarg :chart-color :initform nil)
    (font :initarg :font :initform nil)
    (font-size :initarg :font-size :initform nil)
+   (font-weight :initarg :font-weight :initform nil)
    (format :initarg :format :initform nil)
    (frame-color :initarg :frame-color :initform nil)
    (frame-width :initarg :frame-width :initform nil)
@@ -1011,7 +1015,7 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 
 (defun eplot--draw-basics (svg chart)
   (with-slots ( width height 
-		chart-color font font-size
+		chart-color font font-size font-weight
 		margin-left margin-right margin-top margin-bottom
 		background-color label-color
 		xs ys)
@@ -1058,7 +1062,7 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 	(svg-text svg title
 		  :font-family font
 		  :text-anchor "middle"
-		  :font-weight "bold"
+		  :font-weight font-weight
 		  :font-size font-size
 		  :fill title-color
 		  :x (+ margin-left (/ (- width margin-left margin-right) 2))
@@ -1068,7 +1072,7 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 	(svg-text svg x-label
 		  :font-family font
 		  :text-anchor "middle"
-		  :font-weight "bold"
+		  :font-weight font-weight
 		  :font-size font-size
 		  :fill label-color
 		  :x (+ margin-left (/ (- width margin-left margin-right) 2))
@@ -1078,7 +1082,7 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 	(svg-text svg y-label
 		  :font-family font
 		  :text-anchor "middle"
-		  :font-weight "bold"
+		  :font-weight font-weight
 		  :font-size font-size
 		  :fill label-color
 		  :transform
@@ -2127,8 +2131,9 @@ nil means `top-down'."
       ("bo" "Background-Image-Opacity")))
     (("General"
       ("gt" "Title")
-      ("gs" "Font-Size")
       ("gf" "Font")
+      ("gs" "Font-Size")
+      ("ge" "Font-Weight")
       ("go" "Format")
       ("gw" "Frame-Width")
       ("gh" "Header-File")
@@ -2145,9 +2150,9 @@ nil means `top-down'."
       ("xs" "X-Axis-Label-Space")
       ("xx" "X-Label")
       ("xy" "Y-label")
-      ("gf" "Grid-Color")
-      ("go" "Grid-Opacity")
-      ("gp" "Grid-Position"))
+      ("il" "Grid-Color")
+      ("io" "Grid-Opacity")
+      ("ip" "Grid-Position"))
      ("Plot"
       ("ps" "Style")
       ("pc" "Color")
