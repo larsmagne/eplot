@@ -127,8 +127,9 @@ possible chart headers."
   "H-l" #'eplot-eval-and-update)
 
 (defvar-keymap eplot-view-mode-map
-  "C-c C-s" #'eplot-view-write-file
-  "C-c C-w" #'eplot-view-write-scaled-file)
+  "s" #'eplot-view-write-file
+  "w" #'eplot-view-write-scaled-file
+  "c" #'eplot-view-customize)
 
 (define-derived-mode eplot-view-mode special-mode "eplot view"
   "Major mode for displaying eplots."
@@ -228,6 +229,11 @@ you a clear, non-blurry version of the chart at any size."
   (interactive "nWidth: \nFWrite to file: ")
   (eplot-view-write-file file width))
 
+(defun eplot-view-customize ()
+  "Customize the settings for the chart in the current buffer."
+  (interactive)
+  (eplot-customize))
+
 (defvar eplot--data-buffer nil)
 
 (defun eplot ()
@@ -326,6 +332,8 @@ you a clear, non-blurry version of the chart at any size."
     (user-error "No data buffer associated with this eplot view buffer"))
   (let ((data (with-current-buffer eplot--data-buffer
 		(eplot--parse-buffer)))
+	(eplot--user-defaults (with-current-buffer eplot--data-buffer
+				(eplot--settings-table)))
 	(inhibit-read-only t))
     (erase-buffer)
     (eplot--render data)
@@ -2190,32 +2198,33 @@ nil means `top-down'."
 (defvar eplot--transient-settings nil)
 
 (defun eplot--execute-transient (action)
-  (unless eplot--transient-settings
-    (setq-local eplot--transient-settings (make-hash-table)))
-  (let* ((name (intern (downcase action)))
-	 (spec (assq name (append eplot--chart-headers eplot--plot-headers)))
-	 (type (plist-get (cdr spec) :type)))
-    ;; Sanity check.
-    (unless spec
-      (error "No such header type: %s" name))
-    (setf (gethash name eplot--transient-settings)
-	  (cond
-	   ((eq type 'number)
-	    (read-number (format "Value for %s (%s): " action type)))
-	   ((string-match "color" (downcase action))
-	    (read-color (format "Value for %s (color): " action)))
-	   ((string-match "gradient" (downcase action))
-	    (eplot--read-gradient action))
-	   ((string-match "file" (downcase action))
-	    (read-file-name (format "File for %s: " action)))
-	   ((eq type 'symbol)
-	    (intern
-	     (completing-read (format "Value for %s: " action)
-			      (plist-get (cdr spec) :valid)
-			      nil t)))
-	   (t
-	    (read-string (format "Value for %s (string): " action)))))
-    (eplot-update-view-buffer)))
+  (with-current-buffer (or eplot--data-buffer (current-buffer))
+    (unless eplot--transient-settings
+      (setq-local eplot--transient-settings (make-hash-table)))
+    (let* ((name (intern (downcase action)))
+	   (spec (assq name (append eplot--chart-headers eplot--plot-headers)))
+	   (type (plist-get (cdr spec) :type)))
+      ;; Sanity check.
+      (unless spec
+	(error "No such header type: %s" name))
+      (setf (gethash name eplot--transient-settings)
+	    (cond
+	     ((eq type 'number)
+	      (read-number (format "Value for %s (%s): " action type)))
+	     ((string-match "color" (downcase action))
+	      (read-color (format "Value for %s (color): " action)))
+	     ((string-match "gradient" (downcase action))
+	      (eplot--read-gradient action))
+	     ((string-match "file" (downcase action))
+	      (read-file-name (format "File for %s: " action)))
+	     ((eq type 'symbol)
+	      (intern
+	       (completing-read (format "Value for %s: " action)
+				(plist-get (cdr spec) :valid)
+				nil t)))
+	     (t
+	      (read-string (format "Value for %s (string): " action)))))
+      (eplot-update-view-buffer))))
 
 (defun eplot--read-gradient (action)
   (format "%s %s %s %s"
