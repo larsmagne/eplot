@@ -967,7 +967,10 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
       (eplot--draw-basics svg chart)
 
       ;; Protect against being called in an empty buffer.
-      (when plots
+      (when (and plots
+		 ;; Sanity check against the user choosing dimensions
+		 ;; that leave no space for the plot.
+		 (> ys 0) (> xs 0))
 	;; Compute min/max based on all plots, and also compute x-ticks
 	;; etc.
 	(eplot--compute-chart-dimensions chart)
