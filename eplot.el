@@ -2444,6 +2444,7 @@ nil means `top-down'."
 (define-derived-mode eplot-control-mode special-mode "eplot control"
   (setq-local completion-at-point-functions
 	      (cons 'eplot--complete-control completion-at-point-functions))
+  (add-hook 'before-change-functions #'eplot--process-text-input-before nil t)
   (add-hook 'after-change-functions #'eplot--process-text-value nil t)
   (add-hook 'after-change-functions #'eplot--process-text-input nil t))
 
@@ -2563,6 +2564,7 @@ nil means `top-down'."
 	(eplot-control-mode))
       (setq-local eplot--data-buffer data-buffer)      
       (let ((inhibit-read-only t)
+	    (before-change-functions nil)
 	    (after-change-functions nil))
 	(erase-buffer)
 	(cl-loop for column in transients
@@ -2685,7 +2687,14 @@ nil means `top-down'."
     (previous-single-property-change
      (point) 'input nil (point-min)))))
 
+(defun eplot--process-text-input-before (beg end)
+  ;;(message "Before: %s %s" beg end)
+  )
+
+;; I think we have to maintain some sort of "shadow dom" here...
+;; or... do something in after-change-functions?
 (defun eplot--process-text-input (beg end replace-length)
+  ;;(message "After: %s %s %s" beg end replace-length)
   (when-let* ((pos (and (< (1+ end) (point-max))
 		        (> (1- end) (point-min))
 		        (cond
