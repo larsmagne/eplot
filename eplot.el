@@ -35,7 +35,6 @@
 (require 'eieio)
 (require 'iso8601)
 (require 'transient)
-(require 'eww)
 
 (defvar eplot--user-defaults nil)
 
@@ -2445,17 +2444,17 @@ nil means `top-down'."
 (define-derived-mode eplot-control-mode special-mode "eplot control"
   (setq-local completion-at-point-functions
 	      (cons 'eplot--complete-control completion-at-point-functions))
-  (add-hook 'after-change-functions #'eplot--process-text-input nil t)
-  (add-hook 'after-change-functions #'eww-process-text-input nil t))
+  (add-hook 'after-change-functions #'eplot--process-text-value nil t)
+  (add-hook 'after-change-functions #'eplot--process-text-input nil t))
 
 (defun eplot--complete-control ()
   ;; Complete headers names.
-  (when-let* ((form (get-text-property (point) 'eww-form))
-	      (name (plist-get form :name))
+  (when-let* ((input (get-text-property (point) 'input))
+	      (name (plist-get input :name))
 	      (spec (cdr (assq name (append eplot--plot-headers
 					    eplot--chart-headers))))
-	      (start (cdr (assq :start form)))
-	      (end (cdr (assq :end form)))
+	      (start (plist-get input :start))
+	      (end (plist-get input :end))
 	      (completion-ignore-case t))
     (skip-chars-backward " " start)
     (or
@@ -2513,7 +2512,7 @@ nil means `top-down'."
   (let ((settings nil))
     (save-excursion
       (goto-char (point-min))
-      (while-let ((match (text-property-search-forward 'eww-form)))
+      (while-let ((match (text-property-search-forward 'input)))
 	(when (equal (get-text-property (prop-match-beginning match) 'face)
 		     'eplot--input-changed)
 	  (let* ((name (plist-get (prop-match-value match) :name))
@@ -2640,13 +2639,13 @@ nil means `top-down'."
        :box (:line-width 1)))
   "Face for eplot changed inputs.")
 
-(defvar-keymap eplot--form-map
+(defvar-keymap eplot--input-map
   :full t :parent text-mode-map
   "RET" #'eplot-control-update
-  "TAB" #'eplot-form-complete)
+  "TAB" #'eplot-input-complete)
 
-(defun eplot-form-complete ()
-  "Complete values in forms."
+(defun eplot-input-complete ()
+  "Complete values in inputs."
   (interactive)
   (cond
    ((let ((completion-fail-discreetly t))
@@ -2662,25 +2661,80 @@ nil means `top-down'."
       (insert (make-string (- 12 (length value)) ? )))
     (put-text-property start (point) 'face face)
     (put-text-property start (point) 'inhibit-read-only t)
-    (put-text-property start (point) 'eww-form
-		       (list :type "text"
-			     :name name
+    (put-text-property start (point) 'input
+		       (list :name name
+			     :is-default (eq face 'eplot--input-default)
 			     :original-value value
 			     :original-face face
-			     `(:start . ,(set-marker (make-marker) start))
-			     `(:end . ,(point-marker))))
-    (put-text-property start (point) 'local-map eplot--form-map)
+			     :start (set-marker (make-marker) start)
+			     :end (point-marker)))
+    (put-text-property start (point) 'local-map eplot--input-map)
     (insert " ")))
 
-(defun eplot--process-text-input (beg _end _replace-length)
-  (when-let* ((form (get-text-property beg 'eww-form)))
+(defun eplot--end-of-field ()
+  (1- (next-single-property-change (point) 'input nil (point-max))))
+
+(defun eplot--beginning-of-field ()
+  (cond
+   ((bobp)
+    (point))
+   ((not (eq (get-text-property (point) 'input)
+	     (get-text-property (1- (point)) 'input)))
+    (point))
+   (t
+    (previous-single-property-change
+     (point) 'input nil (point-min)))))
+
+(defun eplot--process-text-input (beg end replace-length)
+  (when-let* ((pos (and (< (1+ end) (point-max))
+		        (> (1- end) (point-min))
+		        (cond
+		         ((get-text-property (1+ end) 'input)
+			  (1+ end))
+		         ((get-text-property (1- end) 'input)
+			  (1- end))))))
+    (let* ((input (get-text-property pos 'input))
+	   (properties (text-properties-at pos))
+           (buffer-undo-list t)
+	   (inhibit-read-only t)
+	   (length (- end beg replace-length)))
+      (when input
+	(cond
+	 ((> length 0)
+	  ;; Delete some space at the end.
+	  (save-excursion
+	    (goto-char (eplot--end-of-field))
+	    (while (and (> length 0)
+			(eql (char-after (1- (point))) ? ))
+	      (delete-region (1- (point)) (point))
+	      (cl-decf length))))
+	 ((< length 0)
+	  ;; Add padding.
+	  (save-excursion
+	    (goto-char (1+ (eplot--end-of-field)))
+	    (let ((start (point)))
+              (insert (make-string (abs length) ? ))
+	      (set-text-properties start (point) properties))
+	    (goto-char (1- end)))))
+	(set-text-properties (plist-get input :start)
+                             (plist-get input :end)
+			     properties)
+	(let ((value (buffer-substring-no-properties
+		      (eplot--beginning-of-field)
+		      (eplot--end-of-field))))
+	  (when (string-match " +\\'" value)
+	    (setq value (substring value 0 (match-beginning 0))))
+	  (plist-put input :value value))))))
+
+(defun eplot--process-text-value (beg _end _replace-length)
+  (when-let* ((input (get-text-property beg 'input)))
     (let ((inhibit-read-only t))
-      (when (eq (plist-get form :original-face) 'eplot--input-default)
-	(put-text-property (cdr (assq :start form))
-			   (cdr (assq :end form))
+      (when (plist-get input :is-default)
+	(put-text-property (plist-get input :start)
+			   (plist-get input :end)
 			   'face
-			   (if (equal (plist-get form :original-value)
-				      (plist-get form :value))
+			   (if (equal (plist-get input :original-value)
+				      (plist-get input :value))
 			       'eplot--input-default
 			     'eplot--input-changed))))))
 
