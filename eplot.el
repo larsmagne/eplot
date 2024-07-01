@@ -2723,6 +2723,8 @@ nil means `top-down'."
 	;; Add padding.
 	(save-excursion
 	  (goto-char end)
+	  (when (get-text-property end 'input)
+	    (goto-char (eplot--end-of-field)))
 	  (let ((start (point)))
             (insert (make-string (abs length) ? ))
 	    (set-text-properties start (point) properties))
