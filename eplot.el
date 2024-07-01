@@ -2455,7 +2455,8 @@ nil means `top-down'."
       (setcar (car transients) (caadr transients))
       (setcar (cadr transients) size))
     (pop-to-buffer "*eplot controls*")
-    (let ((inhibit-read-only t))
+    (let ((inhibit-read-only t)
+	  (after-change-functions nil))
       (erase-buffer)
       (unless (eq major-mode 'eplot-control-mode)
 	(eplot-control-mode)
@@ -2541,9 +2542,10 @@ nil means `top-down'."
     (put-text-property start (point) 'face face)
     (put-text-property start (point) 'inhibit-read-only t)
     (put-text-property start (point) 'name name)
-    (put-text-property start (point) 'eww-form (list :type "text"
-						     `(:start . ,start)
-						     `(:end . ,(point))))
+    (put-text-property start (point) 'eww-form
+		       (list :type "text"
+			     `(:start . ,(set-marker (make-marker) start))
+			     `(:end . ,(point-marker))))
     (put-text-property start (point) 'local-map eww-text-map)
     (insert " ")))
 
