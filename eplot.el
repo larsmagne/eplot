@@ -1042,7 +1042,7 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
       ;; Set the size of the chart based on the window it's going to
       ;; be displayed in.  It uses the *eplot* window by default, or
       ;; the current one if that isn't displayed.
-      (let ((factor (image-compute-scaling-factor)))
+      (let ((factor (image-compute-scaling-factor image-scaling-factor)))
 	(unless width
 	  (setq width (truncate
 		       (/ (* (window-pixel-width
