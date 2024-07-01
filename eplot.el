@@ -108,28 +108,54 @@ possible chart headers."
    (t (indent-relative))))
 
 (defun eplot--complete-header ()
-  (and (save-excursion
-	 (or (looking-at ".*:")
-	     (looking-at "[ \t]*$")))
-       (lambda ()
-	 (let ((headers (mapcar
-			 (lambda (h)
-			   (if (looking-at ".*:")
-			       (capitalize (symbol-name (car h)))
-			     (concat (capitalize (symbol-name (car h))) ": ")))
-			 (save-excursion
-			   ;; If we're after the headers, then we want
-			   ;; to complete over the plot headers.  Otherwise,
-			   ;; complete over the chart headers.
-			   (if (and (not (bobp))
-				    (progn
-				      (forward-line -1)
-				      (re-search-backward "^[ \t]*$" nil t)))
-			       eplot--plot-headers
-			     eplot--chart-headers))))
-	       (completion-ignore-case t))
-	   (completion-in-region (pos-bol) (line-end-position) headers)
-	   'completion-attempted))))
+  (or
+   ;; Complete headers names.
+   (and (or (looking-at ".*:")
+	    (and (looking-at "[ \t]*$")
+		 (save-excursion
+		   (beginning-of-line)
+		   (not (looking-at "\\(.+\\):")))))
+	(lambda ()
+	  (let ((headers (mapcar
+			  (lambda (h)
+			    (if (looking-at ".*:")
+				(capitalize (symbol-name (car h)))
+			      (concat (capitalize (symbol-name (car h))) ": ")))
+			  (save-excursion
+			    ;; If we're after the headers, then we want
+			    ;; to complete over the plot headers.  Otherwise,
+			    ;; complete over the chart headers.
+			    (if (and (not (bobp))
+				     (progn
+				       (forward-line -1)
+				       (re-search-backward "^[ \t]*$" nil t)))
+				eplot--plot-headers
+			      eplot--chart-headers))))
+		(completion-ignore-case t))
+	    (completion-in-region (pos-bol) (line-end-position) headers)
+	    'completion-attempted)))
+   ;; Complete header values.
+   (let ((hname nil))
+     (and (save-excursion
+	    (and (looking-at "[ \t]*$")
+		 (progn
+		   (beginning-of-line)
+		   (and (looking-at "\\(.+\\):")
+			(setq hname (intern (downcase (match-string 1)))))))
+	    (lambda ()
+	      (let ((valid (plist-get
+			    (cdr (assq hname (append eplot--plot-headers
+						     eplot--chart-headers)))
+			    :valid))
+		    (completion-ignore-case t))
+		(completion-in-region
+		 (save-excursion
+		   (search-backward ":" (pos-bol) t)
+		   (skip-chars-forward ": \t")
+		   (point))
+		 (line-end-position)
+		 (mapcar #'symbol-name valid))
+		'completion-attempted)))))))
 
 (define-minor-mode eplot-minor-mode
   "Minor mode to issue commands from an eplot data buffer."
@@ -516,7 +542,7 @@ you a clear, non-blurry version of the chart at any size."
 (eplot-def (format symbol normal (normal bar-chart))
   "The overall format of the chart.")
 
-(eplot-def (layout symbol (normal compact))
+(eplot-def (layout symbol nil (normal compact))
   "The general layout of the chart.")
 
 (eplot-def (mode symbol light (dark light))
