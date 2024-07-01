@@ -2665,6 +2665,7 @@ nil means `top-down'."
     (put-text-property start (point) 'inhibit-read-only t)
     (put-text-property start (point) 'input
 		       (list :name name
+			     :size 12
 			     :is-default (eq face 'eplot--input-default)
 			     :original-value value
 			     :original-face face
@@ -2710,25 +2711,21 @@ nil means `top-down'."
          (buffer-undo-list t)
 	 (inhibit-read-only t))
     (when input
-      (cond
-       ((> length 0)
-	;; Delete some space at the end.
-	(save-excursion
-	  (goto-char (eplot--end-of-field))
-	  (while (and (> length 0)
-		      (eql (char-after (1- (point))) ? ))
-	    (delete-region (1- (point)) (point))
-	    (cl-decf length))))
-       ((< length 0)
-	;; Add padding.
-	(save-excursion
-	  (goto-char end)
-	  (when (get-text-property end 'input)
-	    (goto-char (eplot--end-of-field)))
-	  (let ((start (point)))
-            (insert (make-string (abs length) ? ))
-	    (set-text-properties start (point) properties))
-	  (goto-char (1- end)))))
+      (save-excursion
+	(goto-char (eplot--end-of-field))
+	(let ((trim (- (1+ (eplot--end-of-field)) (eplot--beginning-of-field)
+		       (plist-get input :size))))
+	  (cond
+	   ;; Delete some space at the end.
+	   ((> trim 0)
+	    (while (and (> trim 0)
+			(eql (char-after (1- (point))) ? ))
+	      (delete-region (1- (point)) (point))
+	      (cl-decf trim)))
+	   ;; Or add some padding at the end.
+	   ((< trim 0)
+	    (insert (make-string (abs trim) ?\s))))))
+      ;; Restore text properties to the field.
       (set-text-properties (plist-get input :start)
                            (plist-get input :end)
 			   properties)
