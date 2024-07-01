@@ -1171,17 +1171,19 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 		  :y (- height (/ margin-bottom 4)))))
     (with-slots (y-title) chart
       (when y-title
-	(svg-text svg y-title
-		  :font-family font
-		  :text-anchor "middle"
-		  :font-weight font-weight
-		  :font-size font-size
-		  :fill label-color
-		  :transform
-		  (format "translate(%s,%s) rotate(-90)"
-			  (- (/ margin-left 2) (/ font-size 2) -10)
-			  (+ margin-top
-			     (/ (- height margin-bottom margin-top) 2))))))))
+	(let ((text-height
+	       (eplot--text-height y-title font font-weight font-size)))
+	  (svg-text svg y-title
+		    :font-family font
+		    :text-anchor "middle"
+		    :font-weight font-weight
+		    :font-size font-size
+		    :fill label-color
+		    :transform
+		    (format "translate(%s,%s) rotate(-90)"
+			    (- (/ margin-left 2) (/ text-height 2) 4)
+			    (+ margin-top
+			       (/ (- height margin-bottom margin-top) 2)))))))))
 
 (defun eplot--draw-background (chart svg left top width height)
   (with-slots (background-gradient background-color) chart
@@ -2391,6 +2393,9 @@ nil means `top-down'."
 		 (read-number (format "Value for %s (%s): " action type)))
 		((string-match "color" (downcase action))
 		 (read-color (format "Value for %s (color): " action)))
+		((string-match "font" (downcase action))
+		 (eplot--read-font-family
+		  (format "Value for %s (font family): " action)))
 		((string-match "gradient" (downcase action))
 		 (eplot--read-gradient action))
 		((string-match "file" (downcase action))
@@ -2448,35 +2453,59 @@ nil means `top-down'."
   (when-let* ((form (get-text-property (point) 'eww-form))
 	      (name (plist-get form :name))
 	      (spec (cdr (assq name (append eplot--plot-headers
-					    eplot--chart-headers)))))
+					    eplot--chart-headers))))
+	      (start (cdr (assq :start form)))
+	      (end (cdr (assq :end form)))
+	      (completion-ignore-case t))
+    (skip-chars-backward " " start)
     (or
      (and (eq (plist-get spec :type) 'symbol)
 	  (lambda ()
-	    (let ((start (cdr (assq :start form))))
-	      (skip-chars-backward " " start)
-	      (let ((valid (plist-get spec :valid))
-		    (completion-ignore-case t))
-		(completion-in-region
-		 (save-excursion
-		   (skip-chars-backward "^ " start)
-		   (point))
-		 (cdr (assq :end form))
-		 (mapcar #'symbol-name valid))
-		'completion-attempted))))
+	    (let ((valid (plist-get spec :valid)))
+	      (completion-in-region
+	       (save-excursion
+		 (skip-chars-backward "^ " start)
+		 (point))
+	       end
+	       (mapcar #'symbol-name valid))
+	      'completion-attempted)))
      (and (string-match "color" (symbol-name name))
 	  (lambda ()
-	    (let ((start (cdr (assq :start form))))
-	      (skip-chars-backward " " start)
-	      (let ((completion-ignore-case t))
-		(completion-in-region
-		 (save-excursion
-		   (skip-chars-backward "^ " start)
-		   (point))
-		 (cdr (assq :end form))
-		 (if (display-color-p)
-		     (defined-colors-with-face-attributes nil t)
-		   (defined-colors)))
-		'completion-attempted)))))))
+	    (completion-in-region
+	     (save-excursion
+	       (skip-chars-backward "^ " start)
+	       (point))
+	     end
+	     (if (display-color-p)
+		 (defined-colors-with-face-attributes nil t)
+	       (defined-colors)))
+	    'completion-attempted))
+     (and (string-match "\\bfont\\b" (symbol-name name))
+	  (lambda ()
+	    (completion-in-region
+	     (save-excursion
+	       (skip-chars-backward "^ " start)
+	       (point))
+	     end
+	     (eplot--font-families))
+	    'completion-attempted)))))
+
+(defun eplot--read-font-family (prompt)
+  "Prompt for a font family, possibly offering autocomplete."
+  (let ((families (eplot--font-families)))
+    (if families
+	(completing-read prompt families)
+      (read-string prompt))))
+
+(defun eplot--font-families ()
+  (when (executable-find "fc-list")
+    (let ((fonts nil))
+      (with-temp-buffer
+	(call-process "fc-list" nil t nil ":" "family")
+	(goto-char (point-min))
+	(while (re-search-forward "^\\([^,\n]+\\)" nil t)
+	  (push (match-string 1) fonts)))
+      (seq-uniq (sort fonts #'string<)))))
 
 (defun eplot-control-update ()
   "Update the chart based on the current settings."
