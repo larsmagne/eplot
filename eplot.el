@@ -35,6 +35,7 @@
 (require 'eieio)
 (require 'iso8601)
 (require 'transient)
+(require 'eww)
 
 (defvar eplot--user-defaults nil)
 
@@ -76,6 +77,7 @@ If HEADER is nil or not present, reset everything to defaults."
   "C-c C-p" #'eplot-switch-view-buffer
   "C-c C-e" #'eplot-list-chart-headers
   "C-c C-v" #'eplot-customize
+  "C-c C-l" #'eplot-create-controls
   "TAB" #'eplot-complete)
 
 ;; # is working overtime in the syntax here:
@@ -275,6 +277,7 @@ you a clear, non-blurry version of the chart at any size."
     (eplot-customize)))
 
 (defvar eplot--data-buffer nil)
+(defvar eplot--current-chart nil)
 
 (defun eplot ()
   "Plot the data in the current buffer."
@@ -322,7 +325,9 @@ you a clear, non-blurry version of the chart at any size."
 	(unless (eq major-mode 'eplot-view-mode)
 	  (eplot-view-mode))
 	(setq-local eplot--data-buffer data-buffer)
-	(eplot--render data)
+	(let ((chart (eplot--render data)))
+	  (with-current-buffer data-buffer
+	    (setq-local eplot--current-chart chart)))
 	(insert "\n")
 	(when-let ((win (get-buffer-window "*eplot*" t)))
 	  (set-window-point win (point-min))))
@@ -375,7 +380,9 @@ you a clear, non-blurry version of the chart at any size."
 				(eplot--settings-table)))
 	(inhibit-read-only t))
     (erase-buffer)
-    (eplot--render data)
+    (let ((chart (eplot--render data)))
+      (with-current-buffer eplot--data-buffer
+	(setq-local eplot--current-chart chart)))
     (insert "\n\n")))
 
 (defun eplot--parse-buffer ()
@@ -1092,7 +1099,8 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 
     (if return-image
 	svg
-      (svg-insert-image svg))))
+      (svg-insert-image svg)
+      chart)))
 
 (defun eplot--draw-basics (svg chart)
   (with-slots ( width height 
@@ -2235,9 +2243,10 @@ nil means `top-down'."
   "Parse and insert a file in the current buffer."
   (interactive "fEplot file: ")
   (let ((default-directory (file-name-directory file)))
-    (eplot--render (with-temp-buffer
-		     (insert-file-contents file)
-		     (eplot--parse-buffer)))))
+    (setq-local eplot--current-chart
+		(eplot--render (with-temp-buffer
+				 (insert-file-contents file)
+				 (eplot--parse-buffer))))))
 
 (defun eplot-list-chart-headers ()
   "Pop to a buffer showing all chart parameters."
@@ -2297,7 +2306,6 @@ nil means `top-down'."
       ("go" "Format")
       ("gw" "Frame-Width")
       ("gh" "Header-File")
-      ("gd" "Data-File")
       ("gi" "Min")
       ("ga" "Max")
       ("gm" "Mode")
@@ -2320,7 +2328,6 @@ nil means `top-down'."
       ("ps" "Style")
       ("pc" "Color")
       ("po" "Data-Column")
-      ("pf" "Data-File")
       ("pr" "Data-format")
       ("pn" "Fill-Border-Color")
       ("pi" "Fill-Color")
@@ -2419,7 +2426,8 @@ nil means `top-down'."
 (defvar-keymap eplot-control-mode-map
   "C-r" #'eplot-control-update)
 
-(define-derived-mode eplot-control-mode special-mode "eplot control")
+(define-derived-mode eplot-control-mode special-mode "eplot control"
+  (add-hook 'after-change-functions #'eww-process-text-input nil t))
 
 (defun eplot-control-update ()
   "Update the chart based on the current settings."
@@ -2429,71 +2437,115 @@ nil means `top-down'."
 (defun eplot-create-controls ()
   "Pop to a buffer that lists all parameters and allows editing."
   (interactive)
-  (pop-to-buffer "*eplot controls*")
-  (let ((inhibit-read-only t)
-	(settings eplot--transient-settings)
+  (let ((settings eplot--transient-settings)
 	(data-buffer (current-buffer))
+	(chart eplot--current-chart)
 	;; Find the max width of all the different names.
 	(width (seq-max
 		(mapcar (lambda (e)
 			  (length (cadr e)))
 			(apply #'append
 			       (mapcar #'cdr
-				       (apply #'append eplot--transients)))))))
-    (erase-buffer)
-    (unless (eq major-mode 'eplot-control-mode)
-      (eplot-control-mode)
-      (setq-local eplot--data-buffer data-buffer))
-    (cl-loop for column in eplot--transients
-	     for cn from 0
-	     do
-	     (goto-char (point-min))
-	     (end-of-line)
-	     (cl-loop
-	      for row in column
-	      do
-	      (if (zerop cn)
-		  (when (not (bobp))
-		    (insert (format (format "%%-%ds" (+ width 12)) "")
-			    "\n"))
-		(unless (= (count-lines (point-min) (point)) 1)
-		  (if (eobp)
-		      (progn
-			(insert (format (format "%%-%ds" (+ width 12)) "")
-				"\n")
-			(insert (format (format "%%-%ds" (+ width 12)) "")
-				"\n")
-			(forward-line -1)
-			(end-of-line))
-		    (forward-line 1)
-		    (end-of-line))))
-	      (insert (format (format "%%-%ds" (+ width 12))
-			      (propertize (pop row) 'face 'bold)))
-	      (if (looking-at "\n")
-		  (forward-line 1)				
-		(insert "\n"))
-	      (cl-loop for elem in row
-		       for name = (cadr elem)
-		       for slot = (intern (downcase name))
-		       for value = (cdr (assq slot settings))
-		       do
-		       (end-of-line)
-		       (when (and (> cn 0)
-				  (bolp))
-			 (insert (format (format "%%-%ds" (+ width 12)) "")
-				 "\n")
-			 (forward-line -1)
-			 (end-of-line))
-		       (insert (format (format "%%-%ds" (1+ width)) name))
-		       (eww-form-text
-			(dom-node 'input `((size . "10")
-					   (name . ,slot)
-					   (value . ,(or value "")))))
-		       (if (looking-at "\n")
-			   (forward-line 1)				
-			 (insert "\n")))))
+				       (apply #'append eplot--transients))))))
+	(transients (mapcar #'copy-sequence (copy-sequence eplot--transients))))
+    (unless chart
+      (user-error "Must be called from an eplot buffer that has rendered a chart"))
+    ;; Rearrange the transients a bit for better display.
+    (let ((size (caar transients)))
+      (setcar (car transients) (caadr transients))
+      (setcar (cadr transients) size))
+    (pop-to-buffer "*eplot controls*")
+    (let ((inhibit-read-only t))
+      (erase-buffer)
+      (unless (eq major-mode 'eplot-control-mode)
+	(eplot-control-mode)
+	(setq-local eplot--data-buffer data-buffer))
+      (cl-loop for column in transients
+	       for cn from 0
+	       do
+	       (goto-char (point-min))
+	       (end-of-line)
+	       (cl-loop
+		for row in column
+		do
+		(if (zerop cn)
+		    (when (not (bobp))
+		      (insert (format (format "%%-%ds" (+ width 14)) "")
+			      "\n"))
+		  (unless (= (count-lines (point-min) (point)) 1)
+		    (if (eobp)
+			(progn
+			  (insert (format (format "%%-%ds" (+ width 14)) "")
+				  "\n")
+			  (insert (format (format "%%-%ds" (+ width 14)) "")
+				  "\n")
+			  (forward-line -1)
+			  (end-of-line))
+		      (forward-line 1)
+		      (end-of-line))))
+		(insert (format (format "%%-%ds" (+ width 14))
+				(propertize (pop row) 'face 'bold)))
+		(if (looking-at "\n")
+		    (forward-line 1)				
+		  (insert "\n"))
+		(cl-loop for elem in row
+			 for name = (cadr elem)
+			 for slot = (intern (downcase name))
+			 when (null (nth 2 elem))
+			 do
+			 (let* ((object (if (assq slot eplot--chart-headers)
+					    chart
+					  (car (slot-value chart 'plots))))
+				(value
+				 (format
+				  "%s"
+				  (or (cdr (assq slot settings))
+				      (if (not (slot-boundp object slot))
+					  ""
+					(or (slot-value object slot)
+					    ""))))))
+			   (end-of-line)
+			   (when (and (> cn 0)
+				      (bolp))
+			     (insert (format (format "%%-%ds" (+ width 14)) "")
+				     "\n")
+			     (forward-line -1)
+			     (end-of-line))
+			   (insert (format (format "%%-%ds" (1+ width)) name))
+			   (eplot--input name value
+					 (if (cdr (assq slot settings))
+					     'eplot--input-changed
+					   'eplot--input-default))
+			   (if (looking-at "\n")
+			       (forward-line 1)				
+			     (insert "\n")))))))
     (goto-char (point-min))))
-  
+
+(defface eplot--input-default
+  '((t :background "#505050"
+       :foreground "#a0a0a0"
+       :box (:line-width 1)))
+  "Face for eplot default inputs.")
+
+(defface eplot--input-changed
+  '((t :background "#505050"
+       :foreground "white"
+       :box (:line-width 1)))
+  "Face for eplot changed inputs.")
+
+(defun eplot--input (name value face)
+  (let ((start (point)))
+    (insert value)
+    (when (< (length value) 12)
+      (insert (make-string (- 12 (length value)) ? )))
+    (put-text-property start (point) 'face face)
+    (put-text-property start (point) 'inhibit-read-only t)
+    (put-text-property start (point) 'name name)
+    (put-text-property start (point) 'eww-form (list :type "text"
+						     `(:start . ,start)
+						     `(:end . ,(point))))
+    (put-text-property start (point) 'local-map eww-text-map)
+    (insert " ")))
 
 (eval `(transient-define-prefix eplot-customize ()
 	 "Customize Chart"
