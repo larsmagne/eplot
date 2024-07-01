@@ -2708,13 +2708,19 @@ nil means `top-down'."
 			 (or (text-properties-at beg)
 			     (text-properties-at end))
 		       (text-properties-at 0 eplot--prev-deletion)))
-         (buffer-undo-list t)
+	 (some-left (or (get-text-property beg 'input)
+			(get-text-property end 'input)))
+	 (buffer-undo-list t)
 	 (inhibit-read-only t))
     (when input
       (save-excursion
-	(goto-char (eplot--end-of-field))
-	(let ((trim (- (1+ (eplot--end-of-field)) (eplot--beginning-of-field)
-		       (plist-get input :size))))
+	(when some-left
+	  (goto-char (eplot--end-of-field)))
+	(let ((trim (if some-left
+			(- (1+ (eplot--end-of-field))
+			   (eplot--beginning-of-field)
+			   (plist-get input :size))
+		      (- (length eplot--prev-deletion)))))
 	  (cond
 	   ;; Delete some space at the end.
 	   ((> trim 0)
@@ -2726,9 +2732,15 @@ nil means `top-down'."
 	   ((< trim 0)
 	    (insert (make-string (abs trim) ?\s))))))
       ;; Restore text properties to the field.
-      (set-text-properties (plist-get input :start)
-                           (plist-get input :end)
-			   properties)
+      (if some-left
+	  (set-text-properties (plist-get input :start)
+                               (plist-get input :end)
+			       properties)
+	;; We've deleted the entire field, so redo markers.
+	(let ((end (+ (point) (length eplot--prev-deletion))))
+	  (set-text-properties (point) end properties)
+	  (plist-put input :start (point-marker))
+	  (plist-put input :end (set-marker (make-marker) end))))
       (let ((value (buffer-substring-no-properties
 		    (eplot--beginning-of-field)
 		    (eplot--end-of-field))))
