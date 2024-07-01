@@ -2430,8 +2430,30 @@ nil means `top-down'."
   "C-r" #'eplot-control-update)
 
 (define-derived-mode eplot-control-mode special-mode "eplot control"
+  (setq-local completion-at-point-functions
+	      (cons 'eplot--complete-control completion-at-point-functions))
   (add-hook 'after-change-functions #'eplot--process-text-input nil t)
   (add-hook 'after-change-functions #'eww-process-text-input nil t))
+
+(defun eplot--complete-control ()
+  ;; Complete headers names.
+  (when-let* ((form (get-text-property (point) 'eww-form))
+	      (name (plist-get form :name))
+	      (spec (cdr (assq name (append eplot--plot-headers
+					    eplot--chart-headers)))))
+    (and (eq (plist-get spec :type) 'symbol)
+	 (lambda ()
+	   (let ((start (cdr (assq :start form))))
+	     (skip-chars-backward " " start)
+	     (let ((valid (plist-get spec :valid))
+		   (completion-ignore-case t))
+	       (completion-in-region
+		(save-excursion
+		  (skip-chars-backward "^ " start)
+		  (point))
+		(cdr (assq :end form))
+		(mapcar #'symbol-name valid))
+	       'completion-attempted))))))
 
 (defun eplot-control-update ()
   "Update the chart based on the current settings."
@@ -2567,7 +2589,17 @@ nil means `top-down'."
 (defvar-keymap eplot--form-map
   :full t :parent text-mode-map
   "RET" #'eplot-control-update
-  "TAB" #'eplot--form-complete)
+  "TAB" #'eplot-form-complete)
+
+(defun eplot-form-complete ()
+  "Complete values in forms."
+  (interactive)
+  (cond
+   ((let ((completion-fail-discreetly t))
+      (completion-at-point))
+    ;; Completion was performed; nothing else to do.
+    nil)
+   (t (indent-relative))))
 
 (defun eplot--input (name value face)
   (let ((start (point)))
