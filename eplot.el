@@ -2427,100 +2427,127 @@ nil means `top-down'."
   "C-r" #'eplot-control-update)
 
 (define-derived-mode eplot-control-mode special-mode "eplot control"
+  (add-hook 'after-change-functions #'eplot--process-text-input nil t)
   (add-hook 'after-change-functions #'eww-process-text-input nil t))
 
 (defun eplot-control-update ()
   "Update the chart based on the current settings."
   (interactive)
-  )
+  (let ((settings nil))
+    (save-excursion
+      (goto-char (point-min))
+      (while-let ((match (text-property-search-forward 'eww-form)))
+	(when (equal (get-text-property (prop-match-beginning match) 'face)
+		     'eplot--input-changed)
+	  (let* ((name (plist-get (prop-match-value match) :name))
+		 (spec (cdr (assq name (append eplot--plot-headers
+					       eplot--chart-headers))))
+		 (value (plist-get (prop-match-value match) :value)))
+	    (push (cons name
+			(cl-case (plist-get spec :type)
+			  (number
+			   (string-to-number value))
+			  (symbol
+			   (intern (downcase value)))
+			  (symbol-list
+			   (mapcar #'intern (split-string (downcase value))))
+			  (t
+			   value)))
+		  settings)))))
+    (with-current-buffer eplot--data-buffer
+      (setq-local eplot--transient-settings (nreverse settings))
+      (eplot-update-view-buffer))))
 
 (defun eplot-create-controls ()
   "Pop to a buffer that lists all parameters and allows editing."
   (interactive)
-  (let ((settings eplot--transient-settings)
-	(data-buffer (current-buffer))
-	(chart eplot--current-chart)
-	;; Find the max width of all the different names.
-	(width (seq-max
-		(mapcar (lambda (e)
-			  (length (cadr e)))
-			(apply #'append
-			       (mapcar #'cdr
-				       (apply #'append eplot--transients))))))
-	(transients (mapcar #'copy-sequence (copy-sequence eplot--transients))))
-    (unless chart
-      (user-error "Must be called from an eplot buffer that has rendered a chart"))
-    ;; Rearrange the transients a bit for better display.
-    (let ((size (caar transients)))
-      (setcar (car transients) (caadr transients))
-      (setcar (cadr transients) size))
-    (pop-to-buffer "*eplot controls*")
-    (let ((inhibit-read-only t)
-	  (after-change-functions nil))
-      (erase-buffer)
+  (with-current-buffer (or eplot--data-buffer (current-buffer))
+    (let ((settings eplot--transient-settings)
+	  (data-buffer (current-buffer))
+	  (chart eplot--current-chart)
+	  ;; Find the max width of all the different names.
+	  (width (seq-max
+		  (mapcar (lambda (e)
+			    (length (cadr e)))
+			  (apply #'append
+				 (mapcar #'cdr
+					 (apply #'append eplot--transients))))))
+	  (transients (mapcar #'copy-sequence
+			      (copy-sequence eplot--transients))))
+      (unless chart
+	(user-error "Must be called from an eplot buffer that has rendered a chart"))
+      ;; Rearrange the transients a bit for better display.
+      (let ((size (caar transients)))
+	(setcar (car transients) (caadr transients))
+	(setcar (cadr transients) size))
+      (pop-to-buffer "*eplot controls*")
       (unless (eq major-mode 'eplot-control-mode)
 	(eplot-control-mode)
 	(setq-local eplot--data-buffer data-buffer))
-      (cl-loop for column in transients
-	       for cn from 0
-	       do
-	       (goto-char (point-min))
-	       (end-of-line)
-	       (cl-loop
-		for row in column
-		do
-		(if (zerop cn)
-		    (when (not (bobp))
-		      (insert (format (format "%%-%ds" (+ width 14)) "")
-			      "\n"))
-		  (unless (= (count-lines (point-min) (point)) 1)
-		    (if (eobp)
-			(progn
-			  (insert (format (format "%%-%ds" (+ width 14)) "")
-				  "\n")
-			  (insert (format (format "%%-%ds" (+ width 14)) "")
-				  "\n")
-			  (forward-line -1)
-			  (end-of-line))
-		      (forward-line 1)
-		      (end-of-line))))
-		(insert (format (format "%%-%ds" (+ width 14))
-				(propertize (pop row) 'face 'bold)))
-		(if (looking-at "\n")
-		    (forward-line 1)				
-		  (insert "\n"))
-		(cl-loop for elem in row
-			 for name = (cadr elem)
-			 for slot = (intern (downcase name))
-			 when (null (nth 2 elem))
-			 do
-			 (let* ((object (if (assq slot eplot--chart-headers)
-					    chart
-					  (car (slot-value chart 'plots))))
-				(value
-				 (format
-				  "%s"
-				  (or (cdr (assq slot settings))
-				      (if (not (slot-boundp object slot))
-					  ""
-					(or (slot-value object slot)
-					    ""))))))
-			   (end-of-line)
-			   (when (and (> cn 0)
-				      (bolp))
-			     (insert (format (format "%%-%ds" (+ width 14)) "")
-				     "\n")
-			     (forward-line -1)
-			     (end-of-line))
-			   (insert (format (format "%%-%ds" (1+ width)) name))
-			   (eplot--input name value
-					 (if (cdr (assq slot settings))
-					     'eplot--input-changed
-					   'eplot--input-default))
-			   (if (looking-at "\n")
-			       (forward-line 1)				
-			     (insert "\n")))))))
-    (goto-char (point-min))))
+      (let ((inhibit-read-only t)
+	    (after-change-functions nil))
+	(erase-buffer)
+	(cl-loop for column in transients
+		 for cn from 0
+		 do
+		 (goto-char (point-min))
+		 (end-of-line)
+		 (cl-loop
+		  for row in column
+		  do
+		  (if (zerop cn)
+		      (when (not (bobp))
+			(insert (format (format "%%-%ds" (+ width 14)) "")
+				"\n"))
+		    (unless (= (count-lines (point-min) (point)) 1)
+		      (if (eobp)
+			  (progn
+			    (insert (format (format "%%-%ds" (+ width 14)) "")
+				    "\n")
+			    (insert (format (format "%%-%ds" (+ width 14)) "")
+				    "\n")
+			    (forward-line -1)
+			    (end-of-line))
+			(forward-line 1)
+			(end-of-line))))
+		  (insert (format (format "%%-%ds" (+ width 14))
+				  (propertize (pop row) 'face 'bold)))
+		  (if (looking-at "\n")
+		      (forward-line 1)				
+		    (insert "\n"))
+		  (cl-loop for elem in row
+			   for name = (cadr elem)
+			   for slot = (intern (downcase name))
+			   when (null (nth 2 elem))
+			   do
+			   (let* ((object (if (assq slot eplot--chart-headers)
+					      chart
+					    (car (slot-value chart 'plots))))
+				  (value
+				   (format
+				    "%s"
+				    (or (cdr (assq slot settings))
+					(if (not (slot-boundp object slot))
+					    ""
+					  (or (slot-value object slot)
+					      ""))))))
+			     (end-of-line)
+			     (when (and (> cn 0)
+					(bolp))
+			       (insert (format (format "%%-%ds" (+ width 14))
+					       "")
+				       "\n")
+			       (forward-line -1)
+			       (end-of-line))
+			     (insert (format (format "%%-%ds" (1+ width)) name))
+			     (eplot--input slot value
+					   (if (cdr (assq slot settings))
+					       'eplot--input-changed
+					     'eplot--input-default))
+			     (if (looking-at "\n")
+				 (forward-line 1)				
+			       (insert "\n")))))))
+      (goto-char (point-min)))))
 
 (defface eplot--input-default
   '((t :background "#505050"
@@ -2534,6 +2561,11 @@ nil means `top-down'."
        :box (:line-width 1)))
   "Face for eplot changed inputs.")
 
+(defvar-keymap eplot--form-map
+  :full t :parent text-mode-map
+  "RET" #'eplot-control-update
+  "TAB" #'eplot--form-complete)
+
 (defun eplot--input (name value face)
   (let ((start (point)))
     (insert value)
@@ -2541,13 +2573,27 @@ nil means `top-down'."
       (insert (make-string (- 12 (length value)) ? )))
     (put-text-property start (point) 'face face)
     (put-text-property start (point) 'inhibit-read-only t)
-    (put-text-property start (point) 'name name)
     (put-text-property start (point) 'eww-form
 		       (list :type "text"
+			     :name name
+			     :original-value value
+			     :original-face face
 			     `(:start . ,(set-marker (make-marker) start))
 			     `(:end . ,(point-marker))))
-    (put-text-property start (point) 'local-map eww-text-map)
+    (put-text-property start (point) 'local-map eplot--form-map)
     (insert " ")))
+
+(defun eplot--process-text-input (beg _end _replace-length)
+  (when-let* ((form (get-text-property beg 'eww-form)))
+    (let ((inhibit-read-only t))
+      (when (eq (plist-get form :original-face) 'eplot--input-default)
+	(put-text-property (cdr (assq :start form))
+			   (cdr (assq :end form))
+			   'face
+			   (if (equal (plist-get form :original-value)
+				      (plist-get form :value))
+			       'eplot--input-default
+			     'eplot--input-changed))))))
 
 (eval `(transient-define-prefix eplot-customize ()
 	 "Customize Chart"
