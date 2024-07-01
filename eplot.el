@@ -1514,15 +1514,23 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
       (with-temp-buffer
 	(set-buffer-multibyte nil)
 	(svg-print svg)
-	(let ((file (concat (make-temp-name "/tmp/eplot") ".svg")))
+	(let* ((file (concat (make-temp-name "/tmp/eplot") ".svg"))
+	       (png (file-name-with-extension file ".png")))
 	  (unwind-protect
 	      (progn
 		(write-region (point-min) (point-max) file nil 'silent)
+		;; rsvg-convert is 1x faster than convert when doing SVG, so
+		;; if we have it, we use it.
+		(when (executable-find "rsvg-convert")
+		  (unwind-protect
+		      (call-process "rsvg-convert" nil nil nil
+				    (format "--output=%s" png) file)
+		    (when (file-exists-p png)
+		      (delete-file file)
+		      (setq file png))))
 		(erase-buffer)
-		(when (zerop
-		       (call-process "convert"
-				     nil t nil
-				     "-trim" "+repage" file "info:-"))
+		(when (zerop (call-process "convert" nil t nil
+					   "-trim" "+repage" file "info:-"))
 		  (goto-char (point-min))
 		  (when (re-search-forward " [0-9]+x\\([0-9]+\\)" nil t)
 		    (setq height (string-to-number (match-string 1))))))
@@ -2467,7 +2475,9 @@ nil means `top-down'."
 	  (let* ((name (plist-get (prop-match-value match) :name))
 		 (spec (cdr (assq name (append eplot--plot-headers
 					       eplot--chart-headers))))
-		 (value (plist-get (prop-match-value match) :value)))
+		 (value
+		  (or (plist-get (prop-match-value match) :value)
+		      (plist-get (prop-match-value match) :original-value))))
 	    (push (cons name
 			(cl-case (plist-get spec :type)
 			  (number
