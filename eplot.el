@@ -169,7 +169,8 @@ possible chart headers."
 (defvar-keymap eplot-view-mode-map
   "s" #'eplot-view-write-file
   "w" #'eplot-view-write-scaled-file
-  "c" #'eplot-view-customize)
+  "c" #'eplot-view-customize
+  "l" #'eplot-create-controls)
 
 (define-derived-mode eplot-view-mode special-mode "eplot view"
   "Major mode for displaying eplots."
@@ -1043,15 +1044,17 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
       ;; the current one if that isn't displayed.
       (let ((factor (image-compute-scaling-factor)))
 	(unless width
-	  (setq width (/ (* (window-pixel-width
- 			     (get-buffer-window "*eplot*" t))
-			    0.9)
-			 factor)))
-	(unless height
-	  (setq height (/ (* (window-pixel-height
-			      (get-buffer-window "*eplot*" t))
+	  (setq width (truncate
+		       (/ (* (window-pixel-width
+ 			      (get-buffer-window "*eplot*" t))
 			     0.9)
 			  factor))))
+	(unless height
+	  (setq height (truncate
+			(/ (* (window-pixel-height
+			       (get-buffer-window "*eplot*" t))
+			      0.9)
+			   factor)))))
       (setq svg (svg-create width height)
 	    xs (- width margin-left margin-right)
 	    ys (- height margin-top margin-bottom))
