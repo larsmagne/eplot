@@ -2306,7 +2306,7 @@ nil means `top-down'."
      ("Legend, Axes & Grid"
       ("ll" "Legend")
       ("lb" "Legend-Background-Color")
-      ("lo" "Legend-Borrder-Color")
+      ("lo" "Legend-Border-Color")
       ("lc" "Legend-Color")
       ("xs" "X-Axis-Title-Space")
       ("xx" "X-Title")
@@ -2415,6 +2415,73 @@ nil means `top-down'."
 	       do (insert (capitalize (symbol-name name)) ": "
 			  (format "%s" value) "\n"))
       (write-region (point-min) (point-max) file))))
+
+(defvar-keymap eplot-control-mode-map
+  "C-r" #'eplot-control-update)
+
+(define-derived-mode eplot-control-mode special-mode "eplot control")
+
+(defun eplot-control-update ()
+  "Update the chart based on the current settings."
+  (interactive)
+  )
+
+(defun eplot-create-controls ()
+  "Pop to a buffer that lists all parameters and allows editing."
+  (interactive)
+  (pop-to-buffer "*eplot controls*")
+  (let ((inhibit-read-only t)
+	(settings eplot--transient-settings)
+	(data-buffer (current-buffer))
+	;; Find the max width of all the different names.
+	(width (seq-max
+		(mapcar (lambda (e)
+			  (length (cadr e)))
+			(apply #'append
+			       (mapcar #'cdr
+				       (apply #'append eplot--transients)))))))
+    (erase-buffer)
+    (unless (eq major-mode 'eplot-control-mode)
+      (eplot-control-mode)
+      (setq-local eplot--data-buffer data-buffer))
+    (cl-loop for column in eplot--transients
+	     for cn from 0
+	     do
+	     (goto-char (point-min))
+	     (end-of-line)
+	     (cl-loop
+	      for row in column
+	      do
+	      (if (zerop cn)
+		  (when (not (bobp))
+		    (insert "\n"))
+		(insert "  "))
+	      (insert (format (format "%%-%ds" (+ width 10))
+			      (propertize (pop row) 'face 'bold)))
+	      (if (looking-at "\n")
+		  (forward-line 1)				
+		(insert "\n"))
+	      (cl-loop for elem in row
+		       for name = (cadr elem)
+		       for slot = (intern (downcase name))
+		       for value = (cdr (assq slot settings))
+		       do
+		       (end-of-line)
+		       (when (> cn 0)
+			 (when (bolp)
+			   (insert (format (format "%%-%ds" (+ width 12)) "")
+				   "\n")
+			   (forward-line -1)
+			   (end-of-line)))
+		       (insert (format (format "%%-%ds" (1+ width)) name))
+		       (eww-form-text
+			(dom-node 'input `((size . "10")
+					   (name . ,slot)
+					   (value . ,(or value "")))))
+		       (if (looking-at "\n")
+			   (forward-line 1)				
+			 (insert "\n")))))))
+  
 
 (eval `(transient-define-prefix eplot-customize ()
 	 "Customize Chart"
