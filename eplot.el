@@ -2687,53 +2687,53 @@ nil means `top-down'."
     (previous-single-property-change
      (point) 'input nil (point-min)))))
 
-(defun eplot--process-text-input-before (beg end)
-  ;;(message "Before: %s %s" beg end)
-  )
+(defvar eplot--prev-deletion nil)
 
-;; I think we have to maintain some sort of "shadow dom" here...
-;; or... do something in after-change-functions?
+(defun eplot--process-text-input-before (beg end)
+  (cond
+   ((= beg end)
+    (setq eplot--prev-deletion nil))
+   ((> end beg)
+    (setq eplot--prev-deletion (buffer-substring beg end)))))
+
 (defun eplot--process-text-input (beg end replace-length)
-  ;;(message "After: %s %s %s" beg end replace-length)
-  (when-let* ((pos (and (< (1+ end) (point-max))
-		        (> (1- end) (point-min))
-		        (cond
-		         ((get-text-property (1+ end) 'input)
-			  (1+ end))
-		         ((get-text-property (1- end) 'input)
-			  (1- end))))))
-    (let* ((input (get-text-property pos 'input))
-	   (properties (text-properties-at pos))
-           (buffer-undo-list t)
-	   (inhibit-read-only t)
-	   (length (- end beg replace-length)))
-      (when input
-	(cond
-	 ((> length 0)
-	  ;; Delete some space at the end.
-	  (save-excursion
-	    (goto-char (eplot--end-of-field))
-	    (while (and (> length 0)
-			(eql (char-after (1- (point))) ? ))
-	      (delete-region (1- (point)) (point))
-	      (cl-decf length))))
-	 ((< length 0)
-	  ;; Add padding.
-	  (save-excursion
-	    (goto-char (1+ (eplot--end-of-field)))
-	    (let ((start (point)))
-              (insert (make-string (abs length) ? ))
-	      (set-text-properties start (point) properties))
-	    (goto-char (1- end)))))
-	(set-text-properties (plist-get input :start)
-                             (plist-get input :end)
-			     properties)
-	(let ((value (buffer-substring-no-properties
-		      (eplot--beginning-of-field)
-		      (eplot--end-of-field))))
-	  (when (string-match " +\\'" value)
-	    (setq value (substring value 0 (match-beginning 0))))
-	  (plist-put input :value value))))))
+  ;;(message "After: %s %s %s %s" beg end replace-length eplot--prev-deletion)
+  (let* ((length (- end beg replace-length))
+	 (input (if (> length 0)
+		    (get-text-property beg 'input)
+		  (get-text-property 0 'input eplot--prev-deletion)))
+	 (properties (if (> length 0)
+			 (text-properties-at beg)
+		       (text-properties-at 0 eplot--prev-deletion)))
+         (buffer-undo-list t)
+	 (inhibit-read-only t))
+    (when input
+      (cond
+       ((> length 0)
+	;; Delete some space at the end.
+	(save-excursion
+	  (goto-char (eplot--end-of-field))
+	  (while (and (> length 0)
+		      (eql (char-after (1- (point))) ? ))
+	    (delete-region (1- (point)) (point))
+	    (cl-decf length))))
+       ((< length 0)
+	;; Add padding.
+	(save-excursion
+	  (goto-char end)
+	  (let ((start (point)))
+            (insert (make-string (abs length) ? ))
+	    (set-text-properties start (point) properties))
+	  (goto-char (1- end)))))
+      (set-text-properties (plist-get input :start)
+                           (plist-get input :end)
+			   properties)
+      (let ((value (buffer-substring-no-properties
+		    (eplot--beginning-of-field)
+		    (eplot--end-of-field))))
+	(when (string-match " +\\'" value)
+	  (setq value (substring value 0 (match-beginning 0))))
+	(plist-put input :value value)))))
 
 (defun eplot--process-text-value (beg _end _replace-length)
   (when-let* ((input (get-text-property beg 'input)))
