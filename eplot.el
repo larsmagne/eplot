@@ -2609,7 +2609,7 @@ nil means `top-down'."
       (completion-at-point))
     ;; Completion was performed; nothing else to do.
     nil)
-   (t (indent-relative))))
+   (t (user-error "This slot doesn't have autocomplete"))))
 
 (defun eplot--input (name value face)
   (let ((start (point)))
