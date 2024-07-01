@@ -2391,7 +2391,7 @@ nil means `top-down'."
 		((eq type 'number)
 		 (read-number (format "Value for %s (%s): " action type)))
 		((string-match "color" (downcase action))
-		 (read-color (format "Value for %s (color): " action)))
+		 (eplot--read-color (format "Value for %s (color): " action)))
 		((string-match "font" (downcase action))
 		 (eplot--read-font-family
 		  (format "Value for %s (font family): " action)))
@@ -2410,8 +2410,8 @@ nil means `top-down'."
 
 (defun eplot--read-gradient (action)
   (format "%s %s %s %s"
-	  (read-color (format "%s from color: " action))
-	  (read-color (format "%s to color: " action))
+	  (eplot--read-color (format "%s from color: " action))
+	  (eplot--read-color (format "%s to color: " action))
 	  (completing-read (format "%s direction: " action)
 			   '(top-down bottom-up left-right right-left)
 			   nil t)
@@ -2475,10 +2475,7 @@ nil means `top-down'."
 	     (save-excursion
 	       (skip-chars-backward "^ " start)
 	       (point))
-	     end
-	     (if (display-color-p)
-		 (defined-colors-with-face-attributes nil t)
-	       (defined-colors)))
+	     end eplot--colors)
 	    'completion-attempted))
      (and (string-match "\\bfont\\b" (symbol-name name))
 	  (lambda ()
@@ -2759,6 +2756,37 @@ nil means `top-down'."
 				      (plist-get input :value))
 			       'eplot--input-default
 			     'eplot--input-changed))))))
+
+(defvar eplot--colors
+  '("aliceblue" "antiquewhite" "aqua" "aquamarine" "azure" "beige" "bisque"
+    "black" "blanchedalmond" "blue" "blueviolet" "brown" "burlywood"
+    "cadetblue" "chartreuse" "chocolate" "coral" "cornflowerblue" "cornsilk"
+    "crimson" "cyan" "darkblue" "darkcyan" "darkgoldenrod" "darkgray"
+    "darkgreen" "darkgrey" "darkkhaki" "darkmagenta" "darkolivegreen"
+    "darkorange" "darkorchid" "darkred" "darksalmon" "darkseagreen"
+    "darkslateblue" "darkslategray" "darkslategrey" "darkturquoise"
+    "darkviolet" "deeppink" "deepskyblue" "dimgray" "dimgrey" "dodgerblue"
+    "firebrick" "floralwhite" "forestgreen" "fuchsia" "gainsboro" "ghostwhite"
+    "gold" "goldenrod" "gray" "green" "greenyellow" "grey" "honeydew" "hotpink"
+    "indianred" "indigo" "ivory" "khaki" "lavender" "lavenderblush" "lawngreen"
+    "lemonchiffon" "lightblue" "lightcoral" "lightcyan" "lightgoldenrodyellow"
+    "lightgray" "lightgreen" "lightgrey" "lightpink" "lightsalmon"
+    "lightseagreen" "lightskyblue" "lightslategray" "lightslategrey"
+    "lightsteelblue" "lightyellow" "lime" "limegreen" "linen" "magenta"
+    "maroon" "mediumaquamarine" "mediumblue" "mediumorchid" "mediumpurple"
+    "mediumseagreen" "mediumslateblue" "mediumspringgreen" "mediumturquoise"
+    "mediumvioletred" "midnightblue" "mintcream" "mistyrose" "moccasin"
+    "navajowhite" "navy" "oldlace" "olive" "olivedrab" "orange" "orangered"
+    "orchid" "palegoldenrod" "palegreen" "paleturquoise" "palevioletred"
+    "papayawhip" "peachpuff" "peru" "pink" "plum" "powderblue" "purple" "red"
+    "rosybrown" "royalblue" "saddlebrown" "salmon" "sandybrown" "seagreen"
+    "seashell" "sienna" "silver" "skyblue" "slateblue" "slategray" "slategrey"
+    "snow" "springgreen" "steelblue" "tan" "teal" "thistle" "tomato"
+    "turquoise" "violet" "wheat" "white" "whitesmoke" "yellow" "yellowgreen"))
+
+(defun eplot--read-color (prompt)
+  "Read an SVG color."
+  (completing-read prompt eplot--colors))
 
 (eval `(transient-define-prefix eplot-customize ()
 	 "Customize Chart"
