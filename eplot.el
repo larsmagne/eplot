@@ -2449,19 +2449,34 @@ nil means `top-down'."
 	      (name (plist-get form :name))
 	      (spec (cdr (assq name (append eplot--plot-headers
 					    eplot--chart-headers)))))
-    (and (eq (plist-get spec :type) 'symbol)
-	 (lambda ()
-	   (let ((start (cdr (assq :start form))))
-	     (skip-chars-backward " " start)
-	     (let ((valid (plist-get spec :valid))
-		   (completion-ignore-case t))
-	       (completion-in-region
-		(save-excursion
-		  (skip-chars-backward "^ " start)
-		  (point))
-		(cdr (assq :end form))
-		(mapcar #'symbol-name valid))
-	       'completion-attempted))))))
+    (or
+     (and (eq (plist-get spec :type) 'symbol)
+	  (lambda ()
+	    (let ((start (cdr (assq :start form))))
+	      (skip-chars-backward " " start)
+	      (let ((valid (plist-get spec :valid))
+		    (completion-ignore-case t))
+		(completion-in-region
+		 (save-excursion
+		   (skip-chars-backward "^ " start)
+		   (point))
+		 (cdr (assq :end form))
+		 (mapcar #'symbol-name valid))
+		'completion-attempted))))
+     (and (string-match "color" (symbol-name name))
+	  (lambda ()
+	    (let ((start (cdr (assq :start form))))
+	      (skip-chars-backward " " start)
+	      (let ((completion-ignore-case t))
+		(completion-in-region
+		 (save-excursion
+		   (skip-chars-backward "^ " start)
+		   (point))
+		 (cdr (assq :end form))
+		 (if (display-color-p)
+		     (defined-colors-with-face-attributes nil t)
+		   (defined-colors)))
+		'completion-attempted)))))))
 
 (defun eplot-control-update ()
   "Update the chart based on the current settings."
