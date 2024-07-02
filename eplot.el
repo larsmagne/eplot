@@ -614,7 +614,7 @@ fully transparent.")
 (eplot-def (grid-position symbol bottom (bottom top))
   "Whether to put the grid on top or under the plot.")
 
-(eplot-def (legend symbol nil (t nil))
+(eplot-def (legend symbol nil (true nil))
   "Whether to do a legend.")
 
 (eplot-def (legend-color string (spec chart-color))
@@ -2323,19 +2323,19 @@ nil means `top-down'."
       ("gm" "Mode")
       ("gr" "Reset" eplot--reset-transient)
       ("gv" "Save" eplot--save-transient))
-     ("Legend, Axes & Grid"
-      ("ll" "Legend")
-      ("lb" "Legend-Background-Color")
-      ("lo" "Legend-Border-Color")
-      ("lc" "Legend-Color")
-      ("xs" "X-Axis-Title-Space")
+     ("Axes, Grid & Legend"
       ("xx" "X-Title")
       ("xy" "Y-Title")
       ("xf" "Label-Font")
       ("xz" "Label-Font-Size")
+      ("xs" "X-Axis-Title-Space")
       ("il" "Grid-Color")
       ("io" "Grid-Opacity")
-      ("ip" "Grid-Position"))
+      ("ip" "Grid-Position")
+      ("ll" "Legend")
+      ("lb" "Legend-Background-Color")
+      ("lo" "Legend-Border-Color")
+      ("lc" "Legend-Color"))
      ("Plot"
       ("ps" "Style")
       ("pc" "Color")
@@ -2344,7 +2344,6 @@ nil means `top-down'."
       ("pn" "Fill-Border-Color")
       ("pi" "Fill-Color")
       ("pg" "Gradient")
-      ("pn" "Name")
       ("pz" "Size")
       ("pm" "Smoothing")))))
 
@@ -2477,6 +2476,14 @@ nil means `top-down'."
 	       (skip-chars-backward "^ " start)
 	       (point))
 	     end eplot--colors)
+	    'completion-attempted))
+     (and (string-match "\\bfile\\b" (symbol-name name))
+	  (lambda ()
+	    (completion-in-region
+	     (save-excursion
+	       (skip-chars-backward "^ " start)
+	       (point))
+	     end (directory-files "."))
 	    'completion-attempted))
      (and (string-match "\\bfont\\b" (symbol-name name))
 	  (lambda ()
