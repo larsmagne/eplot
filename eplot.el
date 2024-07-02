@@ -2456,6 +2456,7 @@ nil means `top-down'."
   (add-hook 'before-change-functions #'eplot--process-text-input-before nil t)
   (add-hook 'after-change-functions #'eplot--process-text-value nil t)
   (add-hook 'after-change-functions #'eplot--process-text-input nil t)
+  (setq-local nobreak-char-display nil)
   (setq truncate-lines t))
 
 (defun eplot--complete-control ()
@@ -2543,6 +2544,7 @@ nil means `top-down'."
 		 (value
 		  (or (plist-get (prop-match-value match) :value)
 		      (plist-get (prop-match-value match) :original-value))))
+	    (setq value (string-replace "\u00A0" " " value))
 	    (push (cons name
 			(cl-case (plist-get spec :type)
 			  (number
@@ -2679,6 +2681,7 @@ nil means `top-down'."
 (defvar-keymap eplot--input-map
   :full t :parent text-mode-map
   "RET" #'eplot-control-update
+  "SPC" #'eplot-input-space
   "TAB" #'eplot-input-complete
   "C-a" #'eplot-move-beginning-of-input
   "C-e" #'eplot-move-end-of-input
@@ -2692,6 +2695,8 @@ nil means `top-down'."
       (completion-at-point))
     ;; Completion was performed; nothing else to do.
     nil)
+   ((not (get-text-property (point) 'input))
+    (eplot-control-next-input))
    (t
     (user-error "No completion in this field"))))
 
@@ -2715,7 +2720,12 @@ nil means `top-down'."
   (let ((end (1+ (eplot--end-of-field))))
     (kill-new (string-trim (buffer-substring (point) end)))
     (delete-region (point) end)))
-  
+
+(defun eplot-input-space ()
+  "Insert a space character."
+  (interactive)
+  (insert "\u00A0"))
+
 (defun eplot--input (name value face)
   (let ((start (point)))
     (insert value)
@@ -2828,7 +2838,17 @@ nil means `top-down'."
 	    (forward-char eplot--column-width)
 	    (if (get-text-property (point) 'input)
 		(forward-line 1)
-	      (insert text))))))))
+	      (insert text)
+	      ;; We have to fix up the markers.
+	      (save-excursion
+		(let* ((match (text-property-search-backward 'input))
+		       (input (prop-match-value match)))
+		  (plist-put input :start
+			     (set-marker (make-marker)
+					 (prop-match-beginning match)))
+		  (plist-put input :end
+			     (set-marker (make-marker)
+					 (prop-match-end match))))))))))))
 
 (defun eplot--process-text-value (beg _end _replace-length)
   (when-let* ((input (get-text-property beg 'input)))
