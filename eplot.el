@@ -2455,7 +2455,8 @@ nil means `top-down'."
 	      (cons 'eplot--complete-control completion-at-point-functions))
   (add-hook 'before-change-functions #'eplot--process-text-input-before nil t)
   (add-hook 'after-change-functions #'eplot--process-text-value nil t)
-  (add-hook 'after-change-functions #'eplot--process-text-input nil t))
+  (add-hook 'after-change-functions #'eplot--process-text-input nil t)
+  (setq truncate-lines t))
 
 (defun eplot--complete-control ()
   ;; Complete headers names.
@@ -2610,43 +2611,54 @@ nil means `top-down'."
 			    (end-of-line))
 			(forward-line 1)
 			(end-of-line))))
+		  ;; If we have a too-long input in the first column,
+		  ;; then go to the next line.
+		  (when (and (> cn 0)
+			     (> (- (point) (pos-bol))
+				(+ width 12 2)))
+		    (forward-line 1)
+		    (end-of-line))
 		  (insert (format (format "%%-%ds" (+ width 14))
 				  (propertize (pop row) 'face 'bold)))
 		  (if (looking-at "\n")
 		      (forward-line 1)				
 		    (insert "\n"))
-		  (cl-loop for elem in row
-			   for name = (cadr elem)
-			   for slot = (intern (downcase name))
-			   when (null (nth 2 elem))
-			   do
-			   (let* ((object (if (assq slot eplot--chart-headers)
-					      chart
-					    (car (slot-value chart 'plots))))
-				  (value
-				   (format
-				    "%s"
-				    (or (cdr (assq slot settings))
-					(if (not (slot-boundp object slot))
-					    ""
-					  (or (slot-value object slot)
-					      ""))))))
-			     (end-of-line)
-			     (when (and (> cn 0)
-					(bolp))
-			       (insert (format (format "%%-%ds" (+ width 14))
-					       "")
-				       "\n")
-			       (forward-line -1)
-			       (end-of-line))
-			     (insert (format (format "%%-%ds" (1+ width)) name))
-			     (eplot--input slot value
-					   (if (cdr (assq slot settings))
-					       'eplot--input-changed
-					     'eplot--input-default))
-			     (if (looking-at "\n")
-				 (forward-line 1)				
-			       (insert "\n")))))))
+		  (cl-loop
+		   for elem in row
+		   for name = (cadr elem)
+		   for slot = (intern (downcase name))
+		   when (null (nth 2 elem))
+		   do
+		   (let* ((object (if (assq slot eplot--chart-headers)
+				      chart
+				    (car (slot-value chart 'plots))))
+			  (value (format "%s"
+					 (or (cdr (assq slot settings))
+					     (if (not (slot-boundp object slot))
+						 ""
+					       (or (slot-value object slot)
+						   ""))))))
+		     (end-of-line)
+		     ;; If we have a too-long input in the first column,
+		     ;; then go to the next line.
+		     (when (and (> cn 0)
+				(> (- (point) (pos-bol))
+				   (+ width 12 2)))
+		       (forward-line 1)
+		       (end-of-line))
+		     (when (and (> cn 0)
+				(bolp))
+		       (insert (format (format "%%-%ds" (+ width 14)) "") "\n")
+		       (forward-line -1)
+		       (end-of-line))
+		     (insert (format (format "%%-%ds" (1+ width)) name))
+		     (eplot--input slot value
+				   (if (cdr (assq slot settings))
+				       'eplot--input-changed
+				     'eplot--input-default))
+		     (if (looking-at "\n")
+			 (forward-line 1)				
+		       (insert "\n")))))))
       (goto-char (point-min)))))
 
 (defface eplot--input-default
@@ -2782,7 +2794,9 @@ nil means `top-down'."
 	      (while (and (> trim 0)
 			  (eql (char-after (1- (point))) ? ))
 		(delete-region (1- (point)) (point))
-		(cl-decf trim)))))))
+		(cl-decf trim))
+	      (when (> trim 0)
+		(eplot--possibly-open-column)))))))
       ;; We re-set the properties so that they are continguous.  This
       ;; somehow makes the machinery that decides whether we can kill
       ;; a word work better.
@@ -2795,6 +2809,24 @@ nil means `top-down'."
 	(when (string-match " +\\'" value)
 	  (setq value (substring value 0 (match-beginning 0))))
 	(plist-put input :value value)))))
+
+(defun eplot--possibly-open-column ()
+  (save-excursion
+    (when-let ((input (get-text-property (point) 'input)))
+      (goto-char (plist-get input :end)))
+    (unless (looking-at " *\n")
+      (skip-chars-forward " ")
+      (let ((column (1- (- (point) (pos-bol)))))
+	(while (not (eobp))
+	  (let ((text (buffer-substring (point) (pos-eol))))
+	    (delete-region (point) (pos-eol))
+	    (forward-line 1)
+	    (if (eobp)
+		(insert (make-string column ?\s) text "\n")
+	      (forward-char column)
+	      (if (get-text-property (point) 'input)
+		  (forward-line 1)
+		(insert text)))))))))
 
 (defun eplot--process-text-value (beg _end _replace-length)
   (when-let* ((input (get-text-property beg 'input)))
