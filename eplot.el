@@ -2641,7 +2641,9 @@ nil means `top-down'."
 (defvar-keymap eplot--input-map
   :full t :parent text-mode-map
   "RET" #'eplot-control-update
-  "TAB" #'eplot-input-complete)
+  "TAB" #'eplot-input-complete
+  "C-a" #'eplot-move-beginning-of-input
+  "C-e" #'eplot-move-end-of-input)
 
 (defun eplot-input-complete ()
   "Complete values in inputs."
@@ -2653,6 +2655,16 @@ nil means `top-down'."
     nil)
    (t (user-error "This slot doesn't have autocomplete"))))
 
+(defun eplot-move-beginning-of-input ()
+  "Move to the start of the current input field."
+  (interactive)
+  (goto-char (eplot--beginning-of-field)))
+  
+(defun eplot-move-end-of-input ()
+  "Move to the end of the current input field."
+  (interactive)
+  (goto-char (eplot--end-of-field)))
+  
 (defun eplot--input (name value face)
   (let ((start (point)))
     (insert value)
