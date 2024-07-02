@@ -912,6 +912,11 @@ Elements allowed are `two-values', `date' and `time'.")
 			     :values (cdr (assq :values data)))))
     ;; Get the program-defined defaults.
     (eplot--object-defaults plot eplot--plot-headers)
+    ;; One special case:
+    (when (or (eq (eplot--vs 'mode data) 'dark)
+	      (eq (cdr (assq 'mode eplot--user-defaults)) 'dark))
+      (setf (slot-value plot 'color) "white"))
+    ;; Use the headers.
     (eplot--object-values plot (cdr (assq :headers data)) eplot--plot-headers)
     plot))
 
