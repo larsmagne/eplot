@@ -2696,6 +2696,9 @@ nil means `top-down'."
 			     :start (set-marker (make-marker) start)
 			     :end (point-marker)))
     (put-text-property start (point) 'local-map eplot--input-map)
+    ;; This seems like a NOOP, but redoing the properties like this
+    ;; somehow makes `delete-region' work better.
+    (set-text-properties start (point) (text-properties-at start))
     (insert " ")))
 
 (defun eplot--end-of-field ()
