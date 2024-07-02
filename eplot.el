@@ -2707,49 +2707,49 @@ nil means `top-down'."
     (setq eplot--prev-deletion (buffer-substring beg end)))))
 
 (defun eplot--process-text-input (beg end replace-length)
-  ;;(message "After: %s %s %s %s" beg end replace-length eplot--prev-deletion)
-  (let* ((length (- end beg replace-length))
-	 (input (if (> length 0)
-		    (or (get-text-property beg 'input)
-			(get-text-property end 'input))
-		  (get-text-property 0 'input eplot--prev-deletion)))
-	 (properties (if (> length 0)
-			 (or (text-properties-at beg)
-			     (text-properties-at end))
-		       (text-properties-at 0 eplot--prev-deletion)))
-	 (some-left (or (get-text-property beg 'input)
-			(get-text-property end 'input)))
-	 (buffer-undo-list t)
-	 (inhibit-read-only t))
-    (when input
+  (message "After: %s %s %s %s" beg end replace-length eplot--prev-deletion)
+  (when-let ((props (if eplot--prev-deletion
+			(text-properties-at 0 eplot--prev-deletion)
+		      (if (get-text-property end 'input)
+			  (text-properties-at end)
+			(text-properties-at beg))))
+	     (input (plist-get props 'input)))
+    ;; The action concerns something in the input field.
+    (let ((buffer-undo-list t)
+	  (inhibit-read-only t)
+	  (size (plist-get input :size)))
       (save-excursion
-	(when some-left
-	  (goto-char (eplot--end-of-field)))
-	(let ((trim (if some-left
-			(- (1+ (eplot--end-of-field))
-			   (eplot--beginning-of-field)
-			   (plist-get input :size))
-		      (- (length eplot--prev-deletion)))))
-	  (cond
-	   ;; Delete some space at the end.
-	   ((> trim 0)
-	    (while (and (> trim 0)
-			(eql (char-after (1- (point))) ? ))
-	      (delete-region (1- (point)) (point))
-	      (cl-decf trim)))
-	   ;; Or add some padding at the end.
-	   ((< trim 0)
-	    (insert (make-string (abs trim) ?\s))))))
-      ;; Restore text properties to the field.
-      (if some-left
-	  (set-text-properties (plist-get input :start)
-                               (plist-get input :end)
-			       properties)
-	;; We've deleted the entire field, so redo markers.
-	(let ((end (+ (point) (length eplot--prev-deletion))))
-	  (set-text-properties (point) end properties)
-	  (plist-put input :start (point-marker))
-	  (plist-put input :end (set-marker (make-marker) end))))
+	(cond
+	 ;; The field has been completely deleted -- reinsert it.
+	 ((length= eplot--prev-deletion 12)
+	  (insert (apply #'propertize (make-string size ?\s) props))
+	  ;; We've deleted the entire field, so redo markers.)
+	  (plist-put input :start (set-marker (make-marker)
+					      (- (point) size)))
+	  (plist-put input :end (point-marker)))
+	 ;; Adjust the length of the field.
+	 (t
+	  (set-text-properties beg end props)
+	  (goto-char (eplot--end-of-field))
+	  (let* ((remains (1+ (- (point) (eplot--beginning-of-field))))
+		 (trim (- size remains)))
+	    (if (< remains size)
+		;; We need to add some padding.
+		(insert (apply #'propertize (make-string trim ?\s)
+			       props))
+	      ;; We need to delete some padding, but only delete
+	      ;; spaces at the end.
+	      (setq trim (abs trim))
+	      (while (and (> trim 0)
+			  (eql (char-after (1- (point))) ? ))
+		(delete-region (1- (point)) (point))
+		(cl-decf trim)))))))
+      ;; We re-set the properties so that they are continguous.  This
+      ;; somehow makes the machinery that decides whether we can kill
+      ;; a word work better.
+      (set-text-properties (eplot--beginning-of-field)
+			   (eplot--end-of-field) props)
+      ;; Compute what the value is now.
       (let ((value (buffer-substring-no-properties
 		    (eplot--beginning-of-field)
 		    (eplot--end-of-field))))
