@@ -2771,7 +2771,7 @@ nil means `top-down'."
     (setq eplot--prev-deletion (buffer-substring beg end)))))
 
 (defun eplot--process-text-input (beg end replace-length)
-  (message "After: %s %s %s %s" beg end replace-length eplot--prev-deletion)
+  ;;(message "After: %s %s %s %s" beg end replace-length eplot--prev-deletion)
   (when-let ((props (if eplot--prev-deletion
 			(text-properties-at 0 eplot--prev-deletion)
 		      (if (get-text-property end 'input)
@@ -2785,7 +2785,7 @@ nil means `top-down'."
       (save-excursion
 	(cond
 	 ;; The field has been completely deleted -- reinsert it.
-	 ((length= eplot--prev-deletion size)
+	 ((>= (length eplot--prev-deletion) size)
 	  (insert (apply #'propertize (make-string size ?\s) props))
 	  ;; We've deleted the entire field, so redo markers.)
 	  (plist-put input :start (set-marker (make-marker)
