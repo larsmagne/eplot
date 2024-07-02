@@ -2439,7 +2439,8 @@ nil means `top-down'."
       (write-region (point-min) (point-max) file))))
 
 (defvar-keymap eplot-control-mode-map
-  "C-r" #'eplot-control-update)
+  "C-r" #'eplot-control-update
+  "TAB" #'eplot-input-complete)
 
 (define-derived-mode eplot-control-mode special-mode "eplot control"
   (setq-local completion-at-point-functions
@@ -2501,7 +2502,7 @@ nil means `top-down'."
 	(call-process "fc-list" nil t nil ":" "family")
 	(goto-char (point-min))
 	(while (re-search-forward "^\\([^,\n]+\\)" nil t)
-	  (push (match-string 1) fonts)))
+	  (push (downcase (match-string 1)) fonts)))
       (seq-uniq (sort fonts #'string<)))))
 
 (defun eplot-control-update ()
@@ -2643,7 +2644,8 @@ nil means `top-down'."
   "RET" #'eplot-control-update
   "TAB" #'eplot-input-complete
   "C-a" #'eplot-move-beginning-of-input
-  "C-e" #'eplot-move-end-of-input)
+  "C-e" #'eplot-move-end-of-input
+  "C-k" #'eplot-kill-input)
 
 (defun eplot-input-complete ()
   "Complete values in inputs."
@@ -2653,17 +2655,30 @@ nil means `top-down'."
       (completion-at-point))
     ;; Completion was performed; nothing else to do.
     nil)
-   (t (user-error "This slot doesn't have autocomplete"))))
+   (t
+    (when-let ((match (text-property-search-forward 'input)))
+      (goto-char (prop-match-beginning match))))))
 
 (defun eplot-move-beginning-of-input ()
   "Move to the start of the current input field."
   (interactive)
-  (goto-char (eplot--beginning-of-field)))
+  (if (= (point) (eplot--beginning-of-field))
+      (goto-char (pos-bol))
+    (goto-char (eplot--beginning-of-field))))
   
 (defun eplot-move-end-of-input ()
   "Move to the end of the current input field."
   (interactive)
-  (goto-char (eplot--end-of-field)))
+  (if (= (point) (eplot--end-of-field))
+      (goto-char (pos-eol))
+    (goto-char (eplot--end-of-field))))
+
+(defun eplot-kill-input ()
+  "Remove the part of the input after point."
+  (interactive)
+  (let ((end (eplot--end-of-field)))
+    (kill-new (string-trim (buffer-substring (point) end)))
+    (delete-region (point) end)))
   
 (defun eplot--input (name value face)
   (let ((start (point)))
