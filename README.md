@@ -23,7 +23,26 @@ Then say `M-x eplot' in this buffer, and you'll get this displayed:
 
 ![trivial-very-short.plt](/images/trivial-very-short.svg)
 
-To tweak the look of the chart, you add header lines to the buffer.
+To tweak the look of the chart, there are three possibilities:
+
+* You can use the `c' command in the eplot buffer or the `C-c C-v'
+  command in the plt buffer.  This command prompts you for values
+  using a Transient interface.
+  
+* You can use the `l' command in the eplot buffer.  This pops up an
+  auxiliary "Controls" buffer that lists all the default different
+  things that can be changed.  Hit the Return key after changing
+  anything to see an updated chart.
+  
+* Finally, you can put headers into the file that describes the look
+  of the chart.
+
+Below, this final method is used in all the examples, because that's
+convenient when going through lots of different settings in the
+manual, but I'm guessing most users might want to use one of the two
+first methods (which can be mixed -- you can do some settings via
+Transient and some via the Controls buffer).
+
 In most of the examples below, the following header lines are present,
 and are not included in the code examples:
 
