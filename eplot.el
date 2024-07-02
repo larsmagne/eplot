@@ -912,10 +912,10 @@ Elements allowed are `two-values', `date' and `time'.")
 			     :values (cdr (assq :values data)))))
     ;; Get the program-defined defaults.
     (eplot--object-defaults plot eplot--plot-headers)
-    ;; One special case:
+    ;; One special case.  I don't think this hack is quite right...
     (when (or (eq (eplot--vs 'mode data) 'dark)
 	      (eq (cdr (assq 'mode eplot--user-defaults)) 'dark))
-      (setf (slot-value plot 'color) "white"))
+      (setf (slot-value plot 'color) "#c0c0c0"))
     ;; Use the headers.
     (eplot--object-values plot (cdr (assq :headers data)) eplot--plot-headers)
     plot))
@@ -2443,8 +2443,8 @@ nil means `top-down'."
       (write-region (point-min) (point-max) file))))
 
 (defvar-keymap eplot-control-mode-map
-  "C-r" #'eplot-control-update
-  "TAB" #'eplot-input-complete)
+  "RET" #'eplot-control-update
+  "TAB" #'eplot-control-next-input)
 
 (define-derived-mode eplot-control-mode special-mode "eplot control"
   (setq-local completion-at-point-functions
@@ -2516,6 +2516,12 @@ nil means `top-down'."
 	(while (re-search-forward "^\\([^,\n]+\\)" nil t)
 	  (push (downcase (match-string 1)) fonts)))
       (seq-uniq (sort fonts #'string<)))))
+
+(defun eplot-control-next-input ()
+  "Go to the next input field."
+  (interactive)
+  (when-let ((match (text-property-search-forward 'input)))
+    (goto-char (prop-match-beginning match))))
 
 (defun eplot-control-update ()
   "Update the chart based on the current settings."
@@ -2668,8 +2674,7 @@ nil means `top-down'."
     ;; Completion was performed; nothing else to do.
     nil)
    (t
-    (when-let ((match (text-property-search-forward 'input)))
-      (goto-char (prop-match-beginning match))))))
+    (user-error "No completion in this field"))))
 
 (defun eplot-move-beginning-of-input ()
   "Move to the start of the current input field."
