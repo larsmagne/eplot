@@ -694,7 +694,8 @@ and `frame' (the surrounding area).")
     (grid-color "#404040")
     (background-color "#101010")
     (label-color "#c0c0c0")
-    (legend-color "#c0c0c0")))
+    (legend-color "#c0c0c0")
+    (title-color "#c0c0c0")))
 
 (defvar eplot-bar-chart-defaults
   '((grid-position top)
@@ -1121,7 +1122,10 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
     (with-slots ( background-image-file background-image-opacity
 		  background-image-cover)
 	chart
-      (when background-image-file
+      (when (and background-image-file
+		 ;; Sanity checks to avoid erroring out later.
+		 (file-exists-p background-image-file)
+		 (file-regular-p background-image-file))
 	(apply #'svg-embed svg background-image-file "image/jpeg" nil
 	       :opacity background-image-opacity
 	       :preserveAspectRatio "xMidYMid slice"
@@ -2693,7 +2697,7 @@ nil means `top-down'."
 (defun eplot-kill-input ()
   "Remove the part of the input after point."
   (interactive)
-  (let ((end (eplot--end-of-field)))
+  (let ((end (1+ (eplot--end-of-field))))
     (kill-new (string-trim (buffer-substring (point) end)))
     (delete-region (point) end)))
   
@@ -2756,7 +2760,7 @@ nil means `top-down'."
       (save-excursion
 	(cond
 	 ;; The field has been completely deleted -- reinsert it.
-	 ((length= eplot--prev-deletion 12)
+	 ((length= eplot--prev-deletion size)
 	  (insert (apply #'propertize (make-string size ?\s) props))
 	  ;; We've deleted the entire field, so redo markers.)
 	  (plist-put input :start (set-marker (make-marker)
@@ -2764,9 +2768,9 @@ nil means `top-down'."
 	  (plist-put input :end (point-marker)))
 	 ;; Adjust the length of the field.
 	 (t
-	  (set-text-properties beg end props)
-	  (goto-char (eplot--end-of-field))
-	  (let* ((remains (1+ (- (point) (eplot--beginning-of-field))))
+	  (set-text-properties beg (plist-get input :end) props)
+	  (goto-char (1- (plist-get input :end)))
+	  (let* ((remains (1+ (- (point) (plist-get input :start))))
 		 (trim (- size remains)))
 	    (if (< remains size)
 		;; We need to add some padding.
@@ -2782,12 +2786,12 @@ nil means `top-down'."
       ;; We re-set the properties so that they are continguous.  This
       ;; somehow makes the machinery that decides whether we can kill
       ;; a word work better.
-      (set-text-properties (eplot--beginning-of-field)
-			   (eplot--end-of-field) props)
+      (set-text-properties (plist-get input :start)
+			   (plist-get input :end) props)
       ;; Compute what the value is now.
       (let ((value (buffer-substring-no-properties
-		    (eplot--beginning-of-field)
-		    (eplot--end-of-field))))
+		    (plist-get input :start)
+		    (plist-get input :end))))
 	(when (string-match " +\\'" value)
 	  (setq value (substring value 0 (match-beginning 0))))
 	(plist-put input :value value)))))
