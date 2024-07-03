@@ -819,12 +819,16 @@ again at 75%, before ending up at black at a 100% (but you don't
 have to include the 100% here -- it's understood).")
 
 (eplot-pdef (style symbol line ( line impulse point square circle cross
-				 triangle rectangle))
+				 triangle rectangle curve))
   "Style the plot should be drawn in.
 Valid values are listed below.  Some styles take additional
 optional parameters.
 
 line
+  Straight lines between values.
+
+curve
+  Curved lines between values.
 
 impulse
   size: width of the impulse
@@ -1852,6 +1856,8 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 		     (svg-line svg lpx lpy px py
 			       :clip-path clip-id
 			       :stroke color))))
+		(curve
+		 (push (cons px py) polygon))
 		(square
 		 (if gradient
 		     (progn
@@ -1908,8 +1914,8 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 	      (setq lpy py
 		    lpx px))
 
-	     ;; We're doing a gradient of some kind, so draw it now when
-	     ;; we've collected the polygon.
+	     ;; We're doing a gradient of some kind (or a curve), so
+	     ;; draw it now when we've collected the polygon.
 	     (when polygon
 	       ;; We have a "between" chart, so collect the data points
 	       ;; from the "extra" values, too.
@@ -1934,20 +1940,45 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 		       (push (cons lpx py) polygon))
 		     (push (cons px py) polygon)))
 		  (setq lpx px lpy py)))
-
-	       (if (eq (eplot--vs 'position gradient) 'above)
-		   (push (cons lpx margin-top) polygon)
-		 (push (cons lpx (- height margin-bottom)) polygon))
+	       (when gradient
+		 (if (eq (eplot--vs 'position gradient) 'above)
+		     (push (cons lpx margin-top) polygon)
+		   (push (cons lpx (- height margin-bottom)) polygon)))
 	       (let ((id (format "gradient-%d" plot-number)))
-		 (eplot--gradient svg id 'linear
-				  (eplot--stops (eplot--vs 'from gradient)
-						(eplot--vs 'to gradient))
-				  (eplot--vs 'direction gradient))
-		 (svg-polygon svg (nreverse polygon)
-			      :clip-path clip-id
-			      :gradient id
-			      :stroke (slot-value plot 'fill-border-color))
-		 (setq polygon nil))))))
+		 (when gradient
+		   (eplot--gradient svg id 'linear
+				    (eplot--stops (eplot--vs 'from gradient)
+						  (eplot--vs 'to gradient))
+				    (eplot--vs 'direction gradient)))
+		 (if (eq style 'curve)
+		     (apply #'svg-path svg
+			    (nconc
+			     (cl-loop with prev-x
+				      with prev-y
+				      for (x . y) in (nreverse polygon)
+				      for i from 0
+				      collect
+				      (cond
+				       ((zerop i)
+					`(moveto ((,x . ,y))))
+				       (t
+					`(smooth-curveto
+					  ((,(/ (+ prev-x x) 2)
+					    ,(/ (+ prev-y y) 2)
+					    ,x ,y)))))
+				      do (setq prev-x x
+					       prev-y y))
+			     (and gradient '((closepath))))
+			     `(;;:clip-path ,clip-id
+			       :stroke ,(slot-value plot 'color)
+			       ,@(if gradient
+				     `(:gradient ,id)
+				   `(:fill "none"))))
+		   (svg-polygon svg (nreverse polygon)
+				:clip-path clip-id
+				:gradient id
+				:stroke (slot-value plot 'fill-border-color))
+		   (setq polygon nil)))))))
 
 (defun eplot--stops (from to)
   (append `((0 . ,from))
@@ -2770,7 +2801,7 @@ nil means `top-down'."
    ((> end beg)
     (setq eplot--prev-deletion (buffer-substring beg end)))))
 
-(defun eplot--process-text-input (beg end replace-length)
+(defun eplot--process-text-input (beg end _replace-length)
   ;;(message "After: %s %s %s %s" beg end replace-length eplot--prev-deletion)
   (when-let ((props (if eplot--prev-deletion
 			(text-properties-at 0 eplot--prev-deletion)
