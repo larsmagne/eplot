@@ -83,9 +83,12 @@ takes a Bezier-Factor.  If you up this too much, you get amusing
 results:
 
 	Style: curve
+	Gradient: red black
 	Bezier-Factor: 0.8
 
 ![chart-curve2.plt](/images/chart-cirve2.svg)
+
+And you can add a gradient to curve plots, too.
 
 	Style: triangle
 	Fill-Color: #c0c0c0
