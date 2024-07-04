@@ -892,10 +892,14 @@ Elements allowed are `two-values', `date' and `time'.")
 (eplot-pdef (legend-color string (spec chart-color))
   "Color for the name to be displayed in the legend.")
 
+(eplot-pdef (bezier-factor number 0.1)
+  "The Bezier factor to apply to curve plots.")
+
 (defclass eplot-plot ()
   (
    (values :initarg :values)
    ;; ---- CUT HERE ----
+   (bezier-factor :initarg :bezier-factor :initform nil)
    (color :initarg :color :initform nil)
    (data-column :initarg :data-column :initform nil)
    (data-file :initarg :data-file :initform nil)
@@ -1963,7 +1967,9 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 						   ,(cdr (elt points 0))))))
 				       (t
 					`(curveto
-					  (,(eplot--bezier 0.1 i points))))))
+					  (,(eplot--bezier
+					     (slot-value plot 'bezier-factor)
+					     i points))))))
 			     (and gradient '((closepath))))
 			    `(:clip-path ,clip-id
 			      :stroke ,(slot-value plot 'color)

@@ -74,6 +74,19 @@ default is the "line" Style.
 
 ![chart-square.plt](/images/chart-square.svg)
 
+	Style: curve
+
+![chart-curve1.plt](/images/chart-cirve1.svg)
+
+This uses a Bezier curve to draw a smooth line between points.  It
+takes a Bezier-Factor.  If you up this too much, you get amusing
+results:
+
+	Style: curve
+	Bezier-Factor: 0.8
+
+![chart-curve2.plt](/images/chart-cirve2.svg)
+
 	Style: triangle
 	Fill-Color: #c0c0c0
 
