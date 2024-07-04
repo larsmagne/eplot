@@ -1953,32 +1953,24 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 		 (if (eq style 'curve)
 		     (apply #'svg-path svg
 			    (nconc
-			     (cl-loop with prev-x
-				      with prev-y
-				      for (x . y) in (nreverse polygon)
-				      for i from 0
+			     (cl-loop with points = (cl-coerce
+						     (nreverse polygon) 'vector)
+				      for i from 0 upto (1- (length points))
 				      collect
 				      (cond
 				       ((zerop i)
-					`(moveto ((,x . ,y))))
+					`(moveto ((,(car (elt points 0)) .
+						   ,(cdr (elt points 0))))))
 				       (t
-					`(smooth-curveto
-					  ((,(/ (+ prev-x x) 2)
-					    ,(/ (+ prev-y y) 2)
-					    ,x ,y)))))
-				      do (setq prev-x x
-					       prev-y y))
+					`(curveto
+					  (,(eplot--bezier 0.1 i points))))))
 			     (and gradient '((closepath))))
-			     `(;;:clip-path ,clip-id
-			       :stroke ,(slot-value plot 'color)
-			       ,@(if gradient
-				     `(:gradient ,id)
-				   `(:fill "none"))))
-		   (svg-polygon svg (nreverse polygon)
-				:clip-path clip-id
-				:gradient id
-				:stroke (slot-value plot 'fill-border-color))
-		   (setq polygon nil)))))))
+			    `(:clip-path ,clip-id
+			      :stroke ,(slot-value plot 'color)
+			      ,@(if gradient
+				    `(:gradient ,id)
+				  `(:fill "none"))))
+		   (svg-polygon svg (nreverse polygon))))))))
 
 (defun eplot--stops (from to)
   (append `((0 . ,from))
@@ -2927,6 +2919,37 @@ nil means `top-down'."
 (eval `(transient-define-prefix eplot-customize ()
 	 "Customize Chart"
 	 ,@(eplot--define-transients)))
+
+(defun eplot--bezier (factor i points)
+  (let* ((start (elt points (1- i)))
+	 (end (elt points i))
+	 (prev (if (< (- i 2) 0)
+		   start
+		 (elt points (- i 2))))
+	 (next (if (> (1+ i) (1- (length points)))
+		   end
+		 (elt points (1+ i))))
+	 (start-control-point
+	  (eplot--padd start (eplot--pscale factor (eplot--psub end prev))))
+	 (end-control-point
+	  (eplot--padd end (eplot--pscale factor (eplot--psub start next)))))
+    (list (car start-control-point)
+	  (cdr start-control-point)
+	  (car end-control-point)
+	  (cdr end-control-point)
+	  (car end)
+	  (cdr end))))
+
+(defun eplot--padd (p1 p2)
+  (cons (+ (car p1) (car p2))
+	(+ (cdr p1) (cdr p2))))
+
+(defun eplot--psub (p1 p2)
+  (cons (- (car p1) (car p2))
+	(- (cdr p1) (cdr p2))))
+
+(defun eplot--pscale (factor point)
+  (cons (* factor (car point)) (* factor (cdr point))))
 
 (provide 'eplot)
 
