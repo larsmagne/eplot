@@ -56,9 +56,9 @@ examples in this manual, it's more convenient to show smaller, more
 compact charts.
 
 You don't need to have the actual chart data in the .plt file --
-instead you can specify the location with a Data: plot header:
+instead you can specify the location with a Data-File: plot header:
 
-	Data: data1.txt
+	Data-File: data1.txt
 
 ![chart-simple.plt](/images/chart-simple.svg)
 
@@ -109,11 +109,11 @@ That's all the basic plotting styles.
 You can have several plots in one chart, with their own styles and
 colors.
 
-	Data: data1.txt
+	Data-File: data1.txt
 	
 	Style: impulse
 	Color: blue
-	Data: data2.txt
+	Data-File: data2.txt
 
 ![chart-two-plots.plt](/images/chart-two-plots.svg)
 
@@ -130,7 +130,7 @@ between some pre-defined legible colors:
 The "vary" isn't useful on all plot styles:
 
 	Color: vary
-	Data: data1.txt
+	Data-File: data1.txt
 
 ![chart-segment.plt](/images/chart-segment.svg)
 
@@ -205,7 +205,7 @@ the data in between:
 	Style: square
 	Fill-Color: lightblue
 	Fill-Border-Color: black
-	Data: data-between.txt
+	Data-File: data-between.txt
 
 ![chart-between2.plt](/images/chart-between2.svg)
 
@@ -215,7 +215,7 @@ the data in between:
 	Data-Format: two-values
 	Style: square
 	Gradient: red black
-	Data: data-between.txt
+	Data-File: data-between.txt
 
 ![chart-between1.plt](/images/chart-between1.svg)
 
@@ -248,14 +248,14 @@ an example:
 	Axes-Color: black
 	Title-Color: red
 
-	Data: data1.txt
+	Data-File: data1.txt
 
 ![chart-color.plt](/images/chart-color.svg)
 
 Go wild!  But preferably not that wild.
 
 	Gradient: black red
-	Data: data1.txt
+	Data-File: data1.txt
 
 ![chart-gradient1.plt](/images/chart-gradient1.svg)
 
@@ -263,19 +263,19 @@ You can also plot the data using gradients.
 
 	Gradient: black red
 	Style: square
-	Data: data1.txt
+	Data-File: data1.txt
 
 ![chart-gradient-square.plt](/images/chart-gradient-square.svg)
 
 You can put the gradient above the chart instead:
 
 	Gradient: black red top-down above
-	Data: data1.txt
+	Data-File: data1.txt
 
 ![chart-gradient2.plt](/images/chart-gradient2.svg)
 
 	Gradient: black red bottom-up
-	Data: data1.txt
+	Data-File: data1.txt
 
 ![chart-gradient3.plt](/images/chart-gradient3.svg)
 
@@ -283,31 +283,31 @@ You can specify the direction -- this one is basically just swapping the
 order of the colors.
 
 	Gradient: black red right-left above
-	Data: data1.txt
+	Data-File: data1.txt
 
 ![chart-gradient4.plt](/images/chart-gradient4.svg)
 
 But also right-left...
 
 	Gradient: black red left-right below
-	Data: data1.txt
+	Data-File: data1.txt
 
 ![chart-gradient6.plt](/images/chart-gradient6.svg)
 
 ... and left-right.
 
 	Gradient: black red bottom-up above
-	Data: data1.txt
+	Data-File: data1.txt
 	
 	Gradient: black red top-down below
-	Data: data1.txt
+	Data-File: data1.txt
 
 ![chart-gradient5.plt](/images/chart-gradient5.svg)
 
 And below the plot.
 
 	Gradient: black red left-right above
-	Data: data1.txt
+	Data-File: data1.txt
 
 ![chart-two-gradient1.plt](/images/chart-two-gradient1.svg)
 
@@ -315,10 +315,10 @@ You can plot the same data set twice with different gradients to get
 interesting results.
 
 	Gradient: black red left-right above
-	Data: data1.txt
+	Data-File: data1.txt
 	
 	Gradient: black red bottom-up
-	Data: data1.txt
+	Data-File: data1.txt
 
 ![chart-two-gradient2.plt](/images/chart-two-gradient2.svg)
 
@@ -326,10 +326,10 @@ interesting results.
 	Grid-Color: black
 	
 	Gradient: #000030 blue left-right above
-	Data: data1.txt
+	Data-File: data1.txt
 	
 	Gradient: black red top-down below
-	Data: data1.txt
+	Data-File: data1.txt
 
 ![chart-two-gradient3.plt](/images/chart-two-gradient3.svg)
 
@@ -340,10 +340,10 @@ top of the charts.
 	Grid-Color: #803030
 	
 	Gradient: green blue top-down above
-	Data: data1.txt
+	Data-File: data1.txt
 	
 	Gradient: yellow red top-down below
-	Data: data1.txt
+	Data-File: data1.txt
 
 ![chart-two-gradient4.plt](/images/chart-two-gradient4.svg)
 
@@ -354,10 +354,10 @@ Craazy.
 	Grid-Opacity: 0.2
 
 	Gradient: #000030 blue left-right above
-	Data: data1.txt
+	Data-File: data1.txt
 
 	Gradient: black red top-down below
-	Data: data1.txt
+	Data-File: data1.txt
 
 ![chart-two-gradient5.plt](/images/chart-two-gradient5.svg)
 
@@ -365,7 +365,7 @@ But when putting the grid on top like this, it's usually more visually
 pleasant to make the grid non-opaque.
 
 	Gradient: black 25-purple-50-white-75-purple-black
-	Data: data1.txt
+	Data-File: data1.txt
 
 ![chart-gradient-more-stops.plt](/images/chart-gradient-more-stops.svg)
 
@@ -381,7 +381,7 @@ then it's back to purple again at 75%, before ending up at black at a
 	Margin-Bottom: 40
 	Grid-Position: top
 
-	Data: data1.txt
+	Data-File: data1.txt
 
 ![chart-labels.plt](/images/chart-labels.svg)
 
@@ -416,7 +416,7 @@ Similarly, you can also do intra-day time plots -- this takes a HHMMSS
 format.
 
 	Data-Format: xy
-	Data: data-circle.txt
+	Data-File: data-circle.txt
 
 ![chart-xy-circle.plt](/images/chart-xy-circle.svg)
 
