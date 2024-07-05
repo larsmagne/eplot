@@ -2947,12 +2947,10 @@ nil means `top-down'."
 	  (cdr end))))
 
 (defun eplot--padd (p1 p2)
-  (cons (+ (car p1) (car p2))
-	(+ (cdr p1) (cdr p2))))
+  (cons (+ (car p1) (car p2)) (+ (cdr p1) (cdr p2))))
 
 (defun eplot--psub (p1 p2)
-  (cons (- (car p1) (car p2))
-	(- (cdr p1) (cdr p2))))
+  (cons (- (car p1) (car p2)) (- (cdr p1) (cdr p2))))
 
 (defun eplot--pscale (factor point)
   (cons (* factor (car point)) (* factor (cdr point))))
