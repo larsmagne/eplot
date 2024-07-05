@@ -76,7 +76,7 @@ default is the "line" Style.
 
 	Style: curve
 
-![chart-curve1.plt](/images/chart-cirve1.svg)
+![chart-curve1.plt](/images/chart-curve1.svg)
 
 This uses a Bezier curve to draw a smooth line between points.  It
 takes a Bezier-Factor.  If you up this too much, you get amusing
@@ -86,7 +86,7 @@ results:
 	Gradient: red black
 	Bezier-Factor: 0.8
 
-![chart-curve2.plt](/images/chart-cirve2.svg)
+![chart-curve2.plt](/images/chart-curve2.svg)
 
 And you can add a gradient to curve plots, too.
 
