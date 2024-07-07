@@ -2499,7 +2499,7 @@ nil means `top-down'."
 	      (spec (cdr (assq name (append eplot--plot-headers
 					    eplot--chart-headers))))
 	      (start (plist-get input :start))
-	      (end (plist-get input :end))
+	      (end (1- (plist-get input :end)))
 	      (completion-ignore-case t))
     (skip-chars-backward " " start)
     (or
@@ -2767,7 +2767,7 @@ nil means `top-down'."
 			     :original-value value
 			     :original-face face
 			     :start (set-marker (make-marker) start)
-			     :end (point-marker)
+			     :end (set-marker (make-marker) (1+ (point)))
 			     :value value))
     (put-text-property start (point) 'local-map eplot--input-map)
     ;; This seems like a NOOP, but redoing the properties like this
@@ -2822,17 +2822,18 @@ nil means `top-down'."
 	  ;; We've deleted the entire field, so redo markers.)
 	  (plist-put input :start (set-marker (make-marker)
 					      (- (point) size)))
-	  (plist-put input :end (point-marker)))
+	  (plist-put input :end (1+ (point-marker))))
 	 ;; Adjust the length of the field.
  	 (t
-	  (set-text-properties beg (plist-get input :end) props)
+	  (set-text-properties beg (1- (plist-get input :end)) props)
 	  (goto-char (1- (plist-get input :end)))
-	  (let* ((remains (1+ (- (point) (plist-get input :start))))
-		 (trim (- size remains)))
+	  (let* ((remains (- (point) (plist-get input :start)))
+		 (trim (- size remains 1)))
 	    (if (< remains size)
 		;; We need to add some padding.
-		(insert (apply #'propertize (make-string trim ?\u00A0)
-			       props))
+		(insert-before-markers
+		 (apply #'propertize (make-string trim ?\u00A0)
+			props))
 	      ;; We need to delete some padding, but only delete
 	      ;; spaces at the end.
 	      (setq trim (abs trim))
@@ -2846,7 +2847,7 @@ nil means `top-down'."
       ;; somehow makes the machinery that decides whether we can kill
       ;; a word work better.
       (set-text-properties (plist-get input :start)
-			   (plist-get input :end) props)
+			   (1- (plist-get input :end)) props)
       ;; Compute what the value is now.
       (let ((value (buffer-substring-no-properties
 		    (plist-get input :start)
@@ -2953,7 +2954,7 @@ nil means `top-down'."
 					 (prop-match-beginning match)))
 		  (plist-put input :end
 			     (set-marker (plist-get input :end)
-					 (prop-match-end match))))))))))))
+					 (1+ (prop-match-end match)))))))))))))
 
 (defun eplot--process-text-value (beg _end _replace-length)
   (when-let* ((input (get-text-property beg 'input)))
