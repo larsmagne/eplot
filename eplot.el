@@ -1957,19 +1957,22 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 		 (if (eq style 'curve)
 		     (apply #'svg-path svg
 			    (nconc
-			     (cl-loop with points = (cl-coerce
-						     (nreverse polygon) 'vector)
-				      for i from 0 upto (1- (length points))
-				      collect
-				      (cond
-				       ((zerop i)
-					`(moveto ((,(car (elt points 0)) .
-						   ,(cdr (elt points 0))))))
-				       (t
-					`(curveto
-					  (,(eplot--bezier
-					     (slot-value plot 'bezier-factor)
-					     i points))))))
+			     (cl-loop
+			      with points = (cl-coerce
+					     (nreverse polygon) 'vector)
+			      for i from 0 upto (1- (length points))
+			      collect
+			      (cond
+			       ((zerop i)
+				`(moveto ((,(car (elt points 0)) .
+					   ,(cdr (elt points 0))))))
+			       (t
+				`(curveto
+				  (,(eplot--bezier
+				     (or (cdr (assq 'bezier-factor
+						    eplot--user-defaults))
+					 (slot-value plot 'bezier-factor))
+				     i points))))))
 			     (and gradient '((closepath))))
 			    `(:clip-path ,clip-id
 			      :stroke ,(slot-value plot 'color)
@@ -2383,7 +2386,8 @@ nil means `top-down'."
       ("pi" "Fill-Color")
       ("pg" "Gradient")
       ("pz" "Size")
-      ("pm" "Smoothing")))))
+      ("pm" "Smoothing")
+      ("pb" "Bezier-Factor")))))
 
 (defun eplot--define-transients ()
   (cl-loop for row in eplot--transients
