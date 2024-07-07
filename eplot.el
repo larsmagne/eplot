@@ -2577,7 +2577,7 @@ nil means `top-down'."
 		 (value
 		  (or (plist-get (prop-match-value match) :value)
 		      (plist-get (prop-match-value match) :original-value))))
-	    (setq value (string-replace "\u00A0" " " value))
+	    (setq value (string-trim (string-replace "\u00A0" " " value)))
 	    (push (cons name
 			(cl-case (plist-get spec :type)
 			  (number
