@@ -2856,7 +2856,8 @@ nil means `top-down'."
 	      (goto-char (+ (plist-get input :start)
 			    (length value)))
 	      (delete-region (point) (+ (point) (min (- end beg) padding))))
-	    (eplot--possibly-open-column))))
+	    (when (> (length value) (plist-get input :size))
+	      (eplot--possibly-open-column)))))
 	(plist-put input :value (substring-no-properties value))
 	(set-text-properties (plist-get input :start) (eplot--end input) props))
       (goto-char point))))
@@ -2869,7 +2870,7 @@ nil means `top-down'."
 (defun eplot--possibly-open-column ()
   (save-excursion
     (when-let ((input (get-text-property (point) 'input)))
-      (goto-char (eplot--end input)))
+      (goto-char (1+ (eplot--end input))))
     (unless (looking-at " *\n")
       (skip-chars-forward " ")
       (while (not (eobp))
