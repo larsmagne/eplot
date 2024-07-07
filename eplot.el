@@ -2499,7 +2499,7 @@ nil means `top-down'."
 	      (spec (cdr (assq name (append eplot--plot-headers
 					    eplot--chart-headers))))
 	      (start (plist-get input :start))
-	      (end (eplot--end input))
+	      (end (plist-get input :end))
 	      (completion-ignore-case t))
     (skip-chars-backward " " start)
     (or
@@ -2757,7 +2757,7 @@ nil means `top-down'."
   (let ((start (point)))
     (insert value)
     (when (< (length value) 11)
-      (insert (make-string (- 11 (length value)) ? )))
+      (insert (make-string (- 11 (length value)) ?\u00A0)))
     (put-text-property start (point) 'face face)
     (put-text-property start (point) 'inhibit-read-only t)
     (put-text-property start (point) 'input
@@ -2767,6 +2767,7 @@ nil means `top-down'."
 			     :original-value value
 			     :original-face face
 			     :start (set-marker (make-marker) start)
+			     :end (point-marker)
 			     :value value))
     (put-text-property start (point) 'local-map eplot--input-map)
     ;; This seems like a NOOP, but redoing the properties like this
@@ -2801,7 +2802,60 @@ nil means `top-down'."
    ((> end beg)
     (setq eplot--prev-deletion (buffer-substring beg end)))))
 
-(defun eplot--process-text-input (beg end replace-length)
+(defun eplot--process-text-input (beg end _replace-length)
+  ;;(message "After: %s %s %s %s" beg end replace-length eplot--prev-deletion)
+  (when-let ((props (if eplot--prev-deletion
+ 			(text-properties-at 0 eplot--prev-deletion)
+ 		      (if (get-text-property end 'input)
+ 			  (text-properties-at end)
+ 			(text-properties-at beg))))
+ 	     (input (plist-get props 'input)))
+    ;; The action concerns something in the input field.
+    (let ((buffer-undo-list t)
+	  (inhibit-read-only t)
+	  (size (plist-get input :size)))
+      (save-excursion
+ 	(cond
+	 ;; The field has been completely deleted -- reinsert it.
+	 ((>= (length eplot--prev-deletion) size)
+	  (insert (apply #'propertize (make-string size ?\u00A0) props))
+	  ;; We've deleted the entire field, so redo markers.)
+	  (plist-put input :start (set-marker (make-marker)
+					      (- (point) size)))
+	  (plist-put input :end (point-marker)))
+	 ;; Adjust the length of the field.
+ 	 (t
+	  (set-text-properties beg (plist-get input :end) props)
+	  (goto-char (1- (plist-get input :end)))
+	  (let* ((remains (1+ (- (point) (plist-get input :start))))
+		 (trim (- size remains)))
+	    (if (< remains size)
+		;; We need to add some padding.
+		(insert (apply #'propertize (make-string trim ?\u00A0)
+			       props))
+	      ;; We need to delete some padding, but only delete
+	      ;; spaces at the end.
+	      (setq trim (abs trim))
+	      (while (and (> trim 0)
+			  (eql (char-after (1- (point))) ?\u00A0))
+		(delete-region (1- (point)) (point))
+		(cl-decf trim))
+	      (when (> trim 0)
+		(eplot--possibly-open-column)))))))
+      ;; We re-set the properties so that they are continguous.  This
+      ;; somehow makes the machinery that decides whether we can kill
+      ;; a word work better.
+      (set-text-properties (plist-get input :start)
+			   (plist-get input :end) props)
+      ;; Compute what the value is now.
+      (let ((value (buffer-substring-no-properties
+		    (plist-get input :start)
+		    (plist-get input :end))))
+	(when (string-match "\u00A0+\\'" value)
+	  (setq value (substring value 0 (match-beginning 0))))
+	(plist-put input :value value)))))
+
+(defun eplot--process-text-input-math (beg end replace-length)
   (message "After: %s %s %s %s %s" beg end (buffer-substring beg end)
 	   replace-length eplot--prev-deletion)
   ;; Ignore text property updates.
@@ -2841,7 +2895,7 @@ nil means `top-down'."
 	      (insert (make-string (min (- (plist-get input :size)
 					   (length value))
 					replace-length)
-				   ?\s))))
+				   ?\u00A0))))
 	   ;; We inserted something.
 	   (t
 	    (let ((new (buffer-substring beg end))
@@ -2850,7 +2904,8 @@ nil means `top-down'."
 	       ;; The insertion is after the value
 	       ((> sbeg (length value))
 		(setq value (concat value
-				    (make-string (- sbeg (length value)) ?\s)
+				    (make-string (- sbeg (length value))
+						 ?\u00A0)
 				    new)))
 	       (t
 		(setq value
@@ -2876,7 +2931,7 @@ nil means `top-down'."
 (defun eplot--possibly-open-column ()
   (save-excursion
     (when-let ((input (get-text-property (point) 'input)))
-      (goto-char (1+ (eplot--end input))))
+      (goto-char (plist-get input :end)))
     (unless (looking-at " *\n")
       (skip-chars-forward " ")
       (while (not (eobp))
@@ -2895,14 +2950,17 @@ nil means `top-down'."
 		       (input (prop-match-value match)))
 		  (plist-put input :start
 			     (set-marker (plist-get input :start)
-					 (prop-match-beginning match))))))))))))
+					 (prop-match-beginning match)))
+		  (plist-put input :end
+			     (set-marker (plist-get input :end)
+					 (prop-match-end match))))))))))))
 
 (defun eplot--process-text-value (beg _end _replace-length)
   (when-let* ((input (get-text-property beg 'input)))
     (let ((inhibit-read-only t))
       (when (plist-get input :is-default)
 	(put-text-property (plist-get input :start)
-			   (1+ (eplot--end input))
+			   (plist-get input :end)
 			   'face
 			   (if (equal (plist-get input :original-value)
 				      (plist-get input :value))
