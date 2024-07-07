@@ -2823,9 +2823,8 @@ nil means `top-down'."
 	       (trim (- size remains 1)))
 	  (if (< remains size)
 	      ;; We need to add some padding.
-	      (insert-before-markers
-	       (apply #'propertize (make-string trim ?\u00A0)
-		      props))
+	      (insert (apply #'propertize (make-string trim ?\u00A0)
+			     props))
 	    ;; We need to delete some padding, but only delete
 	    ;; spaces at the end.
 	    (setq trim (abs trim))
