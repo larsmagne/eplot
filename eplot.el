@@ -1751,6 +1751,12 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 	      (list color))))
     (elt colors (mod n (length colors)))))
 
+(defun eplot--pv (plot slot &optional default)
+  (let ((user (cdr (assq slot eplot--user-defaults))))
+    (when (and (stringp user) (zerop (length user)))
+      (setq user nil))
+    (or user (slot-value plot slot) default)))
+
 (defun eplot--draw-plots (svg chart)
   (with-slots ( plots chart-color height format
 		margin-bottom margin-left
@@ -1767,9 +1773,7 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 			 (slot-value plot 'smoothing)
 			 xs)
 	     for polygon = nil
-	     for gradient = (eplot--parse-gradient
-			     (or (cdr (assq 'gradient eplot--user-defaults))
-				 (slot-value plot 'gradient)))
+	     for gradient = (eplot--parse-gradient (eplot--pv plot 'gradient))
 	     for lpy = nil
 	     for lpx = nil
 	     for style = (if (eq format 'bar-chart)
@@ -1858,6 +1862,7 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 		     (push (cons px py) polygon)
 		   (when lpx
 		     (svg-line svg lpx lpy px py
+			       :stroke-width (eplot--pv plot 'size 1)
 			       :clip-path clip-id
 			       :stroke color))))
 		(curve
@@ -1969,16 +1974,15 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 			       (t
 				`(curveto
 				  (,(eplot--bezier
-				     (or (cdr (assq 'bezier-factor
-						    eplot--user-defaults))
-					 (slot-value plot 'bezier-factor))
+				     (eplot--pv plot 'bezier-factor)
 				     i points))))))
 			     (and gradient '((closepath))))
-			    `(:clip-path ,clip-id
-			      :stroke ,(slot-value plot 'color)
-			      ,@(if gradient
-				    `(:gradient ,id)
-				  `(:fill "none"))))
+			    `( :clip-path ,clip-id
+			       :stroke-width ,(eplot--pv plot 'size 1)
+			       :stroke ,(slot-value plot 'color)
+			       ,@(if gradient
+				     `(:gradient ,id)
+				   `(:fill "none"))))
 		   (svg-polygon svg (nreverse polygon))))))))
 
 (defun eplot--stops (from to)
