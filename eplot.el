@@ -2499,7 +2499,7 @@ nil means `top-down'."
 	      (spec (cdr (assq name (append eplot--plot-headers
 					    eplot--chart-headers))))
 	      (start (plist-get input :start))
-	      (end (1- (plist-get input :end)))
+	      (end (- (plist-get input :end) 2))
 	      (completion-ignore-case t))
     (skip-chars-backward " " start)
     (or
@@ -2754,21 +2754,22 @@ nil means `top-down'."
     (delete-region (point) end)))
 
 (defun eplot--input (name value face)
-  (let ((start (point)))
+  (let ((start (point))
+	input)
     (insert value)
     (when (< (length value) 11)
       (insert (make-string (- 11 (length value)) ?\u00A0)))
     (put-text-property start (point) 'face face)
     (put-text-property start (point) 'inhibit-read-only t)
     (put-text-property start (point) 'input
-		       (list :name name
-			     :size 11
-			     :is-default (eq face 'eplot--input-default)
-			     :original-value value
-			     :original-face face
-			     :start (set-marker (make-marker) start)
-			     :end (set-marker (make-marker) (1+ (point)))
-			     :value value))
+		       (setq input
+			     (list :name name
+				   :size 11
+				   :is-default (eq face 'eplot--input-default)
+				   :original-value value
+				   :original-face face
+				   :start (set-marker (make-marker) start)
+				   :value value)))
     (put-text-property start (point) 'local-map eplot--input-map)
     ;; This seems like a NOOP, but redoing the properties like this
     ;; somehow makes `delete-region' work better.
@@ -2776,6 +2777,7 @@ nil means `top-down'."
     (insert (propertize " " 'face face
 			'inhibit-read-only t
 			'local-map eplot--input-map))
+    (plist-put input :end (point-marker))
     (insert " ")))
 
 (defun eplot--end-of-field ()
@@ -2815,34 +2817,24 @@ nil means `top-down'."
 	  (inhibit-read-only t)
 	  (size (plist-get input :size)))
       (save-excursion
- 	(cond
-	 ;; The field has been completely deleted -- reinsert it.
-	 ((>= (length eplot--prev-deletion) size)
-	  (insert (apply #'propertize (make-string size ?\u00A0) props))
-	  ;; We've deleted the entire field, so redo markers.)
-	  (plist-put input :start (set-marker (make-marker)
-					      (- (point) size)))
-	  (plist-put input :end (1+ (point-marker))))
-	 ;; Adjust the length of the field.
- 	 (t
-	  (set-text-properties beg (1- (plist-get input :end)) props)
-	  (goto-char (1- (plist-get input :end)))
-	  (let* ((remains (- (point) (plist-get input :start)))
-		 (trim (- size remains 1)))
-	    (if (< remains size)
-		;; We need to add some padding.
-		(insert-before-markers
-		 (apply #'propertize (make-string trim ?\u00A0)
-			props))
-	      ;; We need to delete some padding, but only delete
-	      ;; spaces at the end.
-	      (setq trim (abs trim))
-	      (while (and (> trim 0)
-			  (eql (char-after (1- (point))) ?\u00A0))
-		(delete-region (1- (point)) (point))
-		(cl-decf trim))
-	      (when (> trim 0)
-		(eplot--possibly-open-column)))))))
+	(set-text-properties beg (- (plist-get input :end) 2) props)
+	(goto-char (1- (plist-get input :end)))
+	(let* ((remains (- (point) (plist-get input :start) 1))
+	       (trim (- size remains 1)))
+	  (if (< remains size)
+	      ;; We need to add some padding.
+	      (insert-before-markers
+	       (apply #'propertize (make-string trim ?\u00A0)
+		      props))
+	    ;; We need to delete some padding, but only delete
+	    ;; spaces at the end.
+	    (setq trim (abs trim))
+	    (while (and (> trim 0)
+			(eql (char-after (1- (point))) ?\u00A0))
+	      (delete-region (1- (point)) (point))
+	      (cl-decf trim))
+	    (when (> trim 0)
+	      (eplot--possibly-open-column)))))
       ;; We re-set the properties so that they are continguous.  This
       ;; somehow makes the machinery that decides whether we can kill
       ;; a word work better.
@@ -2954,7 +2946,7 @@ nil means `top-down'."
 					 (prop-match-beginning match)))
 		  (plist-put input :end
 			     (set-marker (plist-get input :end)
-					 (1+ (prop-match-end match)))))))))))))
+					 (+ (prop-match-end match) 1))))))))))))
 
 (defun eplot--process-text-value (beg _end _replace-length)
   (when-let* ((input (get-text-property beg 'input)))
