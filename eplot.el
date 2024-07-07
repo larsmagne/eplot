@@ -2791,6 +2791,7 @@ nil means `top-down'."
 (defvar eplot--prev-deletion nil)
 
 (defun eplot--process-text-input-before (beg end)
+  (message "Before: %s %s" beg end)
   (cond
    ((= beg end)
     (setq eplot--prev-deletion nil))
@@ -2798,69 +2799,71 @@ nil means `top-down'."
     (setq eplot--prev-deletion (buffer-substring beg end)))))
 
 (defun eplot--process-text-input (beg end replace-length)
-  (message "After: %s %s %s %s %s" beg end replace-length eplot--prev-deletion
-	   (point))
-  (when-let ((props (if eplot--prev-deletion
-			(text-properties-at 0 eplot--prev-deletion)
-		      (if (get-text-property end 'input)
-			  (text-properties-at end)
-			(text-properties-at beg))))
-	     (input (plist-get props 'input)))
-    ;; The action concerns something in the input field.
-    (let* ((buffer-undo-list t)
-	   (point (point))
-	   (inhibit-read-only t)
-	   (value (plist-get input :value))
-	   (sbeg (- beg (plist-get input :start))))
-      (save-excursion
-	(cond
-	 ;; We're removed something, delete it from the value.
-	 ((> replace-length 0)
+  (message "After: %s %s %s %s %s" beg end (buffer-substring beg end)
+	   replace-length eplot--prev-deletion)
+  ;; Ignore text property updates.
+  (when (not (= (- end beg) replace-length))
+    (when-let ((props (if eplot--prev-deletion
+			  (text-properties-at 0 eplot--prev-deletion)
+			(if (get-text-property end 'input)
+			    (text-properties-at end)
+			  (text-properties-at beg))))
+	       (input (plist-get props 'input)))
+      ;; The action concerns something in the input field.
+      (let* ((buffer-undo-list t)
+	     (point (point))
+	     (inhibit-read-only t)
+	     (value (plist-get input :value))
+	     (sbeg (- beg (plist-get input :start))))
+	(save-excursion
 	  (cond
-	   ;; If the deleted bit is after the end of the value; do
-	   ;; nothing.
-	   ((> sbeg (length value))
-	    )
-	   (t
-	    (setq value
-		  (concat
-		   (substring value 0 sbeg)
-		   (if (> (+ sbeg replace-length) (length value))
-		       ""
-		     (substring value (+ sbeg replace-length)))))))
-	  ;; Insert padding?
-	  (when (< (length value) (plist-get input :size))
-	    (goto-char (+ (plist-get input :start)
-			  (length value)))
-	    (insert (make-string (min (- (plist-get input :size)
-					 (length value))
-				      replace-length)
-				 ?\s))))
-	 ;; We inserted something.
-	 (t
-	  (let ((new (buffer-substring beg end))
-		(padding (- (plist-get input :size) (length value))))
+	   ;; We're removed something, delete it from the value.
+	   ((> replace-length 0)
 	    (cond
-	     ;; The insertion is after the value
+	     ;; If the deleted bit is after the end of the value; do
+	     ;; nothing.
 	     ((> sbeg (length value))
-	      (setq value (concat value
-				  (make-string (- sbeg (length value)) ?\s)
-				  new)))
+	      )
 	     (t
 	      (setq value
-		    (concat (substring value 0 sbeg)
-			    new
-			    (substring value sbeg)))))
-	    ;; Remove padding?
-	    (when (> padding 0)
+		    (concat
+		     (substring value 0 sbeg)
+		     (if (> (+ sbeg replace-length) (length value))
+			 ""
+		       (substring value (+ sbeg replace-length)))))))
+	    ;; Insert padding?
+	    (when (< (length value) (plist-get input :size))
 	      (goto-char (+ (plist-get input :start)
 			    (length value)))
-	      (delete-region (point) (+ (point) (min (- end beg) padding))))
-	    (when (> (length value) (plist-get input :size))
-	      (eplot--possibly-open-column)))))
-	(plist-put input :value (substring-no-properties value))
-	(set-text-properties (plist-get input :start) (eplot--end input) props))
-      (goto-char point))))
+	      (insert (make-string (min (- (plist-get input :size)
+					   (length value))
+					replace-length)
+				   ?\s))))
+	   ;; We inserted something.
+	   (t
+	    (let ((new (buffer-substring beg end))
+		  (padding (- (plist-get input :size) (length value))))
+	      (cond
+	       ;; The insertion is after the value
+	       ((> sbeg (length value))
+		(setq value (concat value
+				    (make-string (- sbeg (length value)) ?\s)
+				    new)))
+	       (t
+		(setq value
+		      (concat (substring value 0 sbeg)
+			      new
+			      (substring value sbeg)))))
+	      ;; Remove padding?
+	      (when (> padding 0)
+		(goto-char (+ (plist-get input :start)
+			      (length value)))
+		(delete-region (point) (+ (point) (min (- end beg) padding))))
+	      (when (> (length value) (plist-get input :size))
+		(eplot--possibly-open-column)))))
+	  (plist-put input :value (substring-no-properties value))
+	  (set-text-properties (plist-get input :start) (eplot--end input) props))
+	(goto-char point)))))
 
 (defun eplot--end (input)
   (+ (plist-get input :start)
