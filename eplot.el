@@ -2742,9 +2742,9 @@ nil means `top-down'."
 (defun eplot-move-end-of-input ()
   "Move to the end of the current input field."
   (interactive)
-  (if (= (point) (eplot--end-of-field))
+  (if (not (get-text-property (point) 'input))
       (goto-char (pos-eol))
-    (goto-char (eplot--end-of-field))))
+    (goto-char (1+ (eplot--end-of-field)))))
 
 (defun eplot-kill-input ()
   "Remove the part of the input after point."
@@ -2756,13 +2756,13 @@ nil means `top-down'."
 (defun eplot--input (name value face)
   (let ((start (point)))
     (insert value)
-    (when (< (length value) 12)
-      (insert (make-string (- 12 (length value)) ? )))
+    (when (< (length value) 11)
+      (insert (make-string (- 11 (length value)) ? )))
     (put-text-property start (point) 'face face)
     (put-text-property start (point) 'inhibit-read-only t)
     (put-text-property start (point) 'input
 		       (list :name name
-			     :size 12
+			     :size 11
 			     :is-default (eq face 'eplot--input-default)
 			     :original-value value
 			     :original-face face
@@ -2772,6 +2772,9 @@ nil means `top-down'."
     ;; This seems like a NOOP, but redoing the properties like this
     ;; somehow makes `delete-region' work better.
     (set-text-properties start (point) (text-properties-at start))
+    (insert (propertize " " 'face face
+			'inhibit-read-only t
+			'local-map eplot--input-map))
     (insert " ")))
 
 (defun eplot--end-of-field ()
@@ -2899,7 +2902,7 @@ nil means `top-down'."
     (let ((inhibit-read-only t))
       (when (plist-get input :is-default)
 	(put-text-property (plist-get input :start)
-			   (eplot--end input)
+			   (1+ (eplot--end input))
 			   'face
 			   (if (equal (plist-get input :original-value)
 				      (plist-get input :value))
