@@ -3043,9 +3043,9 @@ nil means `top-down'."
 		     end
 		   (elt points (1+ i))))
 	   (start-control-point
-	    (padd start (eplot--pscale factor (eplot--psub end prev))))
+	    (padd start (pscale factor (psub end prev))))
 	   (end-control-point
-	    (padd end (eplot--pscale factor (eplot--psub start next)))))
+	    (padd end (pscale factor (psub start next)))))
       (list (car start-control-point)
 	    (cdr start-control-point)
 	    (car end-control-point)
