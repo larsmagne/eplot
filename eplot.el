@@ -1270,12 +1270,11 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 		(setq x-values
 		      (cl-loop for val in values
 			       collect
-			       (time-convert
+			       (time-to-days
 				(encode-time
 				 (decoded-time-set-defaults
 				  (iso8601-parse-date
-				   (format "%d" (plist-get val :x)))))
-				'integer))
+				   (format "%d" (plist-get val :x)))))))
 		      x-min (seq-min x-values)
 		      x-max (seq-max x-values)
 		      stride (e/ xs (- x-max x-min))
@@ -1680,9 +1679,9 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
   (format (or label-format "%s")
 	  (cond
 	   ((eq print-format 'date)
-	    (format-time-string "%Y-%m-%d" value))
+	    (format-time-string "%Y-%m-%d" (eplot--days-to-time value)))
 	   ((eq print-format 'year)
-	    (format-time-string "%Y" value))
+	    (format-time-string "%Y" (eplot--days-to-time value)))
 	   ((eq print-format 'time)
 	    (format-time-string "%H:%M:%S" value))
 	   ((eq print-format 'minute)
@@ -2159,12 +2158,12 @@ nil means `top-down'."
     (cl-loop for x from start upto (* max factor) by feven
 	     collect (e/ x factor))))
 
+(defun eplot--days-to-time (days)
+  (days-to-time (- days (time-to-days 0))))
+
 (defun eplot--get-date-ticks (start end xs font-size &optional skip-until
 				    label-format)
-  (let* ((secs (* 60 60 24))
-	 (sday (/ start secs))
-	 (eday (/ end secs))
-	 (duration (- eday sday))
+  (let* ((duration (- end start))
 	 (limits
 	  (list
 	   (list (/ 368 16) 'date
@@ -2201,11 +2200,11 @@ nil means `top-down'."
     (while (or (>= duration (caar limits))
 	       (and skip-until (>= skip-until (caar limits))))
       (pop limits))
-    (let* ((x-ticks (cl-loop for date from sday upto eday
-			     for time = (* date secs)
+    (let* ((x-ticks (cl-loop for day from start upto end
+			     for time = (eplot--days-to-time day)
 			     for decoded = (decode-time time)
 			     when (funcall (nth 2 (car limits)) decoded)
-			     collect time))
+			     collect day))
 	   (count (length x-ticks))
 	   (print-format (nth 1 (car limits)))
 	   (max-print (eplot--format-value (car x-ticks) print-format
