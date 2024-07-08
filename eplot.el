@@ -452,7 +452,8 @@ you a clear, non-blurry version of the chart at any size."
 	 (data-format (or (eplot--vyl 'data-format headers)
 			  (eplot--vyl 'data-format in-headers)))
 	 (two-values (memq 'two-values data-format))
-	 (xy (or (memq 'date data-format)
+	 (xy (or (memq 'year data-format)
+		 (memq 'date data-format)
 		 (memq 'time data-format)
 		 (memq 'xy data-format)))
 	 (data-column (or (eplot--vn 'data-column headers)
@@ -1250,17 +1251,21 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 	    ;; Set the x-values based on the first plot.
 	    (unless x-values
 	      (setq print-format (cond
+				  ((memq 'year data-format) 'year)
 				  ((memq 'date data-format) 'date)
 				  ((memq 'time data-format) 'time)
 				  (t 'number)))
 	      (cond
-	       ((memq 'xy data-format)
+	       ((or (memq 'xy data-format)
+		    (memq 'year data-format))
 		(setq x-values (cl-loop for val in values
 					collect (plist-get val :x))
 		      x-min (seq-min x-values)
 		      x-max (seq-max x-values)
 		      x-ticks (eplot--get-ticks x-min x-max xs)
-		      stride (e/ xs (- x-max x-min))))
+		      stride (e/ xs (- x-max x-min)))
+		(when (memq 'year data-format)
+		  (setq print-format 'literal-year)))
 	       ((memq 'date data-format)
 		(setq x-values
 		      (cl-loop for val in values
@@ -1336,7 +1341,7 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 			;; We get 5% more ticks to check whether we
 			;; should extend max.
 			(if (eplot--default-p 'max data)
-			    (* max 1.05)
+			    (* max 1.02)
 			  max)
 			ys)))
     (when (eplot--default-p 'max data)
@@ -3146,6 +3151,7 @@ nil means `top-down'."
 	    (list (cons :headers
 			(list
 			 (cons 'name (elt names column))
+			 (cons 'data-format "year")
 			 (cons 'color (eplot--vary-color "vary" (1- column)))))
 		  (cons
 		   :values
