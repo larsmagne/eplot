@@ -1333,10 +1333,10 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
     (setq y-ticks (and max
 		       (eplot--get-ticks
 			min
-			;; We get 2% more ticks to check whether we
+			;; We get 5% more ticks to check whether we
 			;; should extend max.
 			(if (eplot--default-p 'max data)
-			    (* max 1.02)
+			    (* max 1.05)
 			  max)
 			ys)))
     (when (eplot--default-p 'max data)
@@ -1505,10 +1505,11 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
     ;; (unless overridden).
     (when (eplot--default-p 'margin-left (slot-value chart 'data))
       (with-slots (label-font label-font-size) chart
-	(setq margin-left (+ (eplot--text-width
-			      (elt y-labels (1- (length y-labels)))
-			      label-font 'normat label-font-size)
-			     10))))))
+	(setq margin-left (max margin-left
+			       (+ (eplot--text-width
+				   (elt y-labels (1- (length y-labels)))
+				   label-font 'normat label-font-size)
+				  10)))))))
 
 (defun eplot--draw-y-ticks (svg chart)
   (with-slots ( y-ticks y-labels y-tick-step y-label-step label-color
@@ -1623,7 +1624,7 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 			   for name = (slot-value plot 'name)
 			   when name
 			   collect
-			   (cons name (slot-value plot 'legend-color)))))
+			   (cons name (slot-value plot 'color)))))
 	(svg-rectangle svg (+ margin-left 20) (+ margin-top 20)
 		       (format "%dex"
 			       (+ 2
@@ -3137,11 +3138,15 @@ nil means `top-down'."
 	       (not (cl-every #'eplot--numericalp (nth 0 csv))))
       (setq names (pop csv)))
     (list
+     (cons 'legend (and names "true"))
      (cons :plots
 	   (cl-loop
 	    for column from 1 upto (1- (length (car csv)))
 	    collect
-	    (list (cons :name (elt names column))
+	    (list (cons :headers
+			(list
+			 (cons 'name (elt names column))
+			 (cons 'color (eplot--vary-color "vary" (1- column)))))
 		  (cons
 		   :values
 		   (cl-loop for line in csv
