@@ -23,6 +23,17 @@ Then say `M-x eplot' in this buffer, and you'll get this displayed:
 
 ![trivial-very-short.plt](/images/trivial-very-short.svg)
 
+If you have the pcsv package installed, you can also do CSV files.
+
+	Year,explore,investigate
+	2000,1834.6246923361425,3314.978325069512
+	2001,1973.1940690964868,3484.9536191658754
+	2002,2128.9463492787686,3671.1459598826505
+	...
+
+Just say `M-x eplot' in a buffer with values like that, and eplot will
+do its best to display the data.
+
 To tweak the look of the chart, there are three possibilities:
 
 * You can use the `c' command in the eplot buffer or the `C-c C-v'
