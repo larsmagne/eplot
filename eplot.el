@@ -1324,7 +1324,7 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
   (with-slots ( x-tick-step x-label-step y-tick-step y-label-step
 		min max ys format inhibit-compute-x-step
 		y-ticks xs x-values print-format
-		label-font-size data)
+		label-font label-font-size data)
       chart
     (setq y-ticks (and max
 		       (eplot--get-ticks
@@ -1346,7 +1346,10 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 	  (setq x-tick-step (car xt)
 		x-label-step (cadr xt)))))
     (when max
-      (let ((yt (eplot--compute-y-ticks ys y-ticks label-font-size)))
+      (let ((yt (eplot--compute-y-ticks
+		 ys y-ticks
+		 (eplot--text-height "100" label-font
+				     'normat label-font-size))))
 	(setq y-tick-step (car yt)
 	      y-label-step (cadr yt))))
     ;; If max is less than 2% off from a pleasant number, then
@@ -1716,14 +1719,13 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 		    (setq label-step (eplot--next-weed label-step))))
 		label-step)))))))
 
-(defun eplot--compute-y-ticks (ys y-values font-size)
+(defun eplot--compute-y-ticks (ys y-values text-height)
   (let* ((min (car y-values))
 	 (max (car (last y-values)))
 	 (count (length y-values))
 	 ;; We want each label to be spaced at least as long apart as
-	 ;; the length of the longest label, with room for two blanks
-	 ;; in between.
-	 (min-spacing (* font-size 1.1))
+	 ;; the height of the label.
+	 (min-spacing (+ text-height 10))
 	 (digits (eplot--decimal-digits (- (cadr y-values) (car y-values))))
 	 (every (e/ 1 (expt 10 digits))))
     (cond
