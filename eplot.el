@@ -6,7 +6,7 @@
 ;; Keywords: charts
 ;; Package: eplot
 ;; Version: 1.0
-;; Package-Requires: ((emacs "29.0.59"))
+;; Package-Requires: ((emacs "29.0.59") (pcsv "0.0"))
 
 ;; eplot is free software; you can redistribute it and/or modify it
 ;; under the terms of the GNU General Public License as published by
@@ -26,6 +26,8 @@
 ;; (autoload 'eplot-mode "eplot" nil t)
 ;; (unless (assoc "\\.plt" auto-mode-alist)
 ;;   (setq auto-mode-alist (cons '("\\.plt" . eplot-mode) auto-mode-alist)))
+
+;; This requires the pcsv package to parse CSV files.
 
 ;;; Code:
 
@@ -386,36 +388,38 @@ you a clear, non-blurry version of the chart at any size."
     (insert "\n\n")))
 
 (defun eplot--parse-buffer ()
-  (let ((buf (current-buffer)))
-    (with-temp-buffer
-      (insert-buffer-substring buf)
-      ;; Remove comments first.
-      (goto-char (point-min))
-      (while (re-search-forward "^[ \t]*#" nil t)
-	(delete-line))
-      (goto-char (point-min))
-      ;; First headers.
-      (let* ((data (eplot--parse-headers))
-	     (plot-headers
-	      ;; It's OK not to separate the plot headers from the chart
-	      ;; headers.  Collect them here, if any.
-	      (cl-loop for elem in (mapcar #'car eplot--plot-headers)
-		       for value = (eplot--vs elem data)
-		       when value
-		       collect (progn
-				 ;; Remove these headers from the data
-				 ;; headers so that we don't get errors
-				 ;; on undefined headers.
-				 (setq data (delq (assq elem data) data))
-				 (cons elem value))))
-	     plots)
-	;; Then the values.
-	(while-let ((plot (eplot--parse-values nil plot-headers)))
-	  (setq plot-headers nil)
-	  (push plot plots))
-	(when plots
-	  (push (cons :plots (nreverse plots)) data))
-	data))))
+  (if (eplot--csv-buffer-p)
+      (eplot--parse-csv-buffer)
+    (let ((buf (current-buffer)))
+      (with-temp-buffer
+	(insert-buffer-substring buf)
+	;; Remove comments first.
+	(goto-char (point-min))
+	(while (re-search-forward "^[ \t]*#" nil t)
+	  (delete-line))
+	(goto-char (point-min))
+	;; First headers.
+	(let* ((data (eplot--parse-headers))
+	       (plot-headers
+		;; It's OK not to separate the plot headers from the chart
+		;; headers.  Collect them here, if any.
+		(cl-loop for elem in (mapcar #'car eplot--plot-headers)
+			 for value = (eplot--vs elem data)
+			 when value
+			 collect (progn
+				   ;; Remove these headers from the data
+				   ;; headers so that we don't get errors
+				   ;; on undefined headers.
+				   (setq data (delq (assq elem data) data))
+				   (cons elem value))))
+	       plots)
+	  ;; Then the values.
+	  (while-let ((plot (eplot--parse-values nil plot-headers)))
+	    (setq plot-headers nil)
+	    (push plot plots))
+	  (when plots
+	    (push (cons :plots (nreverse plots)) data))
+	  data)))))
 
 (defun eplot--parse-headers ()
   (let ((data nil)
@@ -3085,6 +3089,65 @@ nil means `top-down'."
 	    (cdr end-control-point)
 	    (car end)
 	    (cdr end)))))
+
+;;; CSV Parsing Stuff.
+
+(defun eplot--csv-buffer-p ()
+  (save-excursion
+    (goto-char (point-min))
+    (let ((min 1.0e+INF)
+	  (max -1.0e+INF)
+	  (total 0)
+	  (lines 0))
+      (while (not (eobp))
+	(let ((this 0))
+	  (while (search-forward "," (pos-eol) t)
+	    (cl-incf total)
+	    (cl-incf this))
+	  (forward-line 1)
+	  (cl-incf lines)
+	  (setq min (min min this)
+		max (max max this))))
+      (let ((mid (e/ total lines)))
+	;; If we have a comma on each line, and it's fairly evenly
+	;; distributed, it's a CSV buffer.
+	(and (>= min 1)
+	     (< (* mid 0.9) min)
+	     (> (* mid 1.1) max))))))
+
+(defun eplot--numericalp (value)
+  (string-match-p "\\`[-.0-9]*\\'" value))
+
+(defun eplot--numberish (value)
+  (if (or (zerop (length value))
+	  (not (eplot--numericalp value)))
+      value
+    (string-to-number value)))
+
+(defun eplot--parse-csv-buffer ()
+  (unless (fboundp 'pcsv-parse-buffer)
+    (user-error "You need to install the pcsv package to parse CSV files"))
+  (let ((csv (pcsv-parse-buffer))
+	names)
+    ;; Check whether the first line looks like a header.
+    (when (and (length> csv 1)
+	       ;; The second line is all numbers...
+	       (cl-every #'eplot--numericalp (nth 1 csv))
+	       ;; .. and the first line isn't.
+	       (not (cl-every #'eplot--numericalp (nth 0 csv))))
+      (setq names (pop csv)))
+    (list
+     (cons :plots
+	   (cl-loop
+	    for column from 1 upto (1- (length (car csv)))
+	    collect
+	    (list (cons :name (elt names column))
+		  (cons
+		   :values
+		   (cl-loop for line in csv
+			    collect (list :x (eplot--numberish (car line))
+					  :value (eplot--numberish
+						  (elt line column)))))))))))
 
 (provide 'eplot)
 
