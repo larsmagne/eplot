@@ -1084,7 +1084,6 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
       (setq svg (svg-create width height)
 	    xs (- width margin-left margin-right)
 	    ys (- height margin-top margin-bottom))
-
       ;; Protect against being called in an empty buffer.
       (if (not (and plots
 		    ;; Sanity check against the user choosing dimensions
@@ -1473,8 +1472,8 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 
 (defun eplot--compute-y-labels (chart)
   (with-slots ( y-ticks y-labels
-		height min max ys
-		margin-top margin-bottom margin-left
+		width height min max xs ys
+		margin-top margin-bottom margin-left margin-right
 		y-tick-step y-label-step y-label-format)
       chart
     ;; First collect all the labels we're thinking about outputting.
@@ -1515,7 +1514,8 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 			       (+ (eplot--text-width
 				   (elt y-labels (1- (length y-labels)))
 				   label-font 'normat label-font-size)
-				  10)))))))
+				  10))
+	      xs (- width margin-left margin-right))))))
 
 (defun eplot--draw-y-ticks (svg chart)
   (with-slots ( y-ticks y-labels y-tick-step y-label-step label-color
