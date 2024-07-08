@@ -2254,11 +2254,11 @@ nil means `top-down'."
 	(eplot--get-date-ticks start end xs font-size (caar limits)))))))
 
 (defun eplot--year-ticks (x-ticks xs font-size)
-  (let* ((year-ticks (mapcar (lambda (time)
-			       (decoded-time-year (decode-time time)))
+  (let* ((year-ticks (mapcar (lambda (day)
+			       (decoded-time-year
+				(decode-time (eplot--days-to-time day))))
 			     x-ticks))
-	 (xv (eplot--compute-x-ticks
-	      xs year-ticks font-size 'year)))
+	 (xv (eplot--compute-x-ticks xs year-ticks font-size 'year)))
     (let ((tick-step (car xv))
 	  (label-step (cadr xv)))
       (list x-ticks 'year
