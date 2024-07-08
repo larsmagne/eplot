@@ -1824,7 +1824,8 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 		margin-bottom margin-left
 		min max xs ys
 		stride margin-top
-		x-values x-min x-max)
+		x-values x-min x-max
+		label-font label-font-size)
       chart
     ;; Draw all the plots.
     (cl-loop for plot in (reverse plots)
@@ -1881,6 +1882,35 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 			    (* (e/ (- x x-min) (- x-max x-min))
 			       xs)))
 	      do
+	      ;; Some data points may have texts.
+	      (when-let ((text (eplot--vs 'text settings)))
+		(svg-text svg text
+			  :font-family label-font
+			  :text-anchor "middle"
+			  :font-size label-font-size
+			  :font-weight 'normal
+			  :fill color
+			  :x px 
+			  :y (- py (eplot--text-height text label-font 'normal
+						       label-font-size)
+				-5)))
+	      ;; You may mark certain points.
+	      (when-let ((mark (eplot--vy 'mark settings)))
+		(cl-case mark
+		  (cross
+		   (let ((s (eplot--vn 'size settings
+				       (or (slot-value plot 'size) 3))))
+		   (svg-line svg (- px s) (- py s)
+			     (+ px s) (+ py s)
+			     :clip-path clip-id
+			     :stroke color)
+		   (svg-line svg (+ px s) (- py s)
+			     (- px s) (+ py s)
+			     :clip-path clip-id
+			     :stroke color)))
+		  (otherwise
+		   (svg-circle svg px py 3
+			       :fill color))))
 	      (cl-case style
 		(bar
 		 (if (not gradient)

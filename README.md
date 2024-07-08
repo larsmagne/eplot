@@ -192,6 +192,24 @@ an excerpt from a plt file that demonstrates that:
 
 ![chart-circle-sizes.plt](/images/chart-circle-sizes.svg)
 
+It's sometimes useful to be able to single out certain values with a
+text or a special mark.
+
+	Style: curve
+	Color: black
+	41
+	42.1
+	42.1
+	...
+	53   # Text: New Model, Mark: cross, Size: 3
+	52.5
+	51
+	...
+	
+![chart-texts.plt](/images/chart-texts.svg)
+
+And as you can see, you can combine the text and the mark.
+
 Bar charts are somewhat special.
 
 	Format: bar-chart

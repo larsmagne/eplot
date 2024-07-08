@@ -1,0 +1,11 @@
+Year,Make,Model
+1997,Ford,E350
+"1997","Ford","E350"
+1997,Ford,E350,"Super, luxurious truck"
+1997,Ford,E350,"Super, ""luxurious"" truck"
+1997, "Ford" ,E350
+1997,Ford,E350," Super luxurious truck "
+Los Angeles,34°03'N,118°15'W
+New York City,40°42'46"N,74°00'21"W
+1997,Ford,E350
+2000,Mercury,Cougar
