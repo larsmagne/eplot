@@ -1331,8 +1331,12 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 			min
 			;; We get 2% more ticks to check whether we
 			;; should extend max.
-			(if (eplot--default-p 'max data) (* max 1.02) max)
+			(if (eplot--default-p 'max data)
+			    (* max 1.02)
+			  max)
 			ys)))
+    (when (eplot--default-p 'max data)
+      (setq max (max max (car (last y-ticks)))))
     (if (eq format 'bar-chart)
 	(setq x-tick-step 1
 	      x-label-step 1)
