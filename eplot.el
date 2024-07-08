@@ -3061,33 +3061,30 @@ nil means `top-down'."
 	 ,@(eplot--define-transients)))
 
 (defun eplot--bezier (factor i points)
-  (let* ((start (elt points (1- i)))
-	 (end (elt points i))
-	 (prev (if (< (- i 2) 0)
-		   start
-		 (elt points (- i 2))))
-	 (next (if (> (1+ i) (1- (length points)))
-		   end
-		 (elt points (1+ i))))
-	 (start-control-point
-	  (eplot--padd start (eplot--pscale factor (eplot--psub end prev))))
-	 (end-control-point
-	  (eplot--padd end (eplot--pscale factor (eplot--psub start next)))))
-    (list (car start-control-point)
-	  (cdr start-control-point)
-	  (car end-control-point)
-	  (cdr end-control-point)
-	  (car end)
-	  (cdr end))))
-
-(defun eplot--padd (p1 p2)
-  (cons (+ (car p1) (car p2)) (+ (cdr p1) (cdr p2))))
-
-(defun eplot--psub (p1 p2)
-  (cons (- (car p1) (car p2)) (- (cdr p1) (cdr p2))))
-
-(defun eplot--pscale (factor point)
-  (cons (* factor (car point)) (* factor (cdr point))))
+  (cl-labels ((padd (p1 p2)
+		(cons (+ (car p1) (car p2)) (+ (cdr p1) (cdr p2))))
+	      (psub (p1 p2)
+		(cons (- (car p1) (car p2)) (- (cdr p1) (cdr p2))))
+	      (pscale (factor point)
+		(cons (* factor (car point)) (* factor (cdr point)))))
+    (let* ((start (elt points (1- i)))
+	   (end (elt points i))
+	   (prev (if (< (- i 2) 0)
+		     start
+		   (elt points (- i 2))))
+	   (next (if (> (1+ i) (1- (length points)))
+		     end
+		   (elt points (1+ i))))
+	   (start-control-point
+	    (padd start (eplot--pscale factor (eplot--psub end prev))))
+	   (end-control-point
+	    (padd end (eplot--pscale factor (eplot--psub start next)))))
+      (list (car start-control-point)
+	    (cdr start-control-point)
+	    (car end-control-point)
+	    (cdr end-control-point)
+	    (car end)
+	    (cdr end)))))
 
 (provide 'eplot)
 
