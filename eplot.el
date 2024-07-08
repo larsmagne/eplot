@@ -468,10 +468,11 @@ you a clear, non-blurry version of the chart at any size."
       ;; date or a time).  Labels ans settings can be introduced with
       ;; a # char.
       (while (looking-at "\\([-0-9. \t]+\\)\\([ \t]*#\\(.*\\)\\)?")
-	(let ((numbers (mapcar #'string-to-number
-			       (split-string (string-trim (match-string 1)))))
+	(let ((numbers (match-string 1))
 	      (settings (eplot--parse-settings (match-string 3)))
 	      this)
+	  (setq numbers (mapcar #'string-to-number
+				(split-string (string-trim numbers))))
 	  ;; If we're reading two dimensionalish data, the first
 	  ;; number is the date/time/x.
 	  (when xy
