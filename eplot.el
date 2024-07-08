@@ -714,6 +714,7 @@ and `frame' (the surrounding area).")
 (defclass eplot-chart ()
   (
    (plots :initarg :plots)
+   (data :initarg :data)
    (xs)
    (ys)
    (x-values :initform nil)
@@ -722,6 +723,7 @@ and `frame' (the surrounding area).")
    (x-max)
    (x-ticks)
    (y-ticks)
+   (y-labels)
    (stride)
    (print-format)
    (x-tick-step)
@@ -943,7 +945,8 @@ Elements allowed are `two-values', `date' and `time'.")
   "Make an `eplot-chart' object and initialize based on DATA."
   (let ((chart (make-instance 'eplot-chart
 			      :plots (mapcar #'eplot--make-plot
-					     (eplot--vs :plots data)))))
+					     (eplot--vs :plots data))
+			      :data data)))
     ;; First get the program-defined defaults.
     (eplot--object-defaults chart eplot--chart-headers)
     ;; Then do the "meta" variables.
@@ -1081,20 +1084,24 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
       (setq svg (svg-create width height)
 	    xs (- width margin-left margin-right)
 	    ys (- height margin-top margin-bottom))
-      ;; Draw background/borders/titles/etc.
-      (eplot--draw-basics svg chart)
 
       ;; Protect against being called in an empty buffer.
-      (when (and plots
-		 ;; Sanity check against the user choosing dimensions
-		 ;; that leave no space for the plot.
-		 (> ys 0) (> xs 0))
+      (if (not (and plots
+		    ;; Sanity check against the user choosing dimensions
+		    ;; that leave no space for the plot.
+		    (> ys 0) (> xs 0)))
+	  ;; Just draw the basics.
+	  (eplot--draw-basics svg chart)
 	;; Compute min/max based on all plots, and also compute x-ticks
 	;; etc.
 	(eplot--compute-chart-dimensions chart)
 	;; Analyze values and adjust values accordingly.
 	(eplot--adjust-chart chart)
-    
+	;; Compute the Y labels -- this may adjust `margin-left'.
+	(eplot--compute-y-labels chart)
+	;; Draw background/borders/titles/etc.
+	(eplot--draw-basics svg chart)
+
 	(when (eq grid-position 'top)
 	  (eplot--draw-plots svg chart))
 
@@ -1449,90 +1456,116 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 				   (if (equal layout 'compact) 3 5)
 				 2)))))))
 
-(defun eplot--draw-y-ticks (svg chart)
-  (with-slots ( y-ticks height width
-		margin-left margin-right margin-top margin-bottom
-		min max ys
-		y-tick-step y-label-step y-label-format
-		grid grid-opacity grid-color
-		label-font label-font-size
-		axes-color label-color)
+(defun eplot--default-p (slot data)
+  "Return non-nil if SLOT is at the default value."
+  (and (not (assq slot eplot--user-defaults))
+       (not (assq slot data))))
+
+(defun eplot--compute-y-labels (chart)
+  (with-slots ( y-ticks y-labels
+		height min max ys
+		margin-top margin-bottom margin-left
+		y-tick-step y-label-step y-label-format)
       chart
     ;; First collect all the labels we're thinking about outputting.
-    (let ((y-labels
-	   (cl-loop for y in y-ticks
-		    for py = (- (- height margin-bottom)
-				(* (/ (- (* 1.0 y) min) (- max min))
-				   ys))
-		    when (and (<= margin-top py (- height margin-bottom))
-			      (zerop (e% y y-tick-step))
-			      (zerop (e% y y-label-step)))
-		    collect (eplot--format-y
-			     y (- (cadr y-ticks) (car y-ticks)) nil
-			     y-label-format))))
-      ;; Check the labels to see whether we have too many digits for
-      ;; what we're actually going to display.  Man, this is a lot of
-      ;; back-and-forth and should be rewritten to be less insanely
-      ;; inefficient.
-      (when (= (seq-count (lambda (label)
-			    (string-match "\\." label))
-			  y-labels)
-	       (length y-labels))
-	(setq y-labels
-	      (cl-loop with max = (cl-loop for label in y-labels
-					   maximize (eplot--decimal-digits
-						     (string-to-number label)))
-		       for label in y-labels
-		       collect (format (if (zerop max)
-					   "%d"
-					 (format "%%.%df" max))
-				       (string-to-number label)))))
-      (setq y-labels (cl-coerce y-labels 'vector))
-      ;; Make Y ticks.
-      (cl-loop with lnum = 0
-	       with text-height = (eplot--text-height "012" label-font
-						      'normal label-font-size)
-	       for y in y-ticks
-	       for i from 0
-	       for py = (- (- height margin-bottom)
-			   (* (/ (- (* 1.0 y) min) (- max min))
-			      ys))
-	       do
-	       (when (and (<= margin-top py (- height margin-bottom))
-			  (zerop (e% y y-tick-step)))
-		 (svg-line svg margin-left py
-			   (- margin-left 3) py
-			   :stroke-color axes-color)
-		 (when (or (eq grid 'xy) (eq grid 'y))
-		   (svg-line svg margin-left py
-			     (- width margin-right) py
-			     :opacity grid-opacity
-			     :stroke-color grid-color))
-		 (when (zerop (e% y y-label-step))
-		   (svg-text svg (elt y-labels lnum)
-			     :font-family label-font
-			     :text-anchor "end"
-			     :font-size label-font-size
-			     :fill label-color
-			     :x (- margin-left 6)
-			     :y (+ py (/ text-height 2) -1))
-		   (cl-incf lnum)))))))
+    (setq y-labels
+	  (cl-loop for y in y-ticks
+		   for py = (- (- height margin-bottom)
+			       (* (/ (- (* 1.0 y) min) (- max min))
+				  ys))
+		   when (and (<= margin-top py (- height margin-bottom))
+			     (zerop (e% y y-tick-step))
+			     (zerop (e% y y-label-step)))
+		   collect (eplot--format-y
+			    y (- (cadr y-ticks) (car y-ticks)) nil
+			    y-label-format)))
+    ;; Check the labels to see whether we have too many digits for
+    ;; what we're actually going to display.  Man, this is a lot of
+    ;; back-and-forth and should be rewritten to be less insanely
+    ;; inefficient.
+    (when (= (seq-count (lambda (label)
+			  (string-match "\\." label))
+			y-labels)
+	     (length y-labels))
+      (setq y-labels
+	    (cl-loop with max = (cl-loop for label in y-labels
+					 maximize (eplot--decimal-digits
+						   (string-to-number label)))
+		     for label in y-labels
+		     collect (format (if (zerop max)
+					 "%d"
+				       (format "%%.%df" max))
+				     (string-to-number label)))))
+    (setq y-labels (cl-coerce y-labels 'vector))
+    ;; Ensure that we have enough room to display the Y labels
+    ;; (unless overridden).
+    (when (eplot--default-p 'margin-left (slot-value chart 'data))
+      (with-slots (label-font label-font-size) chart
+	(setq margin-left (+ (eplot--text-width
+			      (elt y-labels (1- (length y-labels)))
+			      label-font 'normat label-font-size)
+			     10))))))
 
-(defvar eplot--text-height-cache (make-hash-table :test #'equal))
+(defun eplot--draw-y-ticks (svg chart)
+  (with-slots ( y-ticks y-labels y-tick-step y-label-step label-color
+		label-font label-font-size
+		width height min max ys
+		margin-top margin-bottom margin-left margin-right
+		axes-color
+		grid grid-opacity grid-color)
+      chart
+    ;; Make Y ticks.
+    (cl-loop with lnum = 0
+	     with text-height = (eplot--text-height "012" label-font
+						    'normal label-font-size)
+	     for y in y-ticks
+	     for i from 0
+	     for py = (- (- height margin-bottom)
+			 (* (/ (- (* 1.0 y) min) (- max min))
+			    ys))
+	     do
+	     (when (and (<= margin-top py (- height margin-bottom))
+			(zerop (e% y y-tick-step)))
+	       (svg-line svg margin-left py
+			 (- margin-left 3) py
+			 :stroke-color axes-color)
+	       (when (or (eq grid 'xy) (eq grid 'y))
+		 (svg-line svg margin-left py
+			   (- width margin-right) py
+			   :opacity grid-opacity
+			   :stroke-color grid-color))
+	       (when (zerop (e% y y-label-step))
+		 (svg-text svg (elt y-labels lnum)
+			   :font-family label-font
+			   :text-anchor "end"
+			   :font-size label-font-size
+			   :fill label-color
+			   :x (- margin-left 6)
+			   :y (+ py (/ text-height 2) -1))
+		 (cl-incf lnum))))))
+
+(defvar eplot--text-size-cache (make-hash-table :test #'equal))
 
 (defun eplot--text-height (text font font-weight font-size)
-  (let ((key (list text font font-weight font-size)))
-    (or (gethash key eplot--text-height-cache)
-	(let ((height (eplot--text-height-1 text font font-weight font-size)))
-	  (setf (gethash key eplot--text-height-cache) height)
-	  height))))
+  (cdr (eplot--text-size text font font-weight font-size)))
 
-(defun eplot--text-height-1 (text font font-weight font-size)
+(defun eplot--text-width (text font font-weight font-size)
+  (car (eplot--text-size text font font-weight font-size)))
+
+(defun eplot--text-size (text font font-weight font-size)
+  (let ((key (list text font font-weight font-size)))
+    (or (gethash key eplot--text-size-cache)
+	(let ((size (eplot--text-size-1 text font font-weight font-size)))
+	  (setf (gethash key eplot--text-size-cache) size)
+	  size))))
+
+(defun eplot--text-size-1 (text font font-weight font-size)
   (if (not (executable-find "convert"))
-      font-size
+      ;; This "default" text size is kinda bogus.
+      (cons (* (length text) font-size) font-size)
     (let* ((size (* font-size 10))
 	   (svg (svg-create size size))
-	   height)
+	   text-size)
       (svg-rectangle svg 0 0 size size :fill "black")
       (svg-text svg text
 		:font-family font
@@ -1563,11 +1596,15 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 		(when (zerop (call-process "convert" nil t nil
 					   "-trim" "+repage" file "info:-"))
 		  (goto-char (point-min))
-		  (when (re-search-forward " [0-9]+x\\([0-9]+\\)" nil t)
-		    (setq height (string-to-number (match-string 1))))))
+		  (when (re-search-forward " \\([0-9]+\\)x\\([0-9]+\\)" nil t)
+		    (setq text-size
+			  (cons (string-to-number (match-string 1))
+				(string-to-number (match-string 2)))))))
 	    (when (file-exists-p file)
 	      (delete-file file)))))
-      (or height font-size))))
+      (or text-size
+	  ;; This "default" text size is kinda bogus.
+	  (cons (* (length text) font-size) font-size)))))
 
 (defun eplot--draw-legend (svg chart)
   (with-slots ( legend plots
@@ -1999,7 +2036,11 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 			       ,@(if gradient
 				     `(:gradient ,id)
 				   `(:fill "none"))))
-		   (svg-polygon svg (nreverse polygon))))))))
+		   (svg-polygon
+		    svg (nreverse polygon)
+		    :clip-path clip-id
+		    :gradient id
+		    :stroke (slot-value plot 'fill-border-color))))))))
 
 (defun eplot--stops (from to)
   (append `((0 . ,from))
