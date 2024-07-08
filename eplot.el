@@ -666,6 +666,14 @@ This is normally computed automatically, but can be overridden
 (eplot-def (y-title string)
   "The title of the X axis, if any.")
 
+(eplot-def (x-label-format string)
+  "Format string for the X labels.
+This is a `format' string.")
+
+(eplot-def (y-label-format string)
+  "Format string for the Y labels.
+This is a `format' string.")
+
 (eplot-def (background-image-file string)
   "Use an image as the background.")
 
@@ -768,6 +776,8 @@ and `frame' (the surrounding area).")
    (x-axis-title-space :initarg :x-axis-title-space :initform nil)
    (x-title :initarg :x-title :initform nil)
    (y-title :initarg :y-title :initform nil)
+   (x-label-format :initarg :x-label-format :initform nil)
+   (y-label-format :initarg :y-label-format :initform nil)
    ;; ---- CUT HERE ----
    ))
 
@@ -1221,7 +1231,7 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 		print-format font-size
 		xs
 		inhibit-compute-x-step x-type x-step-map format
-		x-tick-step x-label-step)
+		x-tick-step x-label-step x-label-format)
       chart
     (let ((set-min min)
 	  (set-max max))
@@ -1260,7 +1270,8 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 		      x-max (seq-max x-values)
 		      stride (e/ xs (- x-max x-min))
 		      inhibit-compute-x-step t)
-		(let ((xs (eplot--get-date-ticks x-min x-max xs font-size)))
+		(let ((xs (eplot--get-date-ticks x-min x-max xs font-size
+						 nil x-label-format)))
 		  (setq x-ticks (car xs)
 			print-format (cadr xs)
 			x-tick-step 1
@@ -1280,7 +1291,8 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 		      x-max (car (last x-values))
 		      stride (e/ xs (- x-max x-min))
 		      inhibit-compute-x-step t)
-		(let ((xs (eplot--get-time-ticks x-min x-max xs font-size)))
+		(let ((xs (eplot--get-time-ticks x-min x-max xs font-size
+						 nil x-label-format)))
 		  (setq x-ticks (car xs)
 			print-format (cadr xs)
 			x-tick-step 1
@@ -1367,7 +1379,7 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 		width height
 		axes-color label-color
 		grid grid-opacity grid-color
-		font x-tick-step x-label-step
+		font x-tick-step x-label-step x-label-format
 		label-font label-font-size
 		plots)
       chart
@@ -1390,7 +1402,7 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 					;; want default labeling to start with
 					;; 1 and not zero.
 					(format "%s" (1+ x)))
-			   (eplot--format-value x print-format))
+			   (eplot--format-value x print-format x-label-format))
 	     for px = (if (equal format 'bar-chart)
 			  (+ margin-left (* x stride) (/ stride 2)
 			     (/ (* stride 0.1) 2))
@@ -1441,7 +1453,7 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
   (with-slots ( y-ticks height width
 		margin-left margin-right margin-top margin-bottom
 		min max ys
-		y-tick-step y-label-step
+		y-tick-step y-label-step y-label-format
 		grid grid-opacity grid-color
 		label-font label-font-size
 		axes-color label-color)
@@ -1456,7 +1468,8 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 			      (zerop (e% y y-tick-step))
 			      (zerop (e% y y-label-step)))
 		    collect (eplot--format-y
-			     y (- (cadr y-ticks) (car y-ticks)) nil))))
+			     y (- (cadr y-ticks) (car y-ticks)) nil
+			     y-label-format))))
       ;; Check the labels to see whether we have too many digits for
       ;; what we're actually going to display.  Man, this is a lot of
       ;; back-and-forth and should be rewritten to be less insanely
@@ -1591,50 +1604,53 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 			      :x (+ margin-left 25)
 			      :y (+ margin-top 40 (* i font-size))))))))
 
-(defun eplot--format-y (y spacing whole)
-  (cond
-   ((or (= (round (* spacing 100)) 10) (= (round (* spacing 100)) 20))
-    (format "%.1f" y))
-   ((< spacing 0.01)
-    (format "%.3f" y))
-   ((< spacing 1)
-    (format "%.2f" y))
-   ((and (< spacing 1) (not (zerop (mod (* spacing 10) 1))))
-    (format "%.1f" y))
-   ((zerop (% spacing 1000000000))
-    (format "%dG" (/ y 1000000000)))
-   ((zerop (% spacing 1000000))
-    (format "%dM" (/ y 1000000)))
-   ((zerop (% spacing 1000))
-    (format "%dk" (/ y 1000)))
-   ((>= spacing 1)
-    (format "%s" y))
-   ((not whole)
-    (format "%.1f" y))
-   (t
-    (format "%s" y))))
+(defun eplot--format-y (y spacing whole format-string)
+  (format (or format-string "%s")
+	  (cond
+	   ((or (= (round (* spacing 100)) 10) (= (round (* spacing 100)) 20))
+	    (format "%.1f" y))
+	   ((< spacing 0.01)
+	    (format "%.3f" y))
+	   ((< spacing 1)
+	    (format "%.2f" y))
+	   ((and (< spacing 1) (not (zerop (mod (* spacing 10) 1))))
+	    (format "%.1f" y))
+	   ((zerop (% spacing 1000000000))
+	    (format "%dG" (/ y 1000000000)))
+	   ((zerop (% spacing 1000000))
+	    (format "%dM" (/ y 1000000)))
+	   ((zerop (% spacing 1000))
+	    (format "%dk" (/ y 1000)))
+	   ((>= spacing 1)
+	    (format "%s" y))
+	   ((not whole)
+	    (format "%.1f" y))
+	   (t
+	    (format "%s" y)))))
 
-(defun eplot--format-value (value print-format)
-  (cond
-   ((eq print-format 'date)
-    (format-time-string "%Y-%m-%d" value))
-   ((eq print-format 'year)
-    (format-time-string "%Y" value))
-   ((eq print-format 'time)
-    (format-time-string "%H:%M:%S" value))
-   ((eq print-format 'minute)
-    (format-time-string "%H:%M" value))
-   ((eq print-format 'hour)
-    (format-time-string "%H" value))
-   (t
-    (format "%s" value))))
+(defun eplot--format-value (value print-format label-format)
+  (format (or label-format "%s")
+	  (cond
+	   ((eq print-format 'date)
+	    (format-time-string "%Y-%m-%d" value))
+	   ((eq print-format 'year)
+	    (format-time-string "%Y" value))
+	   ((eq print-format 'time)
+	    (format-time-string "%H:%M:%S" value))
+	   ((eq print-format 'minute)
+	    (format-time-string "%H:%M" value))
+	   ((eq print-format 'hour)
+	    (format-time-string "%H" value))
+	   (t
+	    (format "%s" value)))))
 
 (defun eplot--compute-x-ticks (xs x-values font-size print-format
-				  &optional use-value)
+				  &optional use-value label-format)
   (let* ((min (seq-min x-values))
 	 (max (seq-max x-values))
 	 (count (length x-values))
-	 (max-print (eplot--format-value (or use-value max) print-format))
+	 (max-print (eplot--format-value (or use-value max) print-format
+					 label-format))
 	 ;; We want each label to be spaced at least as long apart as
 	 ;; the length of the longest label, with room for two blanks
 	 ;; in between.
@@ -2062,7 +2078,8 @@ nil means `top-down'."
     (cl-loop for x from start upto (* max factor) by feven
 	     collect (e/ x factor))))
 
-(defun eplot--get-date-ticks (start end xs font-size &optional skip-until)
+(defun eplot--get-date-ticks (start end xs font-size &optional skip-until
+				    label-format)
   (let* ((secs (* 60 60 24))
 	 (sday (/ start secs))
 	 (eday (/ end secs))
@@ -2110,7 +2127,8 @@ nil means `top-down'."
 			     collect time))
 	   (count (length x-ticks))
 	   (print-format (nth 1 (car limits)))
-	   (max-print (eplot--format-value (car x-ticks) print-format))
+	   (max-print (eplot--format-value (car x-ticks) print-format
+					   label-format))
 	   (min-spacing (* (+ (length max-print) 2) (e/ font-size 2))))
       (cond
        ;; We have room for every X value.
@@ -2170,7 +2188,8 @@ nil means `top-down'."
 				   (zerop (% year tick-step))
 				   (zerop (% year label-step))))))))
 
-(defun eplot--get-time-ticks (start end xs font-size &optional skip-until)
+(defun eplot--get-time-ticks (start end xs font-size &optional skip-until
+				    label-format)
   (let* ((duration (- end start))
 	 (limits
 	  (list
@@ -2209,7 +2228,8 @@ nil means `top-down'."
 			     collect time))
 	   (count (length x-ticks))
 	   (print-format (nth 1 (car limits)))
-	   (max-print (eplot--format-value (car x-ticks) print-format))
+	   (max-print (eplot--format-value (car x-ticks) print-format
+					   label-format))
 	   (min-spacing (* (+ (length max-print) 2) (e/ font-size 2))))
       (cond
        ;; We have room for every X value.
@@ -2374,6 +2394,8 @@ nil means `top-down'."
       ("xf" "Label-Font")
       ("xz" "Label-Font-Size")
       ("xs" "X-Axis-Title-Space")
+      ("xl" "X-Label-Format")
+      ("xa" "Y-Label-Format")
       ("il" "Grid-Color")
       ("io" "Grid-Opacity")
       ("ip" "Grid-Position")

@@ -93,9 +93,9 @@ And you can add a gradient to curve plots, too.
 	Style: triangle
 	Fill-Color: #c0c0c0
 
-Some styles also take a Fill parameter to specify the fill color.
-
 ![chart-triangle.plt](/images/chart-triangle.svg)
+
+Some styles also take a Fill parameter to specify the fill color.
 
 	Style: rectangle
 
@@ -122,9 +122,6 @@ Some styles also take a Fill parameter to specify the fill color.
 
 That's all the basic plotting styles.
 
-You can have several plots in one chart, with their own styles and
-colors.
-
 	Data-File: data1.txt
 	
 	Style: impulse
@@ -132,6 +129,17 @@ colors.
 	Data-File: data2.txt
 
 ![chart-two-plots.plt](/images/chart-two-plots.svg)
+
+You can have several plots in one chart, with their own styles and
+colors.
+
+	Y-Label-Format: %s%%
+	X-Label-Format: $%s
+	Data-File: data1.txt
+
+![chart-format.plt](/images/chart-format.svg)
+
+You can specify a format string for the X and Y labels.
 
 There's a special color spec called "vary", and it results in choosing
 between some pre-defined legible colors:
