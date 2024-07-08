@@ -3151,7 +3151,16 @@ nil means `top-down'."
 	    (list (cons :headers
 			(list
 			 (cons 'name (elt names column))
-			 (cons 'data-format "year")
+			 (cons 'data-format
+			       (cond
+				((cl-every (lambda (e) (<= (length e) 4))
+					   (mapcar #'car csv))
+				 "year")
+				((cl-every (lambda (e) (= (length e) 8))
+					   (mapcar #'car csv))
+				 "date")
+				(t
+				 "number")))
 			 (cons 'color (eplot--vary-color "vary" (1- column)))))
 		  (cons
 		   :values
