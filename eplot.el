@@ -732,8 +732,6 @@ and `frame' (the surrounding area).")
    (y-tick-step)
    (y-label-step)
    (inhibit-compute-x-step :initform nil)
-   (set-min :initform nil)
-   (set-max :initform nil)
    ;; ---- CUT HERE ----
    (axes-color :initarg :axes-color :initform nil)
    (background-color :initarg :background-color :initform nil)
@@ -961,10 +959,6 @@ Elements allowed are `two-values', `date' and `time'.")
 	     (eplot--set-dependent-values chart name value))
     ;; Finally, use the data from the chart.
     (eplot--object-values chart data eplot--chart-headers)
-    ;; Note when min/max are explicitly set.
-    (with-slots (min max set-min set-max) chart
-      (setq set-min min
-	    set-max max))
     ;; If not set, recompute the margins based on the font sizes (if
     ;; the font size has been changed from defaults).
     (when (or (assq 'font-size eplot--user-defaults)
@@ -1330,15 +1324,14 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
   (with-slots ( x-tick-step x-label-step y-tick-step y-label-step
 		min max ys format inhibit-compute-x-step
 		y-ticks xs x-values print-format
-		label-font-size
-		set-min set-max)
+		label-font-size data)
       chart
     (setq y-ticks (and max
 		       (eplot--get-ticks
 			min
 			;; We get 2% more ticks to check whether we
 			;; should extend max.
-			(if set-max max (* max 1.02))
+			(if (eplot--default-p 'max data) (* max 1.02) max)
 			ys)))
     (if (eq format 'bar-chart)
 	(setq x-tick-step 1
@@ -1354,7 +1347,7 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 	      y-label-step (cadr yt))))
     ;; If max is less than 2% off from a pleasant number, then
     ;; increase max.
-    (unless set-max
+    (when (eplot--default-p 'max data)
       (cl-loop for tick in (reverse y-ticks)
 	       when (and (< max tick)
 			 (< (e/ (- tick max) (- max min)) 0.02))
@@ -1364,7 +1357,7 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 			(setcdr (member tick y-ticks) nil))))
 
     (when y-ticks
-      (if (and (not set-min)
+      (if (and (eplot--default-p 'min data)
 	       (< (car y-ticks) min))
 	  (setq min (car y-ticks))
 	;; We may be extending the bottom of the chart to get pleasing
