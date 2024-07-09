@@ -3116,7 +3116,10 @@ nil means `top-down'."
 (defun eplot--parse-csv-buffer ()
   (unless (fboundp 'pcsv-parse-buffer)
     (user-error "You need to install the pcsv package to parse CSV files"))
-  (let ((csv (pcsv-parse-buffer))
+  (let ((csv (and (fboundp 'pcsv-parse-buffer)
+		  ;; This repeated check is just to silence the byte
+		  ;; compiler.
+		  (pcsv-parse-buffer)))
 	names)
     ;; Check whether the first line looks like a header.
     (when (and (length> csv 1)
