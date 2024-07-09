@@ -2587,7 +2587,9 @@ nil means `top-down'."
 
 (defvar-keymap eplot-control-mode-map
   "RET" #'eplot-control-update
-  "TAB" #'eplot-control-next-input)
+  "TAB" #'eplot-control-next-field
+  "C-<tab>" #'eplot-control-next-field
+  "<backtab>" #'eplot-control-prev-field)
 
 (define-derived-mode eplot-control-mode special-mode "eplot control"
   (setq-local completion-at-point-functions
@@ -2823,7 +2825,9 @@ nil means `top-down'."
   "TAB" #'eplot-input-complete
   "C-a" #'eplot-move-beginning-of-input
   "C-e" #'eplot-move-end-of-input
-  "C-k" #'eplot-kill-input)
+  "C-k" #'eplot-kill-input
+  "C-<tab>" #'eplot-control-next-field
+  "<backtab>" #'eplot-control-prev-field)
 
 (defun eplot-input-complete ()
   "Complete values in inputs."
@@ -2848,9 +2852,38 @@ nil means `top-down'."
 (defun eplot-move-end-of-input ()
   "Move to the end of the current input field."
   (interactive)
-  (if (not (get-text-property (point) 'input))
-      (goto-char (pos-eol))
-    (goto-char (1+ (eplot--end-of-field)))))
+  (let ((input (get-text-property (point) 'input)))
+    (if (or (not input)
+	    (= (point) (1- (plist-get input :end))))
+	(goto-char (pos-eol))
+      (goto-char (1+ (eplot--end-of-field))))))
+
+(defun eplot-control-next-field ()
+  "Move to the beginning of the next field."
+  (interactive)
+  (let ((input (get-text-property (point) 'input))
+	(start (point)))
+    (when input
+      (goto-char (plist-get input :end)))
+    (let ((match (text-property-search-forward 'input)))
+      (if match
+	  (goto-char (prop-match-beginning match))
+	(goto-char start)
+	(user-error "No next field")))))
+
+(defun eplot-control-prev-field ()
+  "Move to the beginning of the previous field."
+  (interactive)
+  (let ((input (get-text-property (point) 'input))
+	(start (point)))
+    (when input
+      (goto-char (plist-get input :start))
+      (unless (bobp)
+	(forward-char -1)))
+    (let ((match (text-property-search-backward 'input)))
+      (unless match
+	(goto-char start)
+	(user-error "No previous field")))))
 
 (defun eplot-kill-input ()
   "Remove the part of the input after point."
@@ -2881,24 +2914,17 @@ nil means `top-down'."
     ;; somehow makes `delete-region' work better.
     (set-text-properties start (point) (text-properties-at start))
     (insert (propertize " " 'face face
+			'input input
 			'inhibit-read-only t
 			'local-map eplot--input-map))
     (plist-put input :end (point-marker))
     (insert " ")))
 
 (defun eplot--end-of-field ()
-  (1- (next-single-property-change (point) 'input nil (point-max))))
+  (- (plist-get (get-text-property (point) 'input) :end) 2))
 
 (defun eplot--beginning-of-field ()
-  (cond
-   ((bobp)
-    (point))
-   ((not (eq (get-text-property (point) 'input)
-	     (get-text-property (1- (point)) 'input)))
-    (point))
-   (t
-    (previous-single-property-change
-     (point) 'input nil (point-min)))))
+  (plist-get (get-text-property (point) 'input) :start))
 
 (defvar eplot--prev-deletion nil)
 
