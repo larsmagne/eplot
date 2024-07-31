@@ -1102,29 +1102,10 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 		    (> ys 0) (> xs 0)))
 	  ;; Just draw the basics.
 	  (eplot--draw-basics svg chart)
+
 	;; Horizontal bar charts are special.
 	(when (eq format 'horizontal-bar-chart)
-	  (with-slots (plots label-font label-font-size) chart
-	    (with-slots ( data-format values) (car plots)
-	      (push 'xy data-format)
-	      ;; Flip the values -- we want the values to be on the X
-	      ;; axis instead.
-	      (setf values
-		    (cl-loop for value in values
-			     for i from 1
-			     collect (list :value i
-					   :x (plist-get value :value)
-					   :settings
-					   (plist-get value :settings))))
-	      (when (eplot--default-p 'margin-left data)
-		(setf margin-left
-		      (+ (cl-loop for value in values
-				  maximize (eplot--text-width
-					    (eplot--vs
-					     'label (plist-get value :settings))
-					    label-font 'normal label-font-size))
-			 20))))))
-
+	  (eplot--adjust-horizontal-bar-chart chart data))
 	;; Compute min/max based on all plots, and also compute x-ticks
 	;; etc.
 	(eplot--compute-chart-dimensions chart)
@@ -1168,6 +1149,28 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 	svg
       (svg-insert-image svg)
       chart)))
+
+(defun eplot--adjust-horizontal-bar-chart (chart data)
+  (with-slots (plots label-font label-font-size margin-left) chart
+    (with-slots ( data-format values) (car plots)
+      (push 'xy data-format)
+      ;; Flip the values -- we want the values to be on the X
+      ;; axis instead.
+      (setf values
+	    (cl-loop for value in values
+		     for i from 1
+		     collect (list :value i
+				   :x (plist-get value :value)
+				   :settings
+				   (plist-get value :settings))))
+      (when (eplot--default-p 'margin-left data)
+	(setf margin-left
+	      (+ (cl-loop for value in values
+			  maximize (eplot--text-width
+				    (eplot--vs
+				     'label (plist-get value :settings))
+				    label-font 'normal label-font-size))
+		 20))))))
 
 (defun eplot--draw-basics (svg chart)
   (with-slots ( width height 
@@ -1272,7 +1275,8 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 		print-format font-size
 		xs
 		inhibit-compute-x-step x-type x-step-map format
-		x-tick-step x-label-step x-label-format)
+		x-tick-step x-label-step
+		label-font label-font-size x-label-format)
       chart
     (let ((set-min min)
 	  (set-max max))
@@ -1316,8 +1320,9 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 		      x-max (seq-max x-values)
 		      stride (e/ xs (- x-max x-min))
 		      inhibit-compute-x-step t)
-		(let ((xs (eplot--get-date-ticks x-min x-max xs font-size
-						 nil x-label-format)))
+		(let ((xs (eplot--get-date-ticks
+			   x-min x-max xs
+			   label-font label-font-size x-label-format)))
 		  (setq x-ticks (car xs)
 			print-format (cadr xs)
 			x-tick-step 1
@@ -1337,8 +1342,9 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 		      x-max (car (last x-values))
 		      stride (e/ xs (- x-max x-min))
 		      inhibit-compute-x-step t)
-		(let ((xs (eplot--get-time-ticks x-min x-max xs font-size
-						 nil x-label-format)))
+		(let ((xs (eplot--get-time-ticks
+			   x-min x-max xs label-font label-font-size
+			   x-label-format)))
 		  (setq x-ticks (car xs)
 			print-format (cadr xs)
 			x-tick-step 1
@@ -1369,7 +1375,8 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
   (with-slots ( x-tick-step x-label-step y-tick-step y-label-step
 		min max ys format inhibit-compute-x-step
 		y-ticks xs x-values print-format
-		label-font label-font-size data)
+		x-label-format label-font label-font-size data
+		x-ticks)
       chart
     (setq y-ticks (and max
 		       (eplot--get-ticks
@@ -1387,7 +1394,8 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 	      x-label-step 1)
       (unless inhibit-compute-x-step
 	(let ((xt (eplot--compute-x-ticks
-		   xs x-values label-font-size print-format)))
+		   xs x-ticks print-format
+		   x-label-format label-font label-font-size)))
 	  (setq x-tick-step (car xt)
 		x-label-step (cadr xt)))))
     (when max
@@ -1750,17 +1758,17 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 	   (t
 	    (format "%s" value)))))
 
-(defun eplot--compute-x-ticks (xs x-values font-size print-format
-				  &optional use-value label-format)
+(defun eplot--compute-x-ticks (xs x-values print-format x-label-format
+				  label-font label-font-size)
   (let* ((min (seq-min x-values))
 	 (max (seq-max x-values))
 	 (count (length x-values))
-	 (max-print (eplot--format-value (or use-value max) print-format
-					 label-format))
+	 (max-print (eplot--format-value max print-format x-label-format))
 	 ;; We want each label to be spaced at least as long apart as
 	 ;; the length of the longest label, with room for two blanks
 	 ;; in between.
-	 (min-spacing (* (+ (length max-print) 2) (e/ font-size 2)))
+	 (min-spacing (* 1.2 (eplot--text-width max-print label-font
+						'normal label-font-size)))
 	 (digits (eplot--decimal-digits (- (cadr x-values) (car x-values))))
 	 (every (e/ 1 (expt 10 digits))))
     (cond
@@ -2262,8 +2270,8 @@ nil means `top-down'."
 (defun eplot--days-to-time (days)
   (days-to-time (- days (time-to-days 0))))
 
-(defun eplot--get-date-ticks (start end xs font-size &optional skip-until
-				    label-format)
+(defun eplot--get-date-ticks (start end xs label-font label-font-size
+				    x-label-format &optional skip-until)
   (let* ((duration (- end start))
 	 (limits
 	  (list
@@ -2309,8 +2317,9 @@ nil means `top-down'."
 	   (count (length x-ticks))
 	   (print-format (nth 1 (car limits)))
 	   (max-print (eplot--format-value (car x-ticks) print-format
-					   label-format))
-	   (min-spacing (* (+ (length max-print) 2) (e/ font-size 2))))
+					   x-label-format))
+	   (min-spacing (* 1.2 (eplot--text-width max-print label-font 'normal
+						  label-font-size))))
       (cond
        ;; We have room for every X value.
        ((< (* count min-spacing) xs)
@@ -2320,7 +2329,8 @@ nil means `top-down'."
        ((< (* count 10) xs)
 	(cond
 	 ((not (cdr limits))
-	  (eplot--year-ticks x-ticks xs font-size))
+	  (eplot--year-ticks
+	   x-ticks xs label-font label-font-size x-label-format))
 	 ;; The Mondays grid is special, because it doesn't resolve
 	 ;; into any of the bigger limits evenly.
 	 ((= (caar limits) (/ 368 4))
@@ -2335,31 +2345,39 @@ nil means `top-down'."
 	  (catch 'found
 	    (while limits
 	      (let ((candidate
-		     (cl-loop for val in x-ticks
-			      for decoded = (decode-time val)
-			      collect (list val t
+		     (cl-loop for day in x-ticks
+			      for time = (eplot--days-to-time day)
+			      for decoded = (decode-time time)
+			      collect (list day t
 					    (not (not
 						  (funcall (nth 2 (car limits))
 							   decoded)))))))
 		(setq print-format (nth 1 (car limits)))
-		(let ((min-spacing (* (+ (length max-print) 2)
-				      (e/ font-size 2))))
-		  (when (< (* (seq-count (lambda (v) (nth 2 v)) candidate)
-			      min-spacing)
-			   xs)
+		(let* ((max-print (eplot--format-value
+				   (car x-ticks) print-format x-label-format))
+		       (min-spacing (* 1.2 (eplot--text-width
+					    max-print label-font 'normal
+					    label-font-size)))
+		       (num-labels (seq-count (lambda (v) (nth 2 v))
+					      candidate)))
+		  (when (and (not (zerop num-labels))
+			     (< (* num-labels min-spacing) xs))
 		    (throw 'found (list x-ticks print-format candidate)))))
 	      (pop limits))
-	    (eplot--year-ticks x-ticks xs font-size)))))
+	    (eplot--year-ticks
+	     x-ticks xs label-font label-font-size x-label-format)))))
        ;; We have to reduce both grid lines and labels.
        (t
-	(eplot--get-date-ticks start end xs font-size (caar limits)))))))
+	(eplot--get-date-ticks start end xs label-font label-font-size
+			       x-label-format (caar limits)))))))
 
-(defun eplot--year-ticks (x-ticks xs font-size)
+(defun eplot--year-ticks (x-ticks xs label-font label-font-size x-label-format)
   (let* ((year-ticks (mapcar (lambda (day)
 			       (decoded-time-year
 				(decode-time (eplot--days-to-time day))))
 			     x-ticks))
-	 (xv (eplot--compute-x-ticks xs year-ticks font-size 'year)))
+	 (xv (eplot--compute-x-ticks
+	      xs year-ticks 'year x-label-format label-font label-font-size)))
     (let ((tick-step (car xv))
 	  (label-step (cadr xv)))
       (list x-ticks 'year
@@ -2369,8 +2387,9 @@ nil means `top-down'."
 				   (zerop (% year tick-step))
 				   (zerop (% year label-step))))))))
 
-(defun eplot--get-time-ticks (start end xs font-size &optional skip-until
-				    label-format)
+(defun eplot--get-time-ticks (start end xs label-font label-font-size
+				    x-label-format
+				    &optional skip-until)
   (let* ((duration (- end start))
 	 (limits
 	  (list
@@ -2410,8 +2429,8 @@ nil means `top-down'."
 	   (count (length x-ticks))
 	   (print-format (nth 1 (car limits)))
 	   (max-print (eplot--format-value (car x-ticks) print-format
-					   label-format))
-	   (min-spacing (* (+ (length max-print) 2) (e/ font-size 2))))
+					   x-label-format))
+	   (min-spacing (* (+ (length max-print) 2) (e/ label-font-size 2))))
       (cond
        ;; We have room for every X value.
        ((< (* count min-spacing) xs)
@@ -2421,7 +2440,8 @@ nil means `top-down'."
        ;; If we're plotting just seconds, then just weed out some seconds.
        ((and (< (* count 10) xs)
 	     (= (caar limits) (* 2 60)))
-	(let ((xv (eplot--compute-x-ticks xs x-ticks font-size 'time)))
+	(let ((xv (eplot--compute-x-ticks
+		   xs x-ticks 'time x-label-format label-font label-font-size)))
 	  (let ((tick-step (car xv))
 		(label-step (cadr xv)))
 	    (list x-ticks 'time
@@ -2432,7 +2452,8 @@ nil means `top-down'."
        ;; Normal case for pruning labels, but not grid lines.
        ((< (* count 10) xs)
 	(if (not (cdr limits))
-	    (eplot--hour-ticks x-ticks xs font-size)
+	    (eplot--hour-ticks x-ticks xs label-font label-font-size
+			       x-label-format)
 	  (pop limits)
 	  (catch 'found
 	    (while limits
@@ -2445,23 +2466,27 @@ nil means `top-down'."
 							   decoded)))))))
 		(setq print-format (nth 1 (car limits)))
 		(let ((min-spacing (* (+ (length max-print) 2)
-				      (e/ font-size 2))))
+				      (e/ label-font-size 2))))
 		  (when (< (* (seq-count (lambda (v) (nth 2 v)) candidate)
 			      min-spacing)
 			   xs)
 		    (throw 'found (list x-ticks print-format candidate)))))
 	      (pop limits))
-	    (eplot--hour-ticks x-ticks xs font-size))))
+	    (eplot--hour-ticks x-ticks xs label-font label-font-size
+			       x-label-format))))
        ;; We have to reduce both grid lines and labels.
        (t
-	(eplot--get-time-ticks start end xs font-size (caar limits)))))))
+	(eplot--get-time-ticks start end xs label-font label-font-size
+			       x-label-format (caar limits)))))))
 
-(defun eplot--hour-ticks (x-ticks xs font-size)
+(defun eplot--hour-ticks (x-ticks xs label-font label-font-size
+				  x-label-format)
   (let* ((eplot--pleasing-numbers '(1 3 6 12))
 	 (hour-ticks (mapcar (lambda (time)
 			       (decoded-time-hour (decode-time time)))
 			     x-ticks))
-	 (xv (eplot--compute-x-ticks xs hour-ticks font-size 'year)))
+	 (xv (eplot--compute-x-ticks
+	      xs hour-ticks 'year x-label-format label-font label-font-size)))
     (let ((tick-step (car xv))
 	  (label-step (cadr xv)))
       (list x-ticks 'hour
