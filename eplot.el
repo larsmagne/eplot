@@ -680,6 +680,9 @@ This is a `format' string.")
   "Format string for the Y labels.
 This is a `format' string.")
 
+(eplot-def (x-label-orientation symbol horizontal (horizontal vertical))
+  "Orientation of the X labels.")
+
 (eplot-def (background-image-file string)
   "Use an image as the background.")
 
@@ -783,6 +786,7 @@ and `frame' (the surrounding area).")
    (x-title :initarg :x-title :initform nil)
    (y-title :initarg :y-title :initform nil)
    (x-label-format :initarg :x-label-format :initform nil)
+   (x-label-orientation :initarg :x-label-orientation :initform nil)
    (y-label-format :initarg :y-label-format :initform nil)
    ;; ---- CUT HERE ----
    ))
@@ -1394,12 +1398,13 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 		width height
 		axes-color label-color
 		grid grid-opacity grid-color
-		font x-tick-step x-label-step x-label-format
+		font x-tick-step x-label-step x-label-format x-label-orientation
 		label-font label-font-size
 		plots)
       chart
     ;; Make X ticks.
-    (cl-loop for xv in (or x-step-map x-ticks)
+    (cl-loop with label-height
+	     for xv in (or x-step-map x-ticks)
 	     for x = (if (consp xv) (car xv) xv)
 	     for do-tick = (if (consp xv)
 			       (nth 1 xv)
@@ -1452,17 +1457,38 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 			    (not (= x-min (car x-values)))
 			    (eq x-type 'one-dimensional)
 			    (and (not (zerop x)) (not (zerop i)))))
-	       (svg-text svg label
-			 :font-family label-font
-			 :text-anchor "middle"
-			 :font-size label-font-size
-			 :fill label-color
-			 :x px
-			 :y (+ (- height margin-bottom)
-			       label-font-size
-			       (if (equal format 'bar-chart)
-				   (if (equal layout 'compact) 3 5)
-				 2)))))))
+	       (if (eq x-label-orientation 'vertical)
+		   (progn
+		     (unless label-height
+		       ;; The X position we're putting the label at is
+		       ;; based on the bottom of the lower-case
+		       ;; characters.  So we want to ignore descenders
+		       ;; etc, so we use "xx" to determine the height
+		       ;; to be able to center the text.
+		       (setq label-height
+			     (eplot--text-height "xx" label-font 'normal
+						 label-font-size)))
+		     (svg-text svg label
+			       :font-family label-font
+			       :text-anchor "end"
+			       :font-size label-font-size
+			       :fill label-color
+			       :transform
+			       (format "translate(%s,%s) rotate(-90)"
+				       (+ px (/ label-height 2)
+					  0)
+				       (- height margin-bottom -10))))
+		 (svg-text svg label
+			   :font-family label-font
+			   :text-anchor "middle"
+			   :font-size label-font-size
+			   :fill label-color
+			   :x px
+			   :y (+ (- height margin-bottom)
+				 label-font-size
+				 (if (equal format 'bar-chart)
+				     (if (equal layout 'compact) 3 5)
+				   2))))))))
 
 (defun eplot--default-p (slot data)
   "Return non-nil if SLOT is at the default value."

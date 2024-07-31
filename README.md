@@ -152,6 +152,22 @@ colors.
 
 You can specify a format string for the X and Y labels.
 
+	Format: bar-chart
+	Color: vary
+	Title: How Much Higher Would A Director Place
+	Mode: dark
+	X-Label-Orientation: vertical
+	Margin-Bottom: 150
+
+	1347 # Label: James Benning
+	789 # Label: Raúl Ruiz
+	782 # Label: Jim Jarmusch
+	...
+	
+![directors2.plt](/images/directors2.svg)
+
+In bar charts, you can place the X labels vertically.
+
 There's a special color spec called "vary", and it results in choosing
 between some pre-defined legible colors:
 
