@@ -2163,7 +2163,7 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
       chart
     (cl-loop with plot = (car plots)
 	     with values = (slot-value plot 'values)
-	     with stride = (/ ys (length values))
+	     with stride = (e/ ys (length values))
 	     with label-height = (eplot--text-height "xx" label-font 'normal
 						     label-font-size)
 	     with bar-gap = (* stride 0.1)
@@ -2184,11 +2184,10 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 		       :fill label-color
 		       :x 5
 		       :y (+ py label-height (/ (- stride label-height) 2)))
-	     (svg-rectangle
-	      svg margin-left
-	      (+ py (/ bar-gap 2))
-	      px (- stride bar-gap)
-	      :fill color))))
+	     (svg-rectangle svg
+			    margin-left (+ py (e/ bar-gap 2))
+			    px (- stride bar-gap)
+			    :fill color))))
 
 (defun eplot--stops (from to)
   (append `((0 . ,from))
