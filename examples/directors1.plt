@@ -1,9 +1,8 @@
-Format: bar-chart
+Format: horizontal-bar-chart
 Color: vary
 Title: How Much Higher Would A Director Place
 Mode: dark
-X-Label-Orientation: vertical
-Margin-Bottom: 150
+Height: 1200
 
 1347 # Label: James Benning
 789 # Label: Raúl Ruiz

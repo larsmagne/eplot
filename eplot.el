@@ -720,6 +720,11 @@ and `frame' (the surrounding area).")
     (grid-opacity 0.2)
     (min 0)))
 
+(defvar eplot-horizontal-bar-chart-defaults
+  '((grid-position top)
+    (grid-opacity 0.2)
+    (min 0)))
+
 (defclass eplot-chart ()
   (
    (plots :initarg :plots)
@@ -961,6 +966,8 @@ Elements allowed are `two-values', `date' and `time'.")
     (eplot--meta chart data 'mode 'dark eplot-dark-defaults)
     (eplot--meta chart data 'layout 'compact eplot-compact-defaults)
     (eplot--meta chart data 'format 'bar-chart eplot-bar-chart-defaults)
+    (eplot--meta chart data 'format 'horizontal-bar-chart
+		 eplot-horizontal-bar-chart-defaults)
     ;; Set defaults from user settings/transients.
     (cl-loop for (name . value) in eplot--user-defaults
 	     when (assq name eplot--chart-headers)
@@ -1067,7 +1074,7 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 	 svg)
     (with-slots ( width height xs ys
 		  margin-left margin-right margin-top margin-bottom
-		  grid-position plots)
+		  grid-position plots x-min format)
 	chart
       ;; Set the size of the chart based on the window it's going to
       ;; be displayed in.  It uses the *eplot* window by default, or
@@ -1095,6 +1102,29 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 		    (> ys 0) (> xs 0)))
 	  ;; Just draw the basics.
 	  (eplot--draw-basics svg chart)
+	;; Horizontal bar charts are special.
+	(when (eq format 'horizontal-bar-chart)
+	  (with-slots (plots label-font label-font-size) chart
+	    (with-slots ( data-format values) (car plots)
+	      (push 'xy data-format)
+	      ;; Flip the values -- we want the values to be on the X
+	      ;; axis instead.
+	      (setf values
+		    (cl-loop for value in values
+			     for i from 1
+			     collect (list :value i
+					   :x (plist-get value :value)
+					   :settings
+					   (plist-get value :settings))))
+	      (when (eplot--default-p 'margin-left data)
+		(setf margin-left
+		      (+ (cl-loop for value in values
+				  maximize (eplot--text-width
+					    (eplot--vs
+					     'label (plist-get value :settings))
+					    label-font 'normal label-font-size))
+			 20))))))
+
 	;; Compute min/max based on all plots, and also compute x-ticks
 	;; etc.
 	(eplot--compute-chart-dimensions chart)
@@ -1109,7 +1139,8 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 	  (eplot--draw-plots svg chart))
 
 	(eplot--draw-x-ticks svg chart)
-	(eplot--draw-y-ticks svg chart)
+	(unless (eq format 'horizontal-bar-chart)
+	  (eplot--draw-y-ticks svg chart))
       
 	;; Draw axes.
 	(with-slots ( margin-left margin-right margin-margin-top
@@ -1264,7 +1295,9 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 		    (memq 'year data-format))
 		(setq x-values (cl-loop for val in values
 					collect (plist-get val :x))
-		      x-min (seq-min x-values)
+		      x-min (if (eq format 'horizontal-bar-chart)
+				0
+			      (seq-min x-values))
 		      x-max (seq-max x-values)
 		      x-ticks (eplot--get-ticks x-min x-max xs)
 		      stride (e/ xs (- x-max x-min)))
@@ -1846,6 +1879,11 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
     (or user (slot-value plot slot) default)))
 
 (defun eplot--draw-plots (svg chart)
+  (if (eq (slot-value chart 'format) 'horizontal-bar-chart)
+      (eplot--draw-horizontal-bar-chart svg chart)
+    (eplot--draw-normal-plots svg chart)))
+    
+(defun eplot--draw-normal-plots (svg chart)
   (with-slots ( plots chart-color height format
 		margin-bottom margin-left
 		min max xs ys
@@ -2106,6 +2144,43 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 		    :clip-path clip-id
 		    :gradient id
 		    :stroke (slot-value plot 'fill-border-color))))))))
+
+(defun eplot--draw-horizontal-bar-chart (svg chart)
+  (with-slots ( plots chart-color height format
+		margin-bottom margin-left
+		min max xs ys
+		stride margin-top
+		x-values x-min x-max
+		label-font label-font-size label-color)
+      chart
+    (cl-loop with plot = (car plots)
+	     with values = (slot-value plot 'values)
+	     with stride = (/ ys (length values))
+	     with label-height = (eplot--text-height "xx" label-font 'normal
+						     label-font-size)
+	     with bar-gap = (* stride 0.1)
+	     for i from 0
+	     for value in values
+	     for settings = (plist-get value :settings)
+	     for py = (+ margin-top (* i stride))
+	     for px = (* (e/ (plist-get value :x) x-max) xs)
+	     for color = (eplot--vary-color
+			  (eplot--vs 'color settings (slot-value plot 'color))
+			  i)
+	     do
+	     (svg-text svg (eplot--vs 'label settings)
+		       :font-family label-font
+		       :text-anchor "left"
+		       :font-size label-font-size
+		       :font-weight 'normal
+		       :fill label-color
+		       :x 5
+		       :y (+ py label-height (/ (- stride label-height) 2)))
+	     (svg-rectangle
+	      svg margin-left
+	      (+ py (/ bar-gap 2))
+	      px (- stride bar-gap)
+	      :fill color))))
 
 (defun eplot--stops (from to)
   (append `((0 . ,from))

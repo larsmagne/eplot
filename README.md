@@ -168,6 +168,19 @@ You can specify a format string for the X and Y labels.
 
 In bar charts, you can place the X labels vertically.
 
+	Format: horizontal-bar-chart
+	Color: vary
+	Mode: dark
+
+	1347 # Label: James Benning
+	789 # Label: Raúl Ruiz
+	782 # Label: Jim Jarmusch
+	...
+	
+![directors1.plt](/images/directors1.svg)
+
+And you can have horizontal bar charts.
+
 There's a special color spec called "vary", and it results in choosing
 between some pre-defined legible colors:
 
