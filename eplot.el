@@ -39,6 +39,37 @@
 (require 'transient)
 
 (defvar eplot--user-defaults nil)
+(defvar eplot--chart-headers nil)
+(defvar eplot--plot-headers nil)
+(defvar eplot--transient-settings nil)
+
+
+(defvar eplot--colors
+  '("aliceblue" "antiquewhite" "aqua" "aquamarine" "azure" "beige" "bisque"
+    "black" "blanchedalmond" "blue" "blueviolet" "brown" "burlywood"
+    "cadetblue" "chartreuse" "chocolate" "coral" "cornflowerblue" "cornsilk"
+    "crimson" "cyan" "darkblue" "darkcyan" "darkgoldenrod" "darkgray"
+    "darkgreen" "darkgrey" "darkkhaki" "darkmagenta" "darkolivegreen"
+    "darkorange" "darkorchid" "darkred" "darksalmon" "darkseagreen"
+    "darkslateblue" "darkslategray" "darkslategrey" "darkturquoise"
+    "darkviolet" "deeppink" "deepskyblue" "dimgray" "dimgrey" "dodgerblue"
+    "firebrick" "floralwhite" "forestgreen" "fuchsia" "gainsboro" "ghostwhite"
+    "gold" "goldenrod" "gray" "green" "greenyellow" "grey" "honeydew" "hotpink"
+    "indianred" "indigo" "ivory" "khaki" "lavender" "lavenderblush" "lawngreen"
+    "lemonchiffon" "lightblue" "lightcoral" "lightcyan" "lightgoldenrodyellow"
+    "lightgray" "lightgreen" "lightgrey" "lightpink" "lightsalmon"
+    "lightseagreen" "lightskyblue" "lightslategray" "lightslategrey"
+    "lightsteelblue" "lightyellow" "lime" "limegreen" "linen" "magenta"
+    "maroon" "mediumaquamarine" "mediumblue" "mediumorchid" "mediumpurple"
+    "mediumseagreen" "mediumslateblue" "mediumspringgreen" "mediumturquoise"
+    "mediumvioletred" "midnightblue" "mintcream" "mistyrose" "moccasin"
+    "navajowhite" "navy" "oldlace" "olive" "olivedrab" "orange" "orangered"
+    "orchid" "palegoldenrod" "palegreen" "paleturquoise" "palevioletred"
+    "papayawhip" "peachpuff" "peru" "pink" "plum" "powderblue" "purple" "red"
+    "rosybrown" "royalblue" "saddlebrown" "salmon" "sandybrown" "seagreen"
+    "seashell" "sienna" "silver" "skyblue" "slateblue" "slategray" "slategrey"
+    "snow" "springgreen" "steelblue" "tan" "teal" "thistle" "tomato"
+    "turquoise" "violet" "wheat" "white" "whitesmoke" "yellow" "yellowgreen"))
 
 (defun eplot-set (header value)
   "Set the default value of HEADER to VALUE.
@@ -534,8 +565,6 @@ you a clear, non-blurry version of the chart at any size."
       (mapcar #'intern (split-string (downcase value)))
     default))
 
-(defvar eplot--chart-headers nil)
-
 (defmacro eplot-def (args doc-string)
   (declare (indent defun))
   `(eplot--def ',(nth 0 args) ',(nth 1 args) ',(nth 2 args) ',(nth 3 args)
@@ -802,8 +831,6 @@ and `frame' (the surrounding area).")
    ))
 
 ;;; Parameters that are plot specific.
-
-(defvar eplot--plot-headers nil)
 
 (defmacro eplot-pdef (args doc-string)
   (declare (indent defun))
@@ -2659,8 +2686,6 @@ nil means `top-down'."
 	      (interactive)
 	      (eplot--execute-transient (nth 1 action))))))
 
-(defvar eplot--transient-settings nil)
-
 (defun eplot--execute-transient (action)
   (with-current-buffer (or eplot--data-buffer (current-buffer))
     (unless eplot--transient-settings
@@ -3160,33 +3185,6 @@ nil means `top-down'."
 				      (plist-get input :value))
 			       'eplot--input-default
 			     'eplot--input-changed))))))
-
-(defvar eplot--colors
-  '("aliceblue" "antiquewhite" "aqua" "aquamarine" "azure" "beige" "bisque"
-    "black" "blanchedalmond" "blue" "blueviolet" "brown" "burlywood"
-    "cadetblue" "chartreuse" "chocolate" "coral" "cornflowerblue" "cornsilk"
-    "crimson" "cyan" "darkblue" "darkcyan" "darkgoldenrod" "darkgray"
-    "darkgreen" "darkgrey" "darkkhaki" "darkmagenta" "darkolivegreen"
-    "darkorange" "darkorchid" "darkred" "darksalmon" "darkseagreen"
-    "darkslateblue" "darkslategray" "darkslategrey" "darkturquoise"
-    "darkviolet" "deeppink" "deepskyblue" "dimgray" "dimgrey" "dodgerblue"
-    "firebrick" "floralwhite" "forestgreen" "fuchsia" "gainsboro" "ghostwhite"
-    "gold" "goldenrod" "gray" "green" "greenyellow" "grey" "honeydew" "hotpink"
-    "indianred" "indigo" "ivory" "khaki" "lavender" "lavenderblush" "lawngreen"
-    "lemonchiffon" "lightblue" "lightcoral" "lightcyan" "lightgoldenrodyellow"
-    "lightgray" "lightgreen" "lightgrey" "lightpink" "lightsalmon"
-    "lightseagreen" "lightskyblue" "lightslategray" "lightslategrey"
-    "lightsteelblue" "lightyellow" "lime" "limegreen" "linen" "magenta"
-    "maroon" "mediumaquamarine" "mediumblue" "mediumorchid" "mediumpurple"
-    "mediumseagreen" "mediumslateblue" "mediumspringgreen" "mediumturquoise"
-    "mediumvioletred" "midnightblue" "mintcream" "mistyrose" "moccasin"
-    "navajowhite" "navy" "oldlace" "olive" "olivedrab" "orange" "orangered"
-    "orchid" "palegoldenrod" "palegreen" "paleturquoise" "palevioletred"
-    "papayawhip" "peachpuff" "peru" "pink" "plum" "powderblue" "purple" "red"
-    "rosybrown" "royalblue" "saddlebrown" "salmon" "sandybrown" "seagreen"
-    "seashell" "sienna" "silver" "skyblue" "slateblue" "slategray" "slategrey"
-    "snow" "springgreen" "steelblue" "tan" "teal" "thistle" "tomato"
-    "turquoise" "violet" "wheat" "white" "whitesmoke" "yellow" "yellowgreen"))
 
 (defun eplot--read-color (prompt)
   "Read an SVG color."
