@@ -239,7 +239,23 @@ text or a special mark.
 
 And as you can see, you can combine the text and the mark.
 
-Bar charts are somewhat special.
+	Data-Format: date
+
+	Style: circle
+	Fill-Color: vary
+	Size-Factor: 3
+	...
+	20240624 5
+	20240728 6
+	20240712 14
+	
+![chart-circle-size.plt](/images/chart-circle-size.svg)
+
+You can also use a Size-Factor -- this means that each element will be
+scaled along with their values.  This only makes sense for styles like
+circle, rectangle and the like.
+
+Bar charts are somewhat special:
 
 	Format: bar-chart
 

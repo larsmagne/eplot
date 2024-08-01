@@ -904,6 +904,9 @@ xy: The first column is the X position.")
 (eplot-pdef (size number)
   "Size of elements in styles that have meaningful sizes.")
 
+(eplot-pdef (size-factor number)
+  "Multiply the size of the elements by the value.")
+
 (eplot-pdef (data-file string)
   "File where the data is.")
 
@@ -935,6 +938,7 @@ Elements allowed are `two-values', `date' and `time'.")
    (legend-color :initarg :legend-color :initform nil)
    (name :initarg :name :initform nil)
    (size :initarg :size :initform nil)
+   (size-factor :initarg :size-factor :initform nil)
    (smoothing :initarg :smoothing :initform nil)
    (style :initarg :style :initform nil)
    ;; ---- CUT HERE ----
@@ -1970,16 +1974,15 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 	      (when-let ((mark (eplot--vy 'mark settings)))
 		(cl-case mark
 		  (cross
-		   (let ((s (eplot--vn 'size settings
-				       (or (slot-value plot 'size) 3))))
-		   (svg-line svg (- px s) (- py s)
-			     (+ px s) (+ py s)
-			     :clip-path clip-id
-			     :stroke color)
-		   (svg-line svg (+ px s) (- py s)
-			     (- px s) (+ py s)
-			     :clip-path clip-id
-			     :stroke color)))
+		   (let ((s (eplot--element-size val plot settings 3)))
+		     (svg-line svg (- px s) (- py s)
+			       (+ px s) (+ py s)
+			       :clip-path clip-id
+			       :stroke color)
+		     (svg-line svg (+ px s) (- py s)
+			       (- px s) (+ py s)
+			       :clip-path clip-id
+			       :stroke color)))
 		  (otherwise
 		   (svg-circle svg px py 3
 			       :fill color))))
@@ -2002,8 +2005,7 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 		      :clip-path clip-id
 		      :gradient id))))
 		(impulse
-		 (let ((width (eplot--vn 'size settings
-					 (or (slot-value plot 'size) 1))))
+		 (let ((width (eplot--element-size val plot settings 1)))
 		   (if (= width 1)
 		       (svg-line svg
 				 px py
@@ -2046,8 +2048,7 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 			       :stroke color))))
 		(circle
 		 (svg-circle svg px py
-			     (eplot--vn 'size settings
-					(or (slot-value plot 'size) 3))
+			     (eplot--element-size val plot settings 3)
 			     :clip-path clip-id
 			     :stroke color
 			     :fill (eplot--vary-color
@@ -2056,7 +2057,7 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 				     (or (slot-value plot 'fill-color) "none"))
 				    i)))
 		(cross
-		 (let ((s (or (slot-value plot 'size) 3)))
+		 (let ((s (eplot--element-size val plot settings 3)))
 		   (svg-line svg (- px s) (- py s)
 			     (+ px s) (+ py s)
 			     :clip-path clip-id
@@ -2066,7 +2067,7 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 			     :clip-path clip-id
 			     :stroke color)))
 		(triangle
-		 (let ((s (or (slot-value plot 'size) 5)))
+		 (let ((s (eplot--element-size val plot settings 5)))
 		   (svg-polygon svg
 				(list
 				 (cons (- px (e/ s 2)) (+ py (e/ s 2)))
@@ -2077,7 +2078,7 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 				:fill-color
 				(or (slot-value plot 'fill-color) "none"))))
 		(rectangle
-		 (let ((s (or (slot-value plot 'size) 3)))
+		 (let ((s (eplot--element-size val plot settings 3)))
 		   (svg-rectangle svg (- px (e/ s 2)) (- py (e/ s 2))
 				  s s
 				  :clip-path clip-id
@@ -2152,6 +2153,12 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 		    :clip-path clip-id
 		    :gradient id
 		    :stroke (slot-value plot 'fill-border-color))))))))
+
+(defun eplot--element-size (value plot settings default)
+  (eplot--vn 'size settings
+	     (if (slot-value plot 'size-factor)
+		 (* value (slot-value plot 'size-factor))
+	       (or (slot-value plot 'size) default))))
 
 (defun eplot--draw-horizontal-bar-chart (svg chart)
   (with-slots ( plots chart-color height format

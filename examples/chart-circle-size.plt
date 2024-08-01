@@ -1,0 +1,18 @@
+Layout: compact
+Width: 300
+Height: 200
+Data-Format: date
+
+Style: circle
+Fill-Color: vary
+Size-Factor: 3
+20240726 1
+20240727 1
+20240731 1
+20240516 2
+20240708 2
+20240611 3
+20240701 4
+20240624 5
+20240728 6
+20240712 14
