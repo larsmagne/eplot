@@ -2340,12 +2340,16 @@ nil means `top-down'."
 	 ;; The Mondays grid is special, because it doesn't resolve
 	 ;; into any of the bigger limits evenly.
 	 ((= (caar limits) (/ 368 4))
-	  (list x-ticks 'date
-		(cl-loop for val in x-ticks
-			 for i from 0
-			 ;; This logic is not correct -- it should compute
-			 ;; the factor.
-			 collect (list val t (zerop (% i 2))))))
+	  (let* ((max-print (eplot--format-value
+			     (car x-ticks) print-format x-label-format))
+		 (min-spacing (* 1.2 (eplot--text-width
+				      max-print label-font 'normal
+				      label-font-size)))
+		 (weed-factor (max (ceiling (/ xs min-spacing)) 2)))
+	    (list x-ticks 'date
+		  (cl-loop for val in x-ticks
+			   for i from 0
+			   collect (list val t (zerop (% i weed-factor)))))))
 	 (t
 	  (pop limits)
 	  (catch 'found
