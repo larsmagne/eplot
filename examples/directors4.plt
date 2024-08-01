@@ -11,7 +11,7 @@ Mode: dark
 645 # Label: Leonardo Favio
 644 # Label: Jafar Panahi
 640 # Label: Wes Anderson
-577 # Label: Daniele Huillet, Jean-Marie Straub
+577 # Label: Daniele Huillet
 543 # Label: John Huston
 541 # Label: Manoel de Oliveira
 531 # Label: Clint Eastwood
