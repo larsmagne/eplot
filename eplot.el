@@ -2345,7 +2345,9 @@ nil means `top-down'."
 		 (min-spacing (* 1.2 (eplot--text-width
 				      max-print label-font 'normal
 				      label-font-size)))
-		 (weed-factor (max (ceiling (/ xs min-spacing)) 2)))
+		 (weed-factor 2))
+	    (while (> (* (/ (length x-ticks) weed-factor) min-spacing) xs)
+	      (setq weed-factor (* weed-factor 2)))
 	    (list x-ticks 'date
 		  (cl-loop for val in x-ticks
 			   for i from 0
