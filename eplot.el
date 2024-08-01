@@ -388,6 +388,11 @@ you a clear, non-blurry version of the chart at any size."
     (insert "\n\n")))
 
 (defun eplot--parse-buffer ()
+  (if (eq major-mode 'org-mode)
+      (eplot--parse-org-buffer)
+    (eplot--parse-eplot-buffer)))
+
+(defun eplot--parse-eplot-buffer ()
   (if (eplot--csv-buffer-p)
       (eplot--parse-csv-buffer)
     (let ((buf (current-buffer)))
@@ -3292,6 +3297,30 @@ nil means `top-down'."
 			    collect (list :x (eplot--numberish (car line))
 					  :value (eplot--numberish
 						  (elt line column)))))))))))
+
+(declare-function org-element-parse-buffer "org-element")
+
+(defun eplot--parse-org-buffer ()
+  (require 'org-element)
+  (let* ((table (nth 2 (nth 2 (org-element-parse-buffer))))
+	 (columns (cl-loop for cell in (nthcdr 2 (nth 2 table))
+			   collect (substring-no-properties (nth 2 cell))))
+	 (value-column (or (seq-position columns "value") 0))
+	 (date-column (seq-position columns "date")))
+    `((:plots
+       ((:headers
+	 ,@(and date-column '((data-format . "date"))))
+	(:values 
+	 ,@(cl-loop for row in (nthcdr 4 table)
+		    collect
+		    (let ((cells (cl-loop for cell in (nthcdr 2 row)
+					  collect (substring-no-properties
+						   (nth 2 cell)))))
+		      (list :value (string-to-number (elt cells value-column))
+			    :x (string-to-number
+				(replace-regexp-in-string
+				 "[^0-9]" "" (elt cells date-column)))
+			    )))))))))
 
 (provide 'eplot)
 
