@@ -586,7 +586,7 @@ you a clear, non-blurry version of the chart at any size."
 (eplot-def (height number)
   "The height of the entire chart.")
 
-(eplot-def (format symbol normal (normal bar-chart))
+(eplot-def (format symbol normal (normal bar-chart horizontal-bar-chart))
   "The overall format of the chart.")
 
 (eplot-def (layout symbol nil (normal compact))
@@ -1354,7 +1354,6 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 				   (format "%d" (plist-get val :x)))))))
 		      x-min (seq-min x-values)
 		      x-max (seq-max x-values)
-		      stride (e/ xs (- x-max x-min))
 		      inhibit-compute-x-step t)
 		(let ((xs (eplot--get-date-ticks
 			   x-min x-max xs
@@ -1376,7 +1375,6 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 				'integer))
 		      x-min (car x-values)
 		      x-max (car (last x-values))
-		      stride (e/ xs (- x-max x-min))
 		      inhibit-compute-x-step t)
 		(let ((xs (eplot--get-time-ticks
 			   x-min x-max xs label-font label-font-size
@@ -1391,11 +1389,6 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 		;; values, really, so we just do zero to (1- (length
 		;; values)).
 		(setq x-type 'one-dimensional
-		      stride (e/ xs
-				 ;; Fenceposting bar-chart vs everything else.
-				 (if (eq format 'bar-chart)
-				     (length values)
-				   (1- (length values))))
 		      x-values (cl-loop for i from 0
 					repeat (length values)
 					collect i)
@@ -1471,7 +1464,7 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 (defun eplot--draw-x-ticks (svg chart)
   (with-slots ( x-step-map x-ticks format layout print-format
 		margin-left margin-right margin-top margin-bottom
-		x-min x-max xs stride
+		x-min x-max xs
 		width height
 		axes-color label-color
 		grid grid-opacity grid-color
@@ -1500,6 +1493,7 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 					;; 1 and not zero.
 					(format "%s" (1+ x)))
 			   (eplot--format-value x print-format x-label-format))
+	     for stride = (eplot--stride chart x-ticks)
 	     for px = (if (equal format 'bar-chart)
 			  (+ margin-left (* x stride) (/ stride 2)
 			     (/ (* stride 0.1) 2))
@@ -1543,8 +1537,16 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 		       ;; etc, so we use "xx" to determine the height
 		       ;; to be able to center the text.
 		       (setq label-height
-			     (eplot--text-height "xx" label-font 'normal
-						 label-font-size)))
+			     (eplot--text-height
+			      ;; If the labels are numerical, we need
+			      ;; to center them using the height of
+			      ;; numbers.
+			      (if (string-match "^[0-9]+$" label)
+				  "10"
+				;; Otherwise center them on the baseline.
+				"xx")
+			      label-font 'normal
+			      label-font-size)))
 		     (svg-text svg label
 			       :font-family label-font
 			       :text-anchor "end"
@@ -1566,6 +1568,16 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 				 (if (equal format 'bar-chart)
 				     (if (equal layout 'compact) 3 5)
 				   2))))))))
+
+(defun eplot--stride (chart values)
+  (with-slots (xs x-type format) chart
+    (if (eq x-type 'one-dimensional)
+	(e/ xs
+	    ;; Fenceposting bar-chart vs everything else.
+	    (if (eq format 'bar-chart)
+		(length values)
+	      (1- (length values))))
+      (e/ xs (length values)))))
 
 (defun eplot--default-p (slot data)
   "Return non-nil if SLOT is at the default value."
@@ -1657,6 +1669,32 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 			   :y (+ py (/ text-height 2) -1))
 		 (cl-incf lnum))))))
 
+(defun eplot--text-width-2 (text font font-weight font-size)
+  (string-pixel-width
+   (propertize text 'face (list :font (font-spec :family font
+						 :weight font-weight
+						 :size (float font-size))))))
+
+(defun eplot--text-height-2 (text font font-weight font-size)
+  (eplot--string-pixel-height
+   (propertize text 'face (list :font (font-spec :family font
+						 :weight font-weight
+						 :size font-size)))))
+
+(defun eplot--string-pixel-height (string)
+  "Return the height of STRING in pixels."
+  (if (zerop (length string))
+      0
+    ;; Keeping a work buffer around is more efficient than creating a
+    ;; new temporary buffer.
+    (save-current-buffer
+      (save-window-excursion
+	(switch-to-buffer (get-buffer-create " *string-pixel-width*"))
+	(delete-region (point-min) (point-max))
+	(insert string)
+	(goto-char (point-min))
+	(line-pixel-height)))))
+
 (defvar eplot--text-size-cache (make-hash-table :test #'equal))
 
 (defun eplot--text-height (text font font-weight font-size)
@@ -1696,7 +1734,7 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 	  (unwind-protect
 	      (progn
 		(write-region (point-min) (point-max) file nil 'silent)
-		;; rsvg-convert is 1x faster than convert when doing SVG, so
+		;; rsvg-convert is 5x faster than convert when doing SVG, so
 		;; if we have it, we use it.
 		(when (executable-find "rsvg-convert")
 		  (unwind-protect
@@ -1931,7 +1969,7 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
   (with-slots ( plots chart-color height format
 		margin-bottom margin-left
 		min max xs ys
-		stride margin-top
+		margin-top
 		x-values x-min x-max
 		label-font label-font-size)
       chart
@@ -1939,6 +1977,7 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
     (cl-loop for plot in (reverse plots)
 	     for plot-number from 0
 	     for values = (slot-value plot 'values)
+	     for stride = (eplot--stride chart values)
 	     for vals = (eplot--smooth
 			 (seq-map (lambda (v) (plist-get v :value)) values)
 			 (slot-value plot 'smoothing)
