@@ -1,7 +1,7 @@
 Layout: compact
 Width: 300
 Height: 200
-X-Label-Format: %b-%d*
+X-Label-Format: On %b %e
 
 Data-Format: date
 20090101 41

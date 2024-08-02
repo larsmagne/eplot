@@ -152,7 +152,7 @@ colors.
 
 You can specify a format string for the X and Y labels.
 
-	X-Label-Format: %b-%d*
+	X-Label-Format: On %b %e
 
 	Data-Format: date
 	20090101 41
