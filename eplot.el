@@ -772,7 +772,6 @@ and `frame' (the surrounding area).")
    (x-ticks)
    (y-ticks)
    (y-labels)
-   (stride)
    (print-format)
    (x-tick-step)
    (x-label-step)
@@ -1307,7 +1306,7 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 	       `(:fill ,background-color))))))
 
 (defun eplot--compute-chart-dimensions (chart)
-  (with-slots ( min max plots x-values x-min x-max x-ticks stride
+  (with-slots ( min max plots x-values x-min x-max x-ticks
 		print-format font-size
 		xs
 		inhibit-compute-x-step x-type x-step-map format
@@ -1339,8 +1338,7 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 				0
 			      (seq-min x-values))
 		      x-max (seq-max x-values)
-		      x-ticks (eplot--get-ticks x-min x-max xs)
-		      stride (e/ xs (- x-max x-min)))
+		      x-ticks (eplot--get-ticks x-min x-max xs))
 		(when (memq 'year data-format)
 		  (setq print-format 'literal-year)))
 	       ((memq 'date data-format)
@@ -2235,7 +2233,7 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
   (with-slots ( plots chart-color height format
 		margin-bottom margin-left
 		min max xs ys
-		stride margin-top
+		margin-top
 		x-values x-min x-max
 		label-font label-font-size label-color)
       chart
