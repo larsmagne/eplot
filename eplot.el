@@ -1022,7 +1022,7 @@ Elements allowed are `two-values', `date' and `time'.")
 	(when (or title x-title y-title)
 	  (let ((text-height
 		 (eplot--text-height (concat title x-title y-title)
-				     font font-weight font-size)))
+				     font font-size font-weight)))
 	    (when (and title
 		       (and (not (assq 'margin-top eplot--user-defaults))
 			    (not (assq 'margin-top data))))
@@ -1201,10 +1201,10 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
       (when (eplot--default-p 'margin-left data)
 	(setf margin-left
 	      (+ (cl-loop for value in values
-			  maximize (eplot--text-width
-				    (eplot--vs
-				     'label (plist-get value :settings))
-				    label-font 'normal label-font-size))
+			  maximize
+			  (eplot--text-width
+			   (eplot--vs 'label (plist-get value :settings))
+			   label-font label-font-size))
 		 20))))))
 
 (defun eplot--draw-basics (svg chart)
@@ -1277,7 +1277,7 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
     (with-slots (y-title) chart
       (when y-title
 	(let ((text-height
-	       (eplot--text-height y-title font font-weight font-size)))
+	       (eplot--text-height y-title font font-size font-weight)))
 	  (svg-text svg y-title
 		    :font-family font
 		    :text-anchor "middle"
@@ -1428,8 +1428,7 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
     (when max
       (let ((yt (eplot--compute-y-ticks
 		 ys y-ticks
-		 (eplot--text-height "100" label-font
-				     'normal label-font-size))))
+		 (eplot--text-height "100" label-font label-font-size))))
 	(setq y-tick-step (car yt)
 	      y-label-step (cadr yt))))
     ;; If max is less than 2% off from a pleasant number, then
@@ -1543,8 +1542,7 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 				  "10"
 				;; Otherwise center them on the baseline.
 				"xx")
-			      label-font 'normal
-			      label-font-size)))
+			      label-font label-font-size)))
 		     (svg-text svg label
 			       :font-family label-font
 			       :text-anchor "end"
@@ -1625,7 +1623,7 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 	(setq margin-left (max margin-left
 			       (+ (eplot--text-width
 				   (elt y-labels (1- (length y-labels)))
-				   label-font 'normal label-font-size)
+				   label-font label-font-size)
 				  10))
 	      xs (- width margin-left margin-right))))))
 
@@ -1639,8 +1637,8 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
       chart
     ;; Make Y ticks.
     (cl-loop with lnum = 0
-	     with text-height = (eplot--text-height "012" label-font
-						    'normal label-font-size)
+	     with text-height = (eplot--text-height
+				 "012" label-font label-font-size)
 	     for y in y-ticks
 	     for i from 0
 	     for py = (- (- height margin-bottom)
@@ -1667,26 +1665,26 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 			   :y (+ py (/ text-height 2) -1))
 		 (cl-incf lnum))))))
 
-(defun eplot--text-width (text font font-weight font-size)
+(defun eplot--text-width (text font font-size &optional font-weight)
   (string-pixel-width
    (propertize text 'face
 	       (list :font (font-spec :family font
-				      :weight font-weight
+				      :weight (or font-weight 'normal)
 				      :size font-size)))))
 
 (defvar eplot--text-size-cache (make-hash-table :test #'equal))
 
-(defun eplot--text-height (text font font-weight font-size)
-  (cdr (eplot--text-size text font font-weight font-size)))
+(defun eplot--text-height (text font font-size &optional font-weight)
+  (cdr (eplot--text-size text font font-size font-weight)))
 
-(defun eplot--text-size (text font font-weight font-size)
-  (let ((key (list text font font-weight font-size)))
+(defun eplot--text-size (text font font-size font-weight)
+  (let ((key (list text font font-size font-weight)))
     (or (gethash key eplot--text-size-cache)
-	(let ((size (eplot--text-size-1 text font font-weight font-size)))
+	(let ((size (eplot--text-size-1 text font font-size font-weight)))
 	  (setf (gethash key eplot--text-size-cache) size)
 	  size))))
 
-(defun eplot--text-size-1 (text font font-weight font-size)
+(defun eplot--text-size-1 (text font font-size font-weight)
   (if (not (executable-find "convert"))
       ;; This "default" text size is kinda bogus.
       (cons (* (length text) font-size) font-size)
@@ -1698,7 +1696,7 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 		:font-family font
 		:text-anchor "middle"
 		:font-size font-size
-		:font-weight font-weight
+		:font-weight (or font-weight 'normal)
 		:fill "white"
 		:x (/ size 2)
 		:y (/ size 2))
@@ -1822,7 +1820,7 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 	 ;; the length of the longest label, with room for two blanks
 	 ;; in between.
 	 (min-spacing (* 1.2 (eplot--text-width max-print label-font
-						'normal label-font-size)))
+						label-font-size)))
 	 (digits (eplot--decimal-digits (- (cadr x-values) (car x-values))))
 	 (every (e/ 1 (expt 10 digits))))
     (cond
@@ -2375,7 +2373,7 @@ nil means `top-down'."
 	   (print-format (nth 1 (car limits)))
 	   (max-print (eplot--format-value (car x-ticks) print-format
 					   x-label-format))
-	   (min-spacing (* 1.2 (eplot--text-width max-print label-font 'normal
+	   (min-spacing (* 1.2 (eplot--text-width max-print label-font
 						  label-font-size))))
       (cond
        ;; We have room for every X value.
@@ -2394,8 +2392,7 @@ nil means `top-down'."
 	  (let* ((max-print (eplot--format-value
 			     (car x-ticks) print-format x-label-format))
 		 (min-spacing (* 1.2 (eplot--text-width
-				      max-print label-font 'normal
-				      label-font-size)))
+				      max-print label-font label-font-size)))
 		 (weed-factor 2))
 	    (while (> (* (/ (length x-ticks) weed-factor) min-spacing) xs)
 	      (setq weed-factor (* weed-factor 2)))
@@ -2419,7 +2416,7 @@ nil means `top-down'."
 		(let* ((max-print (eplot--format-value
 				   (car x-ticks) print-format x-label-format))
 		       (min-spacing (* 1.2 (eplot--text-width
-					    max-print label-font 'normal
+					    max-print label-font
 					    label-font-size)))
 		       (num-labels (seq-count (lambda (v) (nth 2 v))
 					      candidate)))
