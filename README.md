@@ -152,6 +152,19 @@ colors.
 
 You can specify a format string for the X and Y labels.
 
+	X-Label-Format: %b-%d*
+
+	Data-Format: date
+	20090101 41
+	20090102 42.1
+	20090103 42.1
+
+![chart-date1.plt](/images/chart-date1.svg)
+
+If the chart
+is a date/time format chart, the format string will be passed to
+`format-time-string'.
+
 	Format: bar-chart
 	Color: vary
 	Title: How Much Higher Would A Director Place

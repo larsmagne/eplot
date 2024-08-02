@@ -1779,20 +1779,20 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 	    (format "%s" y)))))
 
 (defun eplot--format-value (value print-format label-format)
-  (format (or label-format "%s")
-	  (cond
-	   ((eq print-format 'date)
-	    (format-time-string "%Y-%m-%d" (eplot--days-to-time value)))
-	   ((eq print-format 'year)
-	    (format-time-string "%Y" (eplot--days-to-time value)))
-	   ((eq print-format 'time)
-	    (format-time-string "%H:%M:%S" value))
-	   ((eq print-format 'minute)
-	    (format-time-string "%H:%M" value))
-	   ((eq print-format 'hour)
-	    (format-time-string "%H" value))
-	   (t
-	    (format "%s" value)))))
+  (cond
+   ((eq print-format 'date)
+    (format-time-string
+     (or label-format "%Y-%m-%d") (eplot--days-to-time value)))
+   ((eq print-format 'year)
+    (format-time-string (or label-format "%Y") (eplot--days-to-time value)))
+   ((eq print-format 'time)
+    (format-time-string (or label-format "%H:%M:%S") value))
+   ((eq print-format 'minute)
+    (format-time-string (or label-format "%H:%M") value))
+   ((eq print-format 'hour)
+    (format-time-string (or label-format "%H") value))
+   (t
+    (format (or label-format "%s") value))))
 
 (defun eplot--compute-x-ticks (xs x-values print-format x-label-format
 				  label-font label-font-size)
