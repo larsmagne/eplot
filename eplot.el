@@ -1429,7 +1429,7 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
       (let ((yt (eplot--compute-y-ticks
 		 ys y-ticks
 		 (eplot--text-height "100" label-font
-				     'normat label-font-size))))
+				     'normal label-font-size))))
 	(setq y-tick-step (car yt)
 	      y-label-step (cadr yt))))
     ;; If max is less than 2% off from a pleasant number, then
@@ -1625,7 +1625,7 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 	(setq margin-left (max margin-left
 			       (+ (eplot--text-width
 				   (elt y-labels (1- (length y-labels)))
-				   label-font 'normat label-font-size)
+				   label-font 'normal label-font-size)
 				  10))
 	      xs (- width margin-left margin-right))))))
 
@@ -1667,39 +1667,17 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 			   :y (+ py (/ text-height 2) -1))
 		 (cl-incf lnum))))))
 
-(defun eplot--text-width-2 (text font font-weight font-size)
+(defun eplot--text-width (text font font-weight font-size)
   (string-pixel-width
-   (propertize text 'face (list :font (font-spec :family font
-						 :weight font-weight
-						 :size (float font-size))))))
-
-(defun eplot--text-height-2 (text font font-weight font-size)
-  (eplot--string-pixel-height
-   (propertize text 'face (list :font (font-spec :family font
-						 :weight font-weight
-						 :size font-size)))))
-
-(defun eplot--string-pixel-height (string)
-  "Return the height of STRING in pixels."
-  (if (zerop (length string))
-      0
-    ;; Keeping a work buffer around is more efficient than creating a
-    ;; new temporary buffer.
-    (save-current-buffer
-      (save-window-excursion
-	(switch-to-buffer (get-buffer-create " *string-pixel-width*"))
-	(delete-region (point-min) (point-max))
-	(insert string)
-	(goto-char (point-min))
-	(line-pixel-height)))))
+   (propertize text 'face
+	       (list :font (font-spec :family font
+				      :weight font-weight
+				      :size font-size)))))
 
 (defvar eplot--text-size-cache (make-hash-table :test #'equal))
 
 (defun eplot--text-height (text font font-weight font-size)
   (cdr (eplot--text-size text font font-weight font-size)))
-
-(defun eplot--text-width (text font font-weight font-size)
-  (car (eplot--text-size text font font-weight font-size)))
 
 (defun eplot--text-size (text font font-weight font-size)
   (let ((key (list text font font-weight font-size)))
@@ -1815,20 +1793,24 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 	    (format "%s" y)))))
 
 (defun eplot--format-value (value print-format label-format)
-  (cond
-   ((eq print-format 'date)
-    (format-time-string
-     (or label-format "%Y-%m-%d") (eplot--days-to-time value)))
-   ((eq print-format 'year)
-    (format-time-string (or label-format "%Y") (eplot--days-to-time value)))
-   ((eq print-format 'time)
-    (format-time-string (or label-format "%H:%M:%S") value))
-   ((eq print-format 'minute)
-    (format-time-string (or label-format "%H:%M") value))
-   ((eq print-format 'hour)
-    (format-time-string (or label-format "%H") value))
-   (t
-    (format (or label-format "%s") value))))
+  (replace-regexp-in-string
+   ;; Texts in SVG collapse multiple spaces into one.  So do it here,
+   ;; too, so that width calculations are correct.
+   " +" " "
+   (cond
+    ((eq print-format 'date)
+     (format-time-string
+      (or label-format "%Y-%m-%d") (eplot--days-to-time value)))
+    ((eq print-format 'year)
+     (format-time-string (or label-format "%Y") (eplot--days-to-time value)))
+    ((eq print-format 'time)
+     (format-time-string (or label-format "%H:%M:%S") value))
+    ((eq print-format 'minute)
+     (format-time-string (or label-format "%H:%M") value))
+    ((eq print-format 'hour)
+     (format-time-string (or label-format "%H") value))
+    (t
+     (format (or label-format "%s") value)))))
 
 (defun eplot--compute-x-ticks (xs x-values print-format x-label-format
 				  label-font label-font-size)
