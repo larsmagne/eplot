@@ -625,6 +625,15 @@ you a clear, non-blurry version of the chart at any size."
 (eplot-def (label-font-size number (spec font-size))
   "The font size to use for axes labels.")
 
+(eplot-def (bar-font string (spec font))
+  "The font to use for bar chart labels.")
+
+(eplot-def (bar-font-size number (spec font-size))
+  "The font size to use for bar chart labels.")
+
+(eplot-def (bar-font-weight symbol (spec font-weight) (bold normal))
+  "The font weight to use for bar chart labels.")
+
 (eplot-def (chart-color string "black")
   "The foreground color to use in plots, axes, legends, etc.
 This is used as the default, but can be overridden per thing.")
@@ -787,6 +796,9 @@ and `frame' (the surrounding area).")
    (background-image-cover :initarg :background-image-cover :initform nil)
    (background-image-file :initarg :background-image-file :initform nil)
    (background-image-opacity :initarg :background-image-opacity :initform nil)
+   (bar-font :initarg :bar-font :initform nil)
+   (bar-font-size :initarg :bar-font-size :initform nil)
+   (bar-font-weight :initarg :bar-font-weight :initform nil)
    (border-color :initarg :border-color :initform nil)
    (border-width :initarg :border-width :initform nil)
    (chart-color :initarg :chart-color :initform nil)
@@ -1193,7 +1205,7 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
       chart)))
 
 (defun eplot--adjust-horizontal-bar-chart (chart data)
-  (with-slots ( plots label-font label-font-size margin-left
+  (with-slots ( plots bar-font bar-font-size bar-font-weight margin-left
 		width margin-right xs)
       chart
     (with-slots ( data-format values) (car plots)
@@ -1213,7 +1225,7 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 			  maximize
 			  (eplot--text-width
 			   (eplot--vs 'label (plist-get value :settings))
-			   label-font label-font-size))
+			   bar-font bar-font-size bar-font-weight))
 		 20)
 	      xs (- width margin-left margin-right))))))
 
@@ -1471,7 +1483,8 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 (defun eplot--adjust-vertical-x-labels (chart)
   (with-slots ( x-step-map x-ticks format plots
 		print-format x-label-format label-font
-		label-font-size margin-bottom)
+		label-font-size margin-bottom
+		bar-font bar-font-size bar-font-weight)
       chart
     ;; Make X ticks.
     (let ((width
@@ -1489,11 +1502,14 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 				       ;; 1 and not zero.
 				       (format "%s" (1+ x)))
 			  (eplot--format-value x print-format x-label-format))
-	    maximize (eplot--text-width
-		      label label-font label-font-size))))
+	    maximize (if (equal format 'bar-chart)
+			 (eplot--text-width
+			  label bar-font bar-font-size bar-font-weight)
+		       (eplot--text-width
+			label label-font label-font-size)))))
       ;; Ensure that we have enough room to display the X labels
       ;; (unless overridden).
-      (with-slots ( label-font label-font-size height margin-top ys
+      (with-slots ( height margin-top ys
 		    y-ticks y-tick-step y-label-step min max)
 	  chart
 	(setq margin-bottom (max margin-bottom (+ width 40))
@@ -1540,87 +1556,97 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 		grid grid-opacity grid-color
 		font x-tick-step x-label-step x-label-format x-label-orientation
 		label-font label-font-size
-		plots x-labels)
+		plots x-labels
+		bar-font bar-font-size bar-font-weight)
       chart
-    ;; Make X ticks.
-    (cl-loop with label-height
-	     for xv in (or x-step-map x-ticks)
-	     for x = (if (consp xv) (car xv) xv)
-	     for i from 0
-	     for (label do-tick do-label) in x-labels
-	     for stride = (eplot--stride chart x-ticks)
-	     for px = (if (equal format 'bar-chart)
-			  (+ margin-left (* x stride) (/ stride 2)
-			     (/ (* stride 0.1) 2))
-			(+ margin-left
-			   (* (/ (- (* 1.0 x) x-min) (- x-max x-min))
-			      xs)))
-	     ;; We might have one extra stride outside the area -- don't
-	     ;; draw it.
-	     when (<= px (- width margin-right))
-	     do
-	     (when do-tick
-	       ;; Draw little tick.
-	       (unless (equal format 'bar-chart)
-		 (svg-line svg
-			   px (- height margin-bottom)
-			   px (+ (- height margin-bottom)
-				 (if do-label
-				     4
-				   2))
-			   :stroke axes-color))
-	       (when (or (eq grid 'xy) (eq grid 'x))
-		 (svg-line svg px margin-top
-			   px (- height margin-bottom)
-			   :opacity grid-opacity
-			   :stroke grid-color)))
-	     (when (and do-label
-			;; We want to skip marking the first X value
-			;; unless we're a bar chart or we're a one
-			;; dimensional chart.
-			(or (equal format 'bar-chart)
-			    t
-			    (not (= x-min (car x-values)))
-			    (eq x-type 'one-dimensional)
-			    (and (not (zerop x)) (not (zerop i)))))
-	       (if (eq x-label-orientation 'vertical)
-		   (progn
-		     (unless label-height
-		       ;; The X position we're putting the label at is
-		       ;; based on the bottom of the lower-case
-		       ;; characters.  So we want to ignore descenders
-		       ;; etc, so we use "xx" to determine the height
-		       ;; to be able to center the text.
-		       (setq label-height
-			     (eplot--text-height
-			      ;; If the labels are numerical, we need
-			      ;; to center them using the height of
-			      ;; numbers.
-			      (if (string-match "^[0-9]+$" label)
-				  "10"
-				;; Otherwise center them on the baseline.
-				"xx")
-			      label-font label-font-size)))
-		     (svg-text svg label
-			       :font-family label-font
-			       :text-anchor "end"
-			       :font-size label-font-size
-			       :fill label-color
-			       :transform
-			       (format "translate(%s,%s) rotate(-90)"
-				       (+ px (/ label-height 2))
-				       (- height margin-bottom -10))))
-		 (svg-text svg label
-			   :font-family label-font
-			   :text-anchor "middle"
-			   :font-size label-font-size
-			   :fill label-color
-			   :x px
-			   :y (+ (- height margin-bottom)
-				 label-font-size
-				 (if (equal format 'bar-chart)
-				     (if (equal layout 'compact) 3 5)
-				   2))))))))
+    (let ((font label-font)
+	  (font-size label-font-size)
+	  (font-weight 'normal))
+      (when (equal format 'bar-chart)
+	(setq font bar-font
+	      font-size bar-font-size
+	      font-weight bar-font-weight))
+      ;; Make X ticks.
+      (cl-loop with label-height
+	       for xv in (or x-step-map x-ticks)
+	       for x = (if (consp xv) (car xv) xv)
+	       for i from 0
+	       for (label do-tick do-label) in x-labels
+	       for stride = (eplot--stride chart x-ticks)
+	       for px = (if (equal format 'bar-chart)
+			    (+ margin-left (* x stride) (/ stride 2)
+			       (/ (* stride 0.1) 2))
+			  (+ margin-left
+			     (* (/ (- (* 1.0 x) x-min) (- x-max x-min))
+				xs)))
+	       ;; We might have one extra stride outside the area -- don't
+	       ;; draw it.
+	       when (<= px (- width margin-right))
+	       do
+	       (when do-tick
+		 ;; Draw little tick.
+		 (unless (equal format 'bar-chart)
+		   (svg-line svg
+			     px (- height margin-bottom)
+			     px (+ (- height margin-bottom)
+				   (if do-label
+				       4
+				     2))
+			     :stroke axes-color))
+		 (when (or (eq grid 'xy) (eq grid 'x))
+		   (svg-line svg px margin-top
+			     px (- height margin-bottom)
+			     :opacity grid-opacity
+			     :stroke grid-color)))
+	       (when (and do-label
+			  ;; We want to skip marking the first X value
+			  ;; unless we're a bar chart or we're a one
+			  ;; dimensional chart.
+			  (or (equal format 'bar-chart)
+			      t
+			      (not (= x-min (car x-values)))
+			      (eq x-type 'one-dimensional)
+			      (and (not (zerop x)) (not (zerop i)))))
+		 (if (eq x-label-orientation 'vertical)
+		     (progn
+		       (unless label-height
+			 ;; The X position we're putting the label at is
+			 ;; based on the bottom of the lower-case
+			 ;; characters.  So we want to ignore descenders
+			 ;; etc, so we use "xx" to determine the height
+			 ;; to be able to center the text.
+			 (setq label-height
+			       (eplot--text-height
+				;; If the labels are numerical, we need
+				;; to center them using the height of
+				;; numbers.
+				(if (string-match "^[0-9]+$" label)
+				    "10"
+				  ;; Otherwise center them on the baseline.
+				  "xx")
+				font font-size font-weight)))
+		       (svg-text svg label
+				 :font-family font
+				 :text-anchor "end"
+				 :font-size font-size
+				 :font-weight font-weight
+				 :fill label-color
+				 :transform
+				 (format "translate(%s,%s) rotate(-90)"
+					 (+ px (/ label-height 2))
+					 (- height margin-bottom -10))))
+		   (svg-text svg label
+			     :font-family font
+			     :text-anchor "middle"
+			     :font-size font-size
+			     :font-weight font-weight
+			     :fill label-color
+			     :x px
+			     :y (+ (- height margin-bottom)
+				   font-size
+				   (if (equal format 'bar-chart)
+				       (if (equal layout 'compact) 3 5)
+				     2)))))))))
 
 (defun eplot--stride (chart values)
   (with-slots (xs x-type format) chart
