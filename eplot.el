@@ -1110,7 +1110,8 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 	 svg)
     (with-slots ( width height xs ys
 		  margin-left margin-right margin-top margin-bottom
-		  grid-position plots x-min format)
+		  grid-position plots x-min format
+		  x-label-orientation)
 	chart
       ;; Set the size of the chart based on the window it's going to
       ;; be displayed in.  It uses the *eplot* window by default, or
@@ -1145,6 +1146,9 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 	;; Compute min/max based on all plots, and also compute x-ticks
 	;; etc.
 	(eplot--compute-chart-dimensions chart)
+	(when (and (eq x-label-orientation 'vertical)
+		   (eplot--default-p 'margin-bottom (slot-value chart 'data)))
+	  (eplot--adjust-vertical-x-labels chart))
 	;; Analyze values and adjust values accordingly.
 	(eplot--adjust-chart chart)
 	;; Compute the Y labels -- this may adjust `margin-left'.
@@ -1189,7 +1193,9 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
       chart)))
 
 (defun eplot--adjust-horizontal-bar-chart (chart data)
-  (with-slots (plots label-font label-font-size margin-left) chart
+  (with-slots ( plots label-font label-font-size margin-left
+		width margin-right xs)
+      chart
     (with-slots ( data-format values) (car plots)
       (push 'xy data-format)
       ;; Flip the values -- we want the values to be on the X
@@ -1208,7 +1214,8 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 			  (eplot--text-width
 			   (eplot--vs 'label (plist-get value :settings))
 			   label-font label-font-size))
-		 20))))))
+		 20)
+	      xs (- width margin-left margin-right))))))
 
 (defun eplot--draw-basics (svg chart)
   (with-slots ( width height 
@@ -1461,10 +1468,42 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 		       ;; 2% of the value range.
 		       (* 0.02 (- (car (last y-ticks)) (car y-ticks))))))))))
 
+(defun eplot--adjust-vertical-x-labels (chart)
+  (with-slots ( x-step-map x-ticks format plots
+		print-format x-label-format label-font
+		label-font-size margin-bottom)
+      chart
+    ;; Make X ticks.
+    (let ((width
+	   (cl-loop
+	    for xv in (or x-step-map x-ticks)
+	    for x = (if (consp xv) (car xv) xv)
+	    for i from 0
+	    for value = (and (equal format 'bar-chart)
+			     (elt (slot-value (car plots) 'values) i))
+	    for label = (if (equal format 'bar-chart)
+			    (eplot--vs 'label
+				       (plist-get value :settings)
+				       ;; When we're doing bar charts, we
+				       ;; want default labeling to start with
+				       ;; 1 and not zero.
+				       (format "%s" (1+ x)))
+			  (eplot--format-value x print-format x-label-format))
+	    maximize (eplot--text-width
+		      label label-font label-font-size))))
+      ;; Ensure that we have enough room to display the X labels
+      ;; (unless overridden).
+      (with-slots ( label-font label-font-size height margin-top ys
+		    y-ticks y-tick-step y-label-step min max)
+	  chart
+	(setq margin-bottom (max margin-bottom (+ width 40))
+	      ys (- height margin-top margin-bottom))))))
+
 (defun eplot--compute-x-labels (chart)
   (with-slots ( x-step-map x-ticks
 		format plots print-format x-label-format x-labels
-		x-tick-step x-label-step)
+		x-tick-step x-label-step
+		x-label-orientation margin-bottom)
       chart
     ;; Make X ticks.
     (setf x-labels
@@ -1569,8 +1608,7 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 			       :fill label-color
 			       :transform
 			       (format "translate(%s,%s) rotate(-90)"
-				       (+ px (/ label-height 2)
-					  0)
+				       (+ px (/ label-height 2))
 				       (- height margin-bottom -10))))
 		 (svg-text svg label
 			   :font-family label-font
