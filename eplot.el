@@ -772,6 +772,7 @@ and `frame' (the surrounding area).")
    (x-ticks)
    (y-ticks)
    (y-labels)
+   (x-labels)
    (print-format)
    (x-tick-step)
    (x-label-step)
@@ -1148,6 +1149,8 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 	(eplot--adjust-chart chart)
 	;; Compute the Y labels -- this may adjust `margin-left'.
 	(eplot--compute-y-labels chart)
+	;; Compute the X labels -- this may adjust `margin-bottom'.
+	(eplot--compute-x-labels chart)
 	;; Draw background/borders/titles/etc.
 	(eplot--draw-basics svg chart)
 
@@ -1458,6 +1461,37 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 		       ;; 2% of the value range.
 		       (* 0.02 (- (car (last y-ticks)) (car y-ticks))))))))))
 
+(defun eplot--compute-x-labels (chart)
+  (with-slots ( x-step-map x-ticks
+		format plots print-format x-label-format x-labels
+		x-tick-step x-label-step)
+      chart
+    ;; Make X ticks.
+    (setf x-labels
+	  (cl-loop
+	   for xv in (or x-step-map x-ticks)
+	   for x = (if (consp xv) (car xv) xv)
+	   for do-tick = (if (consp xv)
+			     (nth 1 xv)
+			   (zerop (e% x x-tick-step)))
+	   for do-label = (if (consp xv)
+			      (nth 2 xv)
+			    (zerop (e% x x-label-step)))
+	   for i from 0
+	   for value = (and (equal format 'bar-chart)
+			    (elt (slot-value (car plots) 'values) i))
+	   collect (list
+		    (if (equal format 'bar-chart)
+			(eplot--vs 'label
+				   (plist-get value :settings)
+				   ;; When we're doing bar charts, we
+				   ;; want default labeling to start with
+				   ;; 1 and not zero.
+				   (format "%s" (1+ x)))
+		      (eplot--format-value x print-format x-label-format))
+		    do-tick
+		    do-label)))))
+
 (defun eplot--draw-x-ticks (svg chart)
   (with-slots ( x-step-map x-ticks format layout print-format
 		margin-left margin-right margin-top margin-bottom
@@ -1467,29 +1501,14 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 		grid grid-opacity grid-color
 		font x-tick-step x-label-step x-label-format x-label-orientation
 		label-font label-font-size
-		plots)
+		plots x-labels)
       chart
     ;; Make X ticks.
     (cl-loop with label-height
 	     for xv in (or x-step-map x-ticks)
 	     for x = (if (consp xv) (car xv) xv)
-	     for do-tick = (if (consp xv)
-			       (nth 1 xv)
-			     (zerop (e% x x-tick-step)))
-	     for do-label = (if (consp xv)
-				(nth 2 xv)
-			      (zerop (e% x x-label-step)))
 	     for i from 0
-	     for value = (and (equal format 'bar-chart)
-			      (elt (slot-value (car plots) 'values) i))
-	     for label = (if (equal format 'bar-chart)
-			     (eplot--vs 'label
-					(plist-get value :settings)
-					;; When we're doing bar charts, we
-					;; want default labeling to start with
-					;; 1 and not zero.
-					(format "%s" (1+ x)))
-			   (eplot--format-value x print-format x-label-format))
+	     for (label do-tick do-label) in x-labels
 	     for stride = (eplot--stride chart x-ticks)
 	     for px = (if (equal format 'bar-chart)
 			  (+ margin-left (* x stride) (/ stride 2)
@@ -2016,8 +2035,8 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 			  :font-weight 'normal
 			  :fill color
 			  :x px 
-			  :y (- py (eplot--text-height text label-font 'normal
-						       label-font-size)
+			  :y (- py (eplot--text-height
+				    text label-font label-font-size)
 				-5)))
 	      ;; You may mark certain points.
 	      (when-let ((mark (eplot--vy 'mark settings)))
@@ -2220,7 +2239,7 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
     (cl-loop with plot = (car plots)
 	     with values = (slot-value plot 'values)
 	     with stride = (e/ ys (length values))
-	     with label-height = (eplot--text-height "xx" label-font 'normal
+	     with label-height = (eplot--text-height "xx" label-font
 						     label-font-size)
 	     with bar-gap = (* stride 0.1)
 	     for i from 0
