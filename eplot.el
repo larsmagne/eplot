@@ -1786,7 +1786,7 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
       (with-temp-buffer
 	(set-buffer-multibyte nil)
 	(svg-print svg)
-	(let* ((file (concat (make-temp-name "/tmp/eplot") ".svg"))
+	(let* ((file (make-temp-file "eplot" nil ".svg"))
 	       (png (file-name-with-extension file ".png")))
 	  (unwind-protect
 	      (progn
