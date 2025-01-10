@@ -1240,26 +1240,27 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
   (with-slots ( plots bar-font bar-font-size bar-font-weight margin-left
 		width margin-right xs)
       chart
-    (with-slots ( data-format values) (car plots)
-      (push 'xy data-format)
-      ;; Flip the values -- we want the values to be on the X
-      ;; axis instead.
-      (setf values
-	    (cl-loop for value in values
-		     for i from 1
-		     collect (list :value i
-				   :x (plist-get value :value)
-				   :settings
-				   (plist-get value :settings))))
-      (when (eplot--default-p 'margin-left data)
-	(setf margin-left
-	      (+ (cl-loop for value in values
-			  maximize
-			  (eplot--text-width
-			   (eplot--vs 'label (plist-get value :settings))
-			   bar-font bar-font-size bar-font-weight))
-		 20)
-	      xs (- width margin-left margin-right))))))
+    (dolist (plot plots)
+      (with-slots ( data-format values) plot
+	(push 'xy data-format)
+	;; Flip the values -- we want the values to be on the X
+	;; axis instead.
+	(setf values
+	      (cl-loop for value in values
+		       for i from 1
+		       collect (list :value i
+				     :x (plist-get value :value)
+				     :settings
+				     (plist-get value :settings))))
+	(when (eplot--default-p 'margin-left data)
+	  (setf margin-left
+		(+ (cl-loop for value in values
+			    maximize
+			    (eplot--text-width
+			     (eplot--vs 'label (plist-get value :settings))
+			     bar-font bar-font-size bar-font-weight))
+		   20)
+		xs (- width margin-left margin-right)))))))
 
 (defun eplot--draw-basics (svg chart)
   (with-slots ( width height 
@@ -2343,33 +2344,42 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 		label-font label-font-size label-color
 		horizontal-label-left horizontal-label-font-size)
       chart
-    (cl-loop with plot = (car plots)
-	     with values = (slot-value plot 'values)
-	     with stride = (e/ ys (length values))
-	     with label-height = (eplot--text-height "xx" label-font
-						     label-font-size)
-	     with bar-gap = (* stride 0.1)
-	     for i from 0
-	     for value in values
-	     for settings = (plist-get value :settings)
-	     for py = (+ margin-top (* i stride))
-	     for px = (* (e/ (plist-get value :x) x-max) xs)
-	     for color = (eplot--vary-color
-			  (eplot--vs 'color settings (slot-value plot 'color))
-			  i)
-	     do
-	     (svg-rectangle svg
-			    margin-left (+ py (e/ bar-gap 2))
-			    px (- stride bar-gap)
-			    :fill color)
-	     (svg-text svg (eplot--vs 'label settings)
-		       :font-family label-font
-		       :text-anchor "left"
-		       :font-size horizontal-label-font-size
-		       :font-weight 'normal
-		       :fill label-color
-		       :x (or horizontal-label-left 5)
-		       :y (+ py label-height (/ (- stride label-height) 2))))))
+    (dolist (plot plots)
+      (cl-loop with values = (slot-value plot 'values)
+	       with stride = (e/ ys (length values))
+	       with label-height = (eplot--text-height "xx" label-font
+						       label-font-size)
+	       with bar-gap = (* stride 0.1)
+	       for i from 0
+	       for value in values
+	       for settings = (plist-get value :settings)
+	       for bar-max-width = (eplot--pv plot 'bar-max-width)
+	       for py = (+ margin-top (* i stride))
+	       for px = (* (e/ (plist-get value :x) x-max) xs)
+	       for color = (eplot--vary-color
+			    (eplot--vs 'color settings (slot-value plot 'color))
+			    i)
+	       do
+	       (svg-rectangle svg
+			      margin-left
+			      (+ py (e/ bar-gap 2)
+				 (if bar-max-width
+				     (- (/ stride 2) (/ bar-max-width 2))
+				   0))
+			      px
+			      (if bar-max-width
+				  (min bar-max-width (- stride bar-gap))
+				(- stride bar-gap))
+			      :fill color)
+	       (svg-text svg (eplot--vs 'label settings)
+			 :font-family label-font
+			 :text-anchor "left"
+			 :font-size horizontal-label-font-size
+			 :font-weight 'normal
+			 :fill label-color
+			 :x (or horizontal-label-left 5)
+			 :y (+ py label-height
+			       (/ (- stride label-height) 2)))))))
 
 (defun eplot--stops (from to)
   (append `((0 . ,from))
