@@ -325,6 +325,22 @@ you a clear, non-blurry version of the chart at any size."
      (insert-file-contents header-file)
      (eplot--parse-headers))))
 
+(defun eplot-make-plot (headers data)
+  "Return an SVG based on DATA.
+DATA should be pairs of headers, then followed by the plot data."
+  (with-temp-buffer
+    (dolist (line headers)
+      (insert (format "%s:" (pop line)))
+      (dolist (elem line)
+	(insert (format " %s" elem)))
+      (insert "\n"))
+    (insert "\n")
+    (dolist (line data)
+      (dolist (elem line)
+	(insert (format "%s" elem) " "))
+      (insert "\n"))
+    (eplot--render (eplot--parse-buffer) t)))
+
 (defun eplot-switch-view-buffer ()
   "Switch to the eplot view buffer and render the chart."
   (interactive)
@@ -625,6 +641,9 @@ you a clear, non-blurry version of the chart at any size."
 (eplot-def (label-font-size number (spec font-size))
   "The font size to use for axes labels.")
 
+(eplot-def (horizontal-label-font-size number (spec label-font-size))
+  "The font size to use for horizontal labels.")
+
 (eplot-def (bar-font string (spec font))
   "The font to use for bar chart labels.")
 
@@ -723,6 +742,9 @@ This is a `format' string.")
   "Format string for the Y labels.
 This is a `format' string.")
 
+(eplot-def (horizontal-label-left number)
+  "Position of the horizontal labels.")
+
 (eplot-def (x-label-orientation symbol horizontal (horizontal vertical))
   "Orientation of the X labels.")
 
@@ -814,6 +836,7 @@ and `frame' (the surrounding area).")
    (grid-position :initarg :grid-position :initform nil)
    (header-file :initarg :header-file :initform nil)
    (height :initarg :height :initform nil)
+   (horizontal-label-font-size :initarg :horizontal-label-font-size :initform nil)
    (label-color :initarg :label-color :initform nil)
    (label-font :initarg :label-font :initform nil)
    (label-font-size :initarg :label-font-size :initform nil)
@@ -839,6 +862,7 @@ and `frame' (the surrounding area).")
    (x-label-format :initarg :x-label-format :initform nil)
    (x-label-orientation :initarg :x-label-orientation :initform nil)
    (y-label-format :initarg :y-label-format :initform nil)
+   (horizontal-label-left :initarg :horizontal-label-left :initform nil)
    ;; ---- CUT HERE ----
    ))
 
@@ -2298,7 +2322,8 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 		min max xs ys
 		margin-top
 		x-values x-min x-max
-		label-font label-font-size label-color)
+		label-font label-font-size label-color
+		horizontal-label-left horizontal-label-font-size)
       chart
     (cl-loop with plot = (car plots)
 	     with values = (slot-value plot 'values)
@@ -2315,18 +2340,18 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 			  (eplot--vs 'color settings (slot-value plot 'color))
 			  i)
 	     do
-	     (svg-text svg (eplot--vs 'label settings)
-		       :font-family label-font
-		       :text-anchor "left"
-		       :font-size label-font-size
-		       :font-weight 'normal
-		       :fill label-color
-		       :x 5
-		       :y (+ py label-height (/ (- stride label-height) 2)))
 	     (svg-rectangle svg
 			    margin-left (+ py (e/ bar-gap 2))
 			    px (- stride bar-gap)
-			    :fill color))))
+			    :fill color)
+	     (svg-text svg (eplot--vs 'label settings)
+		       :font-family label-font
+		       :text-anchor "left"
+		       :font-size horizontal-label-font-size
+		       :font-weight 'normal
+		       :fill label-color
+		       :x (or horizontal-label-left 5)
+		       :y (+ py label-height (/ (- stride label-height) 2))))))
 
 (defun eplot--stops (from to)
   (append `((0 . ,from))
