@@ -2,7 +2,7 @@ Format: bar-chart
 Color: vary
 Mode: dark
 X-Label-Orientation: vertical
-Label-Font-Size: 35
+Bar-Font-Size: 35
 Width: 800
 Height: 500
 
