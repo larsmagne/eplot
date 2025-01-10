@@ -2379,7 +2379,7 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 			 :fill label-color
 			 :x (or horizontal-label-left 5)
 			 :y (+ py label-height
-			       (/ (- stride label-height) 2)))))))
+			       (/ stride 2)))))))
 
 (defun eplot--stops (from to)
   (append `((0 . ,from))
