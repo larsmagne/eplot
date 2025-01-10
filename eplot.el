@@ -325,20 +325,24 @@ you a clear, non-blurry version of the chart at any size."
      (insert-file-contents header-file)
      (eplot--parse-headers))))
 
-(defun eplot-make-plot (headers data)
+(defun eplot-make-plot (headers &rest datas)
   "Return an SVG based on DATA.
 DATA should be pairs of headers, then followed by the plot data."
   (with-temp-buffer
+    ;; Insert the headers.
     (dolist (line headers)
       (insert (format "%s:" (pop line)))
       (dolist (elem line)
 	(insert (format " %s" elem)))
       (insert "\n"))
-    (insert "\n")
-    (dolist (line data)
-      (dolist (elem line)
-	(insert (format "%s" elem) " "))
-      (insert "\n"))
+    ;; Then insert all the plot data sets.
+    (dolist (data datas)
+      (insert "\n")
+      (dolist (line data)
+	(dolist (elem line)
+	  (insert (format "%s" elem) " "))
+	(insert "\n")))
+    (setq a (buffer-string))
     (eplot--render (eplot--parse-buffer) t)))
 
 (defun eplot-switch-view-buffer ()
@@ -991,10 +995,14 @@ Elements allowed are `two-values', `date' and `time'.")
 (eplot-pdef (bezier-factor number 0.1)
   "The Bezier factor to apply to curve plots.")
 
+(eplot-pdef (bar-max-width number)
+  "Max width of bars in bar plots.")
+
 (defclass eplot-plot ()
   (
    (values :initarg :values)
    ;; ---- CUT HERE ----
+   (bar-max-width :initarg :bar-max-width :initform nil)
    (bezier-factor :initarg :bezier-factor :initform nil)
    (color :initarg :color :initform nil)
    (data-column :initarg :data-column :initform nil)
@@ -2103,6 +2111,7 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 	      for color = (eplot--vary-color
 			   (eplot--vs 'color settings (slot-value plot 'color))
 			   i)
+	      for bar-max-width = (eplot--pv plot 'bar-max-width)
 	      for py = (- (- height margin-bottom)
 			  (* (/ (- (* 1.0 val) min) (- max min))
 			     ys))
@@ -2146,8 +2155,17 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 		(bar
 		 (if (not gradient)
 		     (svg-rectangle
-		      svg (+ px bar-gap) py
-		      (- stride bar-gap) (- height margin-bottom py)
+		      svg
+		      (if (and bar-max-width
+			       (< bar-max-width (- stride bar-gap)))
+			  (+ px (/ stride 2) (/ bar-gap 2)
+			     (- (/ bar-max-width 2)))
+			(+ px bar-gap))
+		      py
+		      (if bar-max-width
+			  (min bar-max-width (- stride bar-gap))
+			(- stride bar-gap))
+		      (- height margin-bottom py)
 		      :clip-path clip-id
 		      :fill color)
 		   (let ((id (format "gradient-%s" (make-temp-name "grad"))))
