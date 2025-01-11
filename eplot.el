@@ -342,7 +342,7 @@ DATA should be pairs of headers, then followed by the plot data."
 	(dolist (elem line)
 	  (insert (format "%s" elem) " "))
 	(insert "\n")))
-    (setq a (buffer-string))
+    ;;(setq a (buffer-string)) (debug)
     (eplot--render (eplot--parse-buffer) t)))
 
 (defun eplot-switch-view-buffer ()
