@@ -1994,10 +1994,8 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 	  (setq tick-step (eplot--next-weed tick-step)))
 	(list tick-step
 	      (let ((label-step tick-step))
-		(while (> (/ count label-step) (/ ys min-spacing))
-		  (setq label-step (eplot--next-weed label-step))
-		  (while (not (zerop (% label-step tick-step)))
-		    (setq label-step (eplot--next-weed label-step))))
+		(while (> (/ (- max min) label-step) (/ ys min-spacing))
+		  (setq label-step (eplot--next-weed label-step)))
 		label-step)))))))
 
 (defvar eplot--pleasing-numbers '(1 2 5 10))
