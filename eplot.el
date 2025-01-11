@@ -1590,6 +1590,7 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 		font x-tick-step x-label-step x-label-format x-label-orientation
 		label-font label-font-size
 		plots x-labels
+		x-values
 		bar-font bar-font-size bar-font-weight)
       chart
     (let ((font label-font)
@@ -1605,10 +1606,11 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 	       for x = (if (consp xv) (car xv) xv)
 	       for i from 0
 	       for (label do-tick do-label) in x-labels
-	       for stride = (eplot--stride chart x-ticks)
 	       for px = (if (equal format 'bar-chart)
-			    (+ margin-left (* x stride) (/ stride 2)
-			       (/ (* stride 0.1) 2))
+			    (+ margin-left
+			       (/ (/ xs (length x-values)) 2)
+			       (* (e/ i (length x-values))
+				  xs))
 			  (+ margin-left
 			     (* (/ (- (* 1.0 x) x-min) (- x-max x-min))
 				xs)))
@@ -2071,7 +2073,6 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
     (cl-loop for plot in (reverse plots)
 	     for plot-number from 0
 	     for values = (slot-value plot 'values)
-	     for stride = (eplot--stride chart values)
 	     for vals = (eplot--smooth
 			 (seq-map (lambda (v) (plist-get v :value)) values)
 			 (slot-value plot 'smoothing)
@@ -2083,7 +2084,14 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 	     for style = (if (eq format 'bar-chart)
 			     'bar
 			   (slot-value plot 'style))
-	     for bar-gap = (* stride 0.1)
+	     for bar-max-width = (eplot--pv plot 'bar-max-width)
+	     for bar-width = (and (eq style 'bar)
+				  (min (or bar-max-width most-positive-fixnum)
+				       (/ xs (length x-values))))
+	     for bar-gap = (if (< bar-width
+				  (or bar-max-width most-positive-fixnum))
+			       (* bar-width 0.1)
+			     0)
 	     for clip-id = (format "url(#clip-%d)" plot-number)
 	     do
 	     (svg--append
@@ -2112,13 +2120,13 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 	      for color = (eplot--vary-color
 			   (eplot--vs 'color settings (slot-value plot 'color))
 			   i)
-	      for bar-max-width = (eplot--pv plot 'bar-max-width)
 	      for py = (- (- height margin-bottom)
 			  (* (/ (- (* 1.0 val) min) (- max min))
 			     ys))
 	      for px = (if (eq style 'bar)
 			   (+ margin-left
-			      (* (e/ (- x x-min) (- x-max x-min -1))
+			      (/ (/ xs (length x-values)) 2)
+			      (* (e/ i (length x-values))
 				 xs))
 			 (+ margin-left
 			    (* (e/ (- x x-min) (- x-max x-min))
@@ -2157,15 +2165,9 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 		 (if (not gradient)
 		     (svg-rectangle
 		      svg
-		      (if (and bar-max-width
-			       (< bar-max-width (- stride bar-gap)))
-			  (+ px (/ stride 2) (/ bar-gap 2)
-			     (- (/ bar-max-width 2)))
-			(+ px bar-gap))
+		      (+ (- px (e/ bar-width 2)) (e/ bar-gap 2))
 		      py
-		      (if bar-max-width
-			  (min bar-max-width (- stride bar-gap))
-			(- stride bar-gap))
+		      (- bar-width bar-gap)
 		      (- height margin-bottom py)
 		      :clip-path clip-id
 		      :fill color)
@@ -2175,8 +2177,10 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 						    (eplot--vs 'to gradient))
 				      (eplot--vs 'direction gradient))
 		     (svg-rectangle
-		      svg (+ px bar-gap) py
-		      (- stride bar-gap) (- height margin-bottom py)
+		      svg
+		      (+ (- px (e/ bar-width 2)) (e/ bar-gap 2))
+		      py
+		      (- bar-width bar-gap)
 		      :clip-path clip-id
 		      :gradient id))))
 		(impulse
