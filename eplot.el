@@ -2088,10 +2088,11 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 	     for bar-width = (and (eq style 'bar)
 				  (min (or bar-max-width most-positive-fixnum)
 				       (/ xs (length x-values))))
-	     for bar-gap = (if (< bar-width
-				  (or bar-max-width most-positive-fixnum))
-			       (* bar-width 0.1)
-			     0)
+	     for bar-gap = (and (eq style 'bar)
+				(if (< bar-width
+				       (or bar-max-width most-positive-fixnum))
+				    (* bar-width 0.1)
+				  0))
 	     for clip-id = (format "url(#clip-%d)" plot-number)
 	     do
 	     (svg--append
@@ -2181,6 +2182,7 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 		      (+ (- px (e/ bar-width 2)) (e/ bar-gap 2))
 		      py
 		      (- bar-width bar-gap)
+		      (- height margin-bottom py)
 		      :clip-path clip-id
 		      :gradient id))))
 		(impulse
