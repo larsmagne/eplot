@@ -1591,15 +1591,20 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 		label-font label-font-size
 		plots x-labels
 		x-values
-		bar-font bar-font-size bar-font-weight)
+		bar-font bar-font-size bar-font-weight
+		plots)
       chart
     (let ((font label-font)
 	  (font-size label-font-size)
-	  (font-weight 'normal))
+	  (font-weight 'normal)
+	  (label-settings nil))
       (when (equal format 'bar-chart)
 	(setq font bar-font
 	      font-size bar-font-size
-	      font-weight bar-font-weight))
+	      font-weight bar-font-weight
+	      label-settings (mapcar (lambda (e)
+				       (plist-get e :settings))
+				     (slot-value (car plots) 'values))))
       ;; Make X ticks.
       (cl-loop with label-height
 	       for xv in (or x-step-map x-ticks)
@@ -1614,6 +1619,11 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 			  (+ margin-left
 			     (* (/ (- (* 1.0 x) x-min) (- x-max x-min))
 				xs)))
+	       for this-font-weight =
+	       (if (equal format 'bar-chart)
+		   (or (cdr (assq 'label-font-weight (nth i label-settings)))
+		       font-weight)
+		 font-weight)
 	       ;; We might have one extra stride outside the area -- don't
 	       ;; draw it.
 	       when (<= px (- width margin-right))
@@ -1659,12 +1669,12 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 				    "10"
 				  ;; Otherwise center them on the baseline.
 				  "xx")
-				font font-size font-weight)))
+				font font-size this-font-weight)))
 		       (svg-text svg label
 				 :font-family font
 				 :text-anchor "end"
 				 :font-size font-size
-				 :font-weight font-weight
+				 :font-weight this-font-weight
 				 :fill label-color
 				 :transform
 				 (format "translate(%s,%s) rotate(-90)"
@@ -1674,7 +1684,7 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 			     :font-family font
 			     :text-anchor "middle"
 			     :font-size font-size
-			     :font-weight font-weight
+			     :font-weight this-font-weight
 			     :fill label-color
 			     :x px
 			     :y (+ (- height margin-bottom)
