@@ -2377,7 +2377,8 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 	       (svg-rectangle svg
 			      margin-left
 			      (+ py (e/ bar-gap 2)
-				 (if bar-max-width
+				 (if (and bar-max-width
+					  (< bar-max-width (- stride bar-gap)))
 				     (- (/ stride 2) (/ bar-max-width 2))
 				   0))
 			      px
