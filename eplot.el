@@ -781,6 +781,7 @@ and `frame' (the surrounding area).")
     (background-color "#101010")
     (label-color "#c0c0c0")
     (legend-color "#c0c0c0")
+    (legend-background-color "#000000")
     (title-color "#c0c0c0")))
 
 (defvar eplot-bar-chart-defaults
@@ -1874,11 +1875,13 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 			   collect
 			   (cons name (slot-value plot 'color)))))
 	(svg-rectangle svg (+ margin-left 20) (+ margin-top 20)
-		       (format "%dex"
-			       (+ 2
-				  (seq-max (mapcar (lambda (name)
-						     (length (car name)))
-						   names))))
+		       (format "%dpx"
+			       (+ 10
+				  (seq-max
+				   (mapcar (lambda (name)
+					     (eplot--text-width (car name)
+								font font-size))
+					   names))))
 		       (* font-size (+ (length names) 2))
 		       :font-size font-size
 		       :fill-color legend-background-color
