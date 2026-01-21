@@ -1323,14 +1323,21 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 		  :y (+ 3 (/ margin-top 2)))))
     (with-slots (x-title) chart
       (when x-title
-	(svg-text svg x-title
-		  :font-family font
-		  :text-anchor "middle"
-		  :font-weight font-weight
-		  :font-size font-size
-		  :fill label-color
-		  :x (+ margin-left (/ (- width margin-left margin-right) 2))
-		  :y (- height (/ margin-bottom 4)))))
+	(let ((theight (eplot--text-height
+			x-title font font-size font-weight)))
+	  (svg-text svg x-title
+		    :font-family font
+		    :text-anchor "middle"
+		    :font-weight font-weight
+		    :font-size font-size
+		    :fill label-color
+		    :x (+ margin-left (/ (- width margin-left margin-right) 2))
+		    ;; The bottom margin has room for the x ticks at the top.
+		    ;; Put the title in the middle of the area left after
+		    ;; subtracting that space.
+		    :y (- height (/ (- (- margin-bottom theight)
+				       theight)
+				    2))))))
     (with-slots (y-title) chart
       (when y-title
 	(let ((text-height
