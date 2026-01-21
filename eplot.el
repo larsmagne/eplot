@@ -362,6 +362,7 @@ DATA should be pairs of headers, then followed by the plot data."
 	  (set-window-point win (point-min))))
     ;; Normal case.
     (let* ((eplot--user-defaults (eplot--settings-table))
+	   (transient eplot--transient-settings)
 	   (data (eplot--parse-buffer))
 	   (data-buffer (current-buffer))
 	   (window (selected-window)))
@@ -378,9 +379,10 @@ DATA should be pairs of headers, then followed by the plot data."
 	(unless (eq major-mode 'eplot-view-mode)
 	  (eplot-view-mode))
 	(setq-local eplot--data-buffer data-buffer)
-	(let ((chart (eplot--render data)))
-	  (with-current-buffer data-buffer
-	    (setq-local eplot--current-chart chart)))
+	(let ((eplot--transient-settings transient))
+	  (let ((chart (eplot--render data)))
+	    (with-current-buffer data-buffer
+	      (setq-local eplot--current-chart chart))))
 	(insert "\n")
 	(when-let ((win (get-buffer-window "*eplot*" t)))
 	  (set-window-point win (point-min))))
@@ -430,7 +432,9 @@ DATA should be pairs of headers, then followed by the plot data."
   (let ((data (with-current-buffer eplot--data-buffer
 		(eplot--parse-buffer)))
 	(eplot--user-defaults (with-current-buffer eplot--data-buffer
-				(eplot--settings-table)))
+				eplot--user-defaults))
+	(eplot--transient-settings (with-current-buffer eplot--data-buffer
+				     eplot--transient-settings))
 	(inhibit-read-only t))
     (erase-buffer)
     (let ((chart (eplot--render data)))
@@ -1042,6 +1046,12 @@ Elements allowed are `two-values', `date' and `time'.")
       (setf (slot-value plot 'color) "#c0c0c0"))
     ;; Use the headers.
     (eplot--object-values plot (cdr (assq :headers data)) eplot--plot-headers)
+    ;; Finally, set defaults from user settings/transients.
+    (cl-loop for (name . value) in eplot--transient-settings
+	     when (assq name eplot--plot-headers)
+	     do
+	     (setf (slot-value plot name) value)
+	     (eplot--set-dependent-values plot name value))
     plot))
 
 (defun eplot--make-chart (data)
@@ -1058,14 +1068,20 @@ Elements allowed are `two-values', `date' and `time'.")
     (eplot--meta chart data 'format 'bar-chart eplot-bar-chart-defaults)
     (eplot--meta chart data 'format 'horizontal-bar-chart
 		 eplot-horizontal-bar-chart-defaults)
-    ;; Set defaults from user settings/transients.
+    ;; Set defaults from user settings.
     (cl-loop for (name . value) in eplot--user-defaults
 	     when (assq name eplot--chart-headers)
 	     do
 	     (setf (slot-value chart name) value)
 	     (eplot--set-dependent-values chart name value))
-    ;; Finally, use the data from the chart.
+    ;; Use the data from the chart.
     (eplot--object-values chart data eplot--chart-headers)
+    ;; Finally, set defaults from user settings/transients.
+    (cl-loop for (name . value) in eplot--transient-settings
+	     when (assq name eplot--chart-headers)
+	     do
+	     (setf (slot-value chart name) value)
+	     (eplot--set-dependent-values chart name value))
     ;; If not set, recompute the margins based on the font sizes (if
     ;; the font size has been changed from defaults).
     (when (or (assq 'font-size eplot--user-defaults)
