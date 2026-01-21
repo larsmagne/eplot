@@ -3432,39 +3432,71 @@ nil means `top-down'."
 		  ;; compiler.
 		  (pcsv-parse-buffer)))
 	names)
-    ;; Check whether the first line looks like a header.
-    (when (and (length> csv 1)
-	       ;; The second line is all numbers...
-	       (cl-every #'eplot--numericalp (nth 1 csv))
-	       ;; .. and the first line isn't.
-	       (not (cl-every #'eplot--numericalp (nth 0 csv))))
-      (setq names (pop csv)))
-    (list
-     (cons 'legend (if names "true" "false"))
-     (cons :plots
-	   (cl-loop
-	    for column from 1 upto (1- (length (car csv)))
-	    collect
-	    (list (cons :headers
-			(list
-			 (cons 'name (elt names column))
-			 (cons 'data-format
-			       (cond
-				((cl-every (lambda (e) (<= (length e) 4))
-					   (mapcar #'car csv))
-				 "year")
-				((cl-every (lambda (e) (= (length e) 8))
-					   (mapcar #'car csv))
-				 "date")
-				(t
-				 "number")))
-			 (cons 'color (eplot--vary-color "vary" (1- column)))))
-		  (cons
-		   :values
-		   (cl-loop for line in csv
-			    collect (list :x (eplot--numberish (car line))
-					  :value (eplot--numberish
-						  (elt line column)))))))))))
+    ;; Check whether we have a common string/number CSV file.
+    ;; The second number in every line is numerical...
+    (if (and (cl-every #'eplot--numericalp (mapcar #'cadr (cdr csv)))
+	     ;; But some alphabetical first columns.
+	     (not (cl-every #'eplot--numericalp (mapcar #'car (cdr csv)))))
+	(progn
+	  ;; Check whether first line is a header.
+	  (when (not (eplot--numericalp (cadr (car csv))))
+	    (setq names (pop csv)))
+	  (list
+	   (cons 'format "bar-chart")
+	   (cons 'y-title (nth 1 names))
+	   (cons 'x-title (nth 0 names))
+	   (cons :plots
+		 (cl-loop
+		  for column from 1 upto (1- (length (car csv)))
+		  collect
+		  (list (cons
+			 :headers
+			 (list
+			  (cons 'name (elt names column))
+			  (cons 'data-format "number")
+			  (cons 'color "vary")))
+			(cons
+			 :values
+			 (cl-loop for line in csv
+				  collect (list
+					   :settings
+					   `((label . ,(car line)))
+					   :value (eplot--numberish
+						   (elt line column))))))))))
+      ;; Other CSV format.
+      ;; Check whether the first line looks like a header.
+      (when (and (length> csv 1)
+		 ;; The second line is all numbers...
+		 (cl-every #'eplot--numericalp (nth 1 csv))
+		 ;; .. and the first line isn't.
+		 (not (cl-every #'eplot--numericalp (nth 0 csv))))
+	(setq names (pop csv)))
+      (list
+       (cons 'legend (if names "true" "false"))
+       (cons :plots
+	     (cl-loop
+	      for column from 1 upto (1- (length (car csv)))
+	      collect
+	      (list (cons :headers
+			  (list
+			   (cons 'name (elt names column))
+			   (cons 'data-format
+				 (cond
+				  ((cl-every (lambda (e) (<= (length e) 4))
+					     (mapcar #'car csv))
+				   "year")
+				  ((cl-every (lambda (e) (= (length e) 8))
+					     (mapcar #'car csv))
+				   "date")
+				  (t
+				   "number")))
+			   (cons 'color (eplot--vary-color "vary" (1- column)))))
+		    (cons
+		     :values
+		     (cl-loop for line in csv
+			      collect (list :x (eplot--numberish (car line))
+					    :value (eplot--numberish
+						    (elt line column))))))))))))
 
 (declare-function org-element-parse-buffer "org-element")
 
