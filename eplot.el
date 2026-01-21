@@ -273,7 +273,7 @@ it exists as this usually gives better results."
 		    (eplot--view-error code tmp)
 		    (when (file-exists-p ofile)
 		      (if (string-match-p "\\.png\\'" file)
-			  (rename-file ofile file)
+			  (rename-file ofile file t)
 			(let ((code (call-process "convert" nil tmp nil
 						  ofile file)))
 			  (eplot--view-error code tmp))))
