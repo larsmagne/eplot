@@ -3150,12 +3150,12 @@ nil means `top-down'."
 		   (let* ((object (if (assq slot eplot--chart-headers)
 				      chart
 				    (car (slot-value chart 'plots))))
-			  (value (format "%s"
-					 (or (cdr (assq slot settings))
-					     (if (not (slot-boundp object slot))
-						 ""
-					       (or (slot-value object slot)
-						   ""))))))
+			  (value (eplot--format-control-value
+				  (or (cdr (assq slot settings))
+				      (if (not (slot-boundp object slot))
+					  ""
+					(or (slot-value object slot)
+					    ""))))))
 		     (end-of-line)
 		     ;; If we have a too-long input in the first column,
 		     ;; then go to the next line.
@@ -3178,6 +3178,14 @@ nil means `top-down'."
 			 (forward-line 1)				
 		       (insert "\n")))))))
       (goto-char (point-min)))))
+
+(defun eplot--format-control-value (val)
+  (if (floatp val)
+      ;; We want to avoid "59.9999999" and the like, so we just format
+      ;; a very long floating point number and then strip the trailing
+      ;; zeros.  Stupid, but it works.
+      (replace-regexp-in-string "0+$" "" (format "%.10f" val))
+    (format "%s" val)))
 
 (defface eplot--input-default
   '((t :background "#505050"
