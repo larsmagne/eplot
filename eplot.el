@@ -682,7 +682,7 @@ If you want a chart with a transparent background, use the color
 (eplot-def (grid symbol xy (xy x y off))
   "What grid axes to do.")
 
-(eplot-def (grid-opacity number)
+(eplot-def (grid-opacity number 1)
   "The opacity of the grid.
 This should either be nil or a value between 0 and 1, where 0 is
 fully transparent.")
@@ -2300,7 +2300,7 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 				 (cons px (- py (e/ s 2)))
 				 (cons (+ px (e/ s 2)) (+ py (e/ s 2))))
 				:clip-path clip-id
-				:stroke color
+				:stroke (or color "black")
 				:fill-color
 				(or (slot-value plot 'fill-color) "none"))))
 		(rectangle
@@ -2378,7 +2378,8 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 		    svg (nreverse polygon)
 		    :clip-path clip-id
 		    :gradient id
-		    :stroke (slot-value plot 'fill-border-color))))))))
+		    :stroke (or (slot-value plot 'fill-border-color)
+				"black"))))))))
 
 (defun eplot--element-size (value plot settings default)
   (eplot--vn 'size settings

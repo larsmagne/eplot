@@ -368,7 +368,7 @@ Go wild!  But preferably not that wild.
 	Gradient: black red
 	Data-File: data1.txt
 
-![chart-gradient1.plt](/images/chart-gradient1.png)
+![chart-gradient1.plt](/images/chart-gradient1.svg)
 
 You can also plot the data using gradients.
 
@@ -376,19 +376,19 @@ You can also plot the data using gradients.
 	Style: square
 	Data-File: data1.txt
 
-![chart-gradient-square.plt](/images/chart-gradient-square.png)
+![chart-gradient-square.plt](/images/chart-gradient-square.svg)
 
 You can put the gradient above the chart instead:
 
 	Gradient: black red top-down above
 	Data-File: data1.txt
 
-![chart-gradient2.plt](/images/chart-gradient2.png)
+![chart-gradient2.plt](/images/chart-gradient2.svg)
 
 	Gradient: black red bottom-up
 	Data-File: data1.txt
 
-![chart-gradient3.plt](/images/chart-gradient3.png)
+![chart-gradient3.plt](/images/chart-gradient3.svg)
 
 You can specify the direction -- this one is basically just swapping the
 order of the colors.
@@ -396,14 +396,14 @@ order of the colors.
 	Gradient: black red right-left above
 	Data-File: data1.txt
 
-![chart-gradient4.plt](/images/chart-gradient4.png)
+![chart-gradient4.plt](/images/chart-gradient4.svg)
 
 But also right-left...
 
 	Gradient: black red left-right below
 	Data-File: data1.txt
 
-![chart-gradient6.plt](/images/chart-gradient6.png)
+![chart-gradient6.plt](/images/chart-gradient6.svg)
 
 ... and left-right.
 
@@ -413,14 +413,14 @@ But also right-left...
 	Gradient: black red top-down below
 	Data-File: data1.txt
 
-![chart-gradient5.plt](/images/chart-gradient5.png)
+![chart-gradient5.plt](/images/chart-gradient5.svg)
 
 And below the plot.
 
 	Gradient: black red left-right above
 	Data-File: data1.txt
 
-![chart-two-gradient1.plt](/images/chart-two-gradient1.png)
+![chart-two-gradient1.plt](/images/chart-two-gradient1.svg)
 
 You can plot the same data set twice with different gradients to get
 interesting results.
@@ -431,7 +431,7 @@ interesting results.
 	Gradient: black red bottom-up
 	Data-File: data1.txt
 
-![chart-two-gradient2.plt](/images/chart-two-gradient2.png)
+![chart-two-gradient2.plt](/images/chart-two-gradient2.svg)
 
 	Grid-Position: top
 	Grid-Color: black
@@ -442,7 +442,7 @@ interesting results.
 	Gradient: black red top-down below
 	Data-File: data1.txt
 
-![chart-two-gradient3.plt](/images/chart-two-gradient3.png)
+![chart-two-gradient3.plt](/images/chart-two-gradient3.svg)
 
 When using filled/gradient plots, it's often useful to put the grid on
 top of the charts.
@@ -456,7 +456,7 @@ top of the charts.
 	Gradient: yellow red top-down below
 	Data-File: data1.txt
 
-![chart-two-gradient4.plt](/images/chart-two-gradient4.png)
+![chart-two-gradient4.plt](/images/chart-two-gradient4.svg)
 
 Craazy.
 
@@ -470,7 +470,7 @@ Craazy.
 	Gradient: black red top-down below
 	Data-File: data1.txt
 
-![chart-two-gradient5.plt](/images/chart-two-gradient5.png)
+![chart-two-gradient5.plt](/images/chart-two-gradient5.svg)
 
 But when putting the grid on top like this, it's usually more visually
 pleasant to make the grid non-opaque.
@@ -478,7 +478,7 @@ pleasant to make the grid non-opaque.
 	Gradient: black 25-purple-50-white-75-purple-black
 	Data-File: data1.txt
 
-![chart-gradient-more-stops.plt](/images/chart-gradient-more-stops.png)
+![chart-gradient-more-stops.plt](/images/chart-gradient-more-stops.svg)
 
 You can also have more stops.  In that case, the second element
 specifies the percentage points of where each color ends, so the above
@@ -564,7 +564,7 @@ behind the plot, or just in the frame.  And also adjust the opacity.
 	Data-File: data1.txt
 	Gradient: red black
 
-![chart-gradient-background.plt](/images/chart-gradient-background.png)
+![chart-gradient-background.plt](/images/chart-gradient-background.svg)
 
 You can also have a gradient over the entire background, of course.
 
