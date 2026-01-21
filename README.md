@@ -34,6 +34,17 @@ If you have the pcsv package installed, you can also do CSV files.
 Just say `M-x eplot' in a buffer with values like that, and eplot will
 do its best to display the data.
 
+	Country,Units_Sold
+	Libya,8446
+	Canada,3018
+	Libya,1517
+	...
+
+If the CSV data looks like the above, eplot will use the first column
+as labels, and create a bar chart like this:
+
+![trivial-very-short.csv](/images/countries.svg)
+
 To tweak the look of the chart, there are three possibilities:
 
 * You can use the `c' command in the eplot buffer or the `C-c C-v'
