@@ -3311,7 +3311,7 @@ nil means `top-down'."
 (defvar eplot--prev-deletion nil)
 
 (defun eplot--process-text-input-before (beg end)
-  (message "Before: %s %s" beg end)
+  ;;(message "Before: %s %s" beg end)
   (cond
    ((= beg end)
     (setq eplot--prev-deletion nil))
