@@ -788,6 +788,7 @@ and `frame' (the surrounding area).")
   '((grid-position top)
     (grid y)
     (grid-opacity 0.2)
+    (grid-color "#a0a0a0")
     (min 0)))
 
 (defvar eplot-horizontal-bar-chart-defaults
