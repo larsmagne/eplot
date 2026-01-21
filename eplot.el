@@ -3440,7 +3440,7 @@ nil means `top-down'."
 	       (not (cl-every #'eplot--numericalp (nth 0 csv))))
       (setq names (pop csv)))
     (list
-     (cons 'legend (and names "true"))
+     (cons 'legend (if names "true" "false"))
      (cons :plots
 	   (cl-loop
 	    for column from 1 upto (1- (length (car csv)))
