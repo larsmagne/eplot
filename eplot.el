@@ -732,6 +732,12 @@ This is normally computed automatically, but can be overridden
 (eplot-def (title-color string (spec chart-color))
   "The color of the title.")
 
+(eplot-def (title-font number (spec font))
+  "The font size to use for axes labels.")
+
+(eplot-def (title-font-size number (spec font-size))
+  "The font size to use for axes labels.")
+
 (eplot-def (x-title string)
   "The title of the X axis, if any.")
 
@@ -860,6 +866,8 @@ and `frame' (the surrounding area).")
    (mode :initarg :mode :initform nil)
    (surround-color :initarg :surround-color :initform nil)
    (title :initarg :title :initform nil)
+   (title-font :initarg :title-font :initform nil)
+   (title-font-size :initarg :title-font-size :initform nil)
    (title-color :initarg :title-color :initform nil)
    (width :initarg :width :initform nil)
    (x-axis-title-space :initarg :x-axis-title-space :initform nil)
@@ -1311,13 +1319,13 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 		       :fill "none"
 		       :stroke-color (or frame-color chart-color))))
     ;; Title and legends.
-    (with-slots (title title-color) chart
+    (with-slots (title title-font title-font-size title-color) chart
       (when title
 	(svg-text svg title
-		  :font-family font
+		  :font-family title-font
 		  :text-anchor "middle"
 		  :font-weight font-weight
-		  :font-size font-size
+		  :font-size title-font-size
 		  :fill title-color
 		  :x (+ margin-left (/ (- width margin-left margin-right) 2))
 		  :y (+ 3 (/ margin-top 2)))))
@@ -2817,6 +2825,8 @@ nil means `top-down'."
       ("gr" "Reset" eplot--reset-transient)
       ("gv" "Save" eplot--save-transient))
      ("Axes, Grid & Legend"
+      ("tf" "Title-Font")
+      ("ts" "Title-Font-Size")
       ("xx" "X-Title")
       ("xy" "Y-Title")
       ("xf" "Label-Font")
