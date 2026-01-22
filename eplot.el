@@ -1646,8 +1646,7 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 	       for (label do-tick do-label) in x-labels
 	       for px = (if (equal format 'bar-chart)
 			    (+ margin-left
-			       ;; Adjust for extra bar-width to the left.
-			       (/ (* (/ xs (length x-values)) 1.1) 2)
+			       (/ (/ xs (length x-values)) 2)
 			       (* (e/ i (length x-values))
 				  xs))
 			  (+ margin-left
@@ -2170,7 +2169,6 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 			     ys))
 	      for px = (if (eq style 'bar)
 			   (+ margin-left
-			      (/ bar-gap 2)
 			      (/ (/ xs (length x-values)) 2)
 			      (* (e/ i (length x-values))
 				 xs))
