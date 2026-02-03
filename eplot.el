@@ -1491,7 +1491,7 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 		min max ys format inhibit-compute-x-step
 		y-ticks xs x-values print-format
 		x-label-format label-font label-font-size data
-		x-ticks)
+		x-ticks format)
       chart
     (setq y-ticks (and max
 		       (eplot--get-ticks
@@ -1510,7 +1510,8 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
       (unless inhibit-compute-x-step
 	(let ((xt (eplot--compute-x-ticks
 		   xs x-ticks print-format
-		   x-label-format label-font label-font-size)))
+		   x-label-format label-font label-font-size
+		   format)))
 	  (setq x-tick-step (car xt)
 		x-label-step (cadr xt)))))
     (when max
@@ -1983,11 +1984,16 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
      (format (or label-format "%s") value)))))
 
 (defun eplot--compute-x-ticks (xs x-values print-format x-label-format
-				  label-font label-font-size)
+				  label-font label-font-size
+				  &optional format)
   (let* ((min (seq-min x-values))
 	 (max (seq-max x-values))
 	 (count (length x-values))
-	 (max-print (eplot--format-value max print-format x-label-format))
+	 (max-print (if (eq format 'horizontal-bar-chart)
+			(eplot--format-y
+			 max (- (elt x-values 1) (elt x-values 0))
+			 print-format x-label-format)
+		      (eplot--format-value max print-format x-label-format)))
 	 ;; We want each label to be spaced at least as long apart as
 	 ;; the length of the longest label, with room for two blanks
 	 ;; in between.
