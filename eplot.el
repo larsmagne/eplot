@@ -1602,14 +1602,23 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 	   for value = (and (equal format 'bar-chart)
 			    (elt (slot-value (car plots) 'values) i))
 	   collect (list
-		    (if (equal format 'bar-chart)
-			(eplot--vs 'label
-				   (plist-get value :settings)
-				   ;; When we're doing bar charts, we
-				   ;; want default labeling to start with
-				   ;; 1 and not zero.
-				   (format "%s" (1+ x)))
-		      (eplot--format-value x print-format x-label-format))
+		    (cond
+		     ((eq format 'bar-chart)
+		      (eplot--vs 'label
+				 (plist-get value :settings)
+				 ;; When we're doing bar charts, we
+				 ;; want default labeling to start with
+				 ;; 1 and not zero.
+				 (format "%s" (1+ x))))
+		     ;; When doing horizontal bars, we basically
+		     ;; want to use the same formatting as we normally
+		     ;; use on the Y axis (i.e., "10k" etc).
+		     ((eq format 'horizontal-bar-chart)
+		      (eplot--format-y
+		       x (- (cadr x-ticks) (car x-ticks))
+		       print-format x-label-format))
+		     (t
+		      (eplot--format-value x print-format x-label-format)))
 		    do-tick
 		    do-label)))))
 
