@@ -2032,7 +2032,7 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 	 (count (length y-values))
 	 ;; We want each label to be spaced at least as long apart as
 	 ;; the height of the label.
-	 (min-spacing (+ text-height 10))
+	 (min-spacing (+ text-height 8))
 	 (digits (eplot--decimal-digits (- (cadr y-values) (car y-values))))
 	 (every (e/ 1 (expt 10 digits))))
     (cond
@@ -2041,7 +2041,7 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
       (list every every))
      ;; We have to prune Y labels, but not grid lines.  (We shouldn't
      ;; have a grid line more than every 10 pixels.)
-     ((< (* count 10) ys)
+     ((< (* count 8) ys)
       (list every
 	    (let ((label-step every))
 	      (while (> (/ (- max min) label-step) (/ ys min-spacing))
