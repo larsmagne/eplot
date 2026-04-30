@@ -771,6 +771,9 @@ This is a `format' string.")
 (eplot-def (x-label-orientation symbol horizontal (horizontal vertical))
   "Orientation of the X labels.")
 
+(eplot-def (x-label-orientation-angle number -90)
+  "Angle of the orientation of the X labels.")
+
 (eplot-def (background-image-file string)
   "Use an image as the background.")
 
@@ -891,6 +894,7 @@ and `frame' (the surrounding area).")
    (y-title :initarg :y-title :initform nil)
    (x-label-format :initarg :x-label-format :initform nil)
    (x-label-orientation :initarg :x-label-orientation :initform nil)
+   (x-label-orientation-angle :initarg :x-label-orientation :initform nil)
    (y-label-format :initarg :y-label-format :initform nil)
    (horizontal-label-left :initarg :horizontal-label-left :initform nil)
    ;; ---- CUT HERE ----
@@ -1601,8 +1605,7 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 (defun eplot--compute-x-labels (chart)
   (with-slots ( x-step-map x-ticks
 		format plots print-format x-label-format x-labels
-		x-tick-step x-label-step
-		x-label-orientation margin-bottom)
+		x-tick-step x-label-step margin-bottom)
       chart
     ;; Make X ticks.
     (setf x-labels
@@ -1646,7 +1649,8 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 		width height
 		axes-color label-color
 		grid grid-opacity grid-color
-		font x-tick-step x-label-step x-label-format x-label-orientation
+		font x-tick-step x-label-step x-label-format
+		x-label-orientation x-label-orientation-angle
 		label-font label-font-size
 		plots x-labels
 		x-values
@@ -1736,9 +1740,13 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 				 :font-weight this-font-weight
 				 :fill label-color
 				 :transform
-				 (format "translate(%s,%s) rotate(-90)"
+				 (format "translate(%s,%s) rotate(%d)"
 					 (+ px (/ label-height 2))
-					 (- height margin-bottom -10))))
+					 (- height margin-bottom
+					    (if (= x-label-orientation-angle 90)
+						-10
+					      -20))
+					 x-label-orientation-angle)))
 		   (svg-text svg label
 			     :font-family font
 			     :text-anchor "middle"
