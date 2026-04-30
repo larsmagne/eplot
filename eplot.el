@@ -737,10 +737,19 @@ This is normally computed automatically, but can be overridden
   "The color of the title.")
 
 (eplot-def (title-font number (spec font))
-  "The font size to use for axes labels.")
+  "The font size to use for the title.")
 
 (eplot-def (title-font-size number (spec font-size))
-  "The font size to use for axes labels.")
+  "The font size to use for the titles.")
+
+(eplot-def (axes-title-font number (spec font))
+  "The font to use for axes titles.")
+
+(eplot-def (axes-title-font-size number (spec font-size))
+  "The font size to use for axes titles.")
+
+(eplot-def (axes-title-font-weight number (spec font-weight))
+  "The font weight to use for axes titles.")
 
 (eplot-def (x-title string)
   "The title of the X axis, if any.")
@@ -829,6 +838,9 @@ and `frame' (the surrounding area).")
    (inhibit-compute-x-step :initform nil)
    ;; ---- CUT HERE ----
    (axes-color :initarg :axes-color :initform nil)
+   (axes-title-font :initarg :title-font :initform nil)
+   (axes-title-font-size :initarg :title-font-size :initform nil)
+   (axes-title-font-weight :initarg :title-font-size :initform nil)
    (background-color :initarg :background-color :initform nil)
    (background-gradient :initarg :background-gradient :initform nil)
    (background-image-cover :initarg :background-image-cover :initform nil)
@@ -1088,12 +1100,13 @@ Elements allowed are `two-values', `date' and `time'.")
 	      (assq 'font-size data))
       (with-slots ( title x-title y-title
 		    margin-top margin-bottom margin-left
-		    font-size font font-weight)
+		    axes-title-font axes-title-font-size axes-title-font-weight)
 	  chart
 	(when (or title x-title y-title)
 	  (let ((text-height
 		 (eplot--text-height (concat title x-title y-title)
-				     font font-size font-weight)))
+				     axes-title-font axes-title-font-size
+				     axes-title-font-weight)))
 	    (when (and title
 		       (and (not (assq 'margin-top eplot--user-defaults))
 			    (not (assq 'margin-top data))))
@@ -1293,6 +1306,7 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 		chart-color font font-size font-weight
 		margin-left margin-right margin-top margin-bottom
 		background-color label-color
+		axes-title-font axes-title-font-size axes-title-font-weight
 		xs ys)
       chart
     ;; Add background.
@@ -1350,10 +1364,10 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 	(let ((theight (eplot--text-height
 			x-title font font-size font-weight)))
 	  (svg-text svg x-title
-		    :font-family font
+		    :font-family axes-title-font
 		    :text-anchor "middle"
-		    :font-weight font-weight
-		    :font-size font-size
+		    :font-weight axes-title-font-weight
+		    :font-size axes-title-font-size
 		    :fill label-color
 		    :x (+ margin-left (/ (- width margin-left margin-right) 2))
 		    ;; The bottom margin has room for the x ticks at the top.
@@ -1365,12 +1379,14 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
     (with-slots (y-title) chart
       (when y-title
 	(let ((text-height
-	       (eplot--text-height y-title font font-size font-weight)))
+	       (eplot--text-height y-title axes-title-font
+				   axes-title-font-size
+				   axes-title-font-weight)))
 	  (svg-text svg y-title
-		    :font-family font
+		    :font-family axes-title-font
 		    :text-anchor "middle"
-		    :font-weight font-weight
-		    :font-size font-size
+		    :font-weight axes-title-font-weight
+		    :font-size axes-title-font-size
 		    :fill label-color
 		    :transform
 		    (format "translate(%s,%s) rotate(-90)"
@@ -2859,6 +2875,9 @@ nil means `top-down'."
      ("Axes, Grid & Legend"
       ("tf" "Title-Font")
       ("ts" "Title-Font-Size")
+      ("af" "Axes-Title-Font")
+      ("as" "Axes-Title-Font-Size")
+      ("aw" "Axex-Title-Font-Weight")
       ("xx" "X-Title")
       ("xy" "Y-Title")
       ("xf" "Label-Font")
