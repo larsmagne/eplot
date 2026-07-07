@@ -45,6 +45,8 @@ as labels, and create a bar chart like this:
 
 ![trivial-very-short.csv](/images/countries.svg)
 
+You can also use the CSV-Data-File header to include CSV files.
+
 To tweak the look of the chart, there are three possibilities:
 
 * You can use the `c' command in the eplot buffer or the `C-c C-v'

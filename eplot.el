@@ -518,11 +518,16 @@ DATA should be pairs of headers, then followed by the plot data."
 		 (memq 'xy data-format)))
 	 (data-column (or (eplot--vn 'data-column headers)
 			  (eplot--vn 'data-column in-headers))))
-    (if-let ((data-file (eplot--vs 'data-file headers)))
+    (if-let ((data-file (or (eplot--vs 'data-file headers)
+			    (eplot--vs 'csv-data-file headers))))
 	(with-temp-buffer
 	  (insert-file-contents data-file)
-	  (setq values (cdr (assq :values (eplot--parse-values headers)))
-		headers (delq (assq 'data headers) headers)))
+	  (setq values
+		(if (eplot--vs 'csv-data-file headers)
+		    (cdr (assq :values
+			       (cadr (assq :plots (eplot--parse-csv-buffer)))))
+		  (cdr (assq :values (eplot--parse-values headers)))))
+	  (setq headers (delq (assq 'data headers) headers)))
       ;; Now we come to the data.  The data is typically either just a
       ;; number, or two numbers (in which case the first number is a
       ;; date or a time).  Labels ans settings can be introduced with
@@ -1012,6 +1017,9 @@ xy: The first column is the X position.")
 (eplot-pdef (data-file string)
   "File where the data is.")
 
+(eplot-pdef (csv-data-file string)
+  "File where the csv data is.")
+
 (eplot-pdef (data-format symbol-list nil (nil two-values date time))
   "List of symbols to describe the data format.
 Elements allowed are `two-values', `date' and `time'.")
@@ -1035,6 +1043,7 @@ Elements allowed are `two-values', `date' and `time'.")
    (bar-max-width :initarg :bar-max-width :initform nil)
    (bezier-factor :initarg :bezier-factor :initform nil)
    (color :initarg :color :initform nil)
+   (csv-data-file :initarg :csv-data-file :initform nil)
    (data-column :initarg :data-column :initform nil)
    (data-file :initarg :data-file :initform nil)
    (data-format :initarg :data-format :initform nil)
@@ -1050,16 +1059,14 @@ Elements allowed are `two-values', `date' and `time'.")
    ;; ---- CUT HERE ----
    ))
 
-(defun eplot--make-plot (data)
+(defun eplot--make-plot (data chart-color)
   "Make an `eplot-plot' object and initialize based on DATA."
   (let ((plot (make-instance 'eplot-plot
 			     :values (cdr (assq :values data)))))
     ;; Get the program-defined defaults.
     (eplot--object-defaults plot eplot--plot-headers)
     ;; One special case.  I don't think this hack is quite right...
-    (when (or (eq (eplot--vs 'mode data) 'dark)
-	      (eq (cdr (assq 'mode eplot--user-defaults)) 'dark))
-      (setf (slot-value plot 'color) "#c0c0c0"))
+    (setf (slot-value plot 'color) chart-color)
     ;; Use the headers.
     (eplot--object-values plot (cdr (assq :headers data)) eplot--plot-headers)
     ;; Finally, set defaults from user settings/transients.
@@ -1073,8 +1080,7 @@ Elements allowed are `two-values', `date' and `time'.")
 (defun eplot--make-chart (data)
   "Make an `eplot-chart' object and initialize based on DATA."
   (let ((chart (make-instance 'eplot-chart
-			      :plots (mapcar #'eplot--make-plot
-					     (eplot--vs :plots data))
+			      :plots nil
 			      :data data)))
     ;; First get the program-defined defaults.
     (eplot--object-defaults chart eplot--chart-headers)
@@ -1098,6 +1104,11 @@ Elements allowed are `two-values', `date' and `time'.")
 	     do
 	     (setf (slot-value chart name) value)
 	     (eplot--set-dependent-values chart name value))
+    (setf (slot-value chart 'plots)
+	  (mapcar (lambda (plot-data)
+		    (eplot--make-plot plot-data 
+				      (slot-value chart 'chart-color)))
+		  (eplot--vs :plots data)))
     ;; If not set, recompute the margins based on the font sizes (if
     ;; the font size has been changed from defaults).
     (when (or (assq 'font-size eplot--user-defaults)
@@ -1600,7 +1611,10 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 		    y-ticks y-tick-step y-label-step min max)
 	  chart
 	(setq margin-bottom (max margin-bottom (+ width 40))
-	      ys (- height margin-top margin-bottom))))))
+	      ys (- height margin-top margin-bottom))
+	(when (< ys 0)
+	  (setq margin-bottom 10
+		ys (- height margin-top margin-bottom)))))))
 
 (defun eplot--compute-x-labels (chart)
   (with-slots ( x-step-map x-ticks
