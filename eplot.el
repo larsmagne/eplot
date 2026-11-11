@@ -1474,6 +1474,10 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 		      x-min (seq-min x-values)
 		      x-max (seq-max x-values)
 		      inhibit-compute-x-step t)
+		;; If we have degenerate data (i.e., only one value),
+		;; then avoid having no space.
+		(when (length= values 1)
+		  (cl-incf x-max))
 		(let ((xs (eplot--get-date-ticks
 			   x-min x-max xs
 			   label-font label-font-size x-label-format)))
