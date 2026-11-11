@@ -530,13 +530,15 @@ DATA should be pairs of headers, then followed by the plot data."
 	  (setq headers (delq (assq 'data headers) headers)))
       ;; Now we come to the data.  The data is typically either just a
       ;; number, or two numbers (in which case the first number is a
-      ;; date or a time).  Labels ans settings can be introduced with
+      ;; date or a time).  Labels and settings can be introduced with
       ;; a # char.
       (while (looking-at "\\([-0-9. \t]+\\)\\([ \t]*#\\(.*\\)\\)?")
 	(let ((numbers (match-string 1))
 	      (settings (eplot--parse-settings (match-string 3)))
 	      this)
-	  (setq numbers (mapcar #'string-to-number
+	  (setq numbers (mapcar (lambda (b)
+				  (string-to-number
+				   (string-replace "-" "" b)))
 				(split-string (string-trim numbers))))
 	  ;; If we're reading two dimensionalish data, the first
 	  ;; number is the date/time/x.
