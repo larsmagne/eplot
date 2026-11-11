@@ -1778,7 +1778,12 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 				   font-size
 				   (if (equal format 'bar-chart)
 				       (if (equal layout 'compact) 3 5)
-				     2)))))))))
+				     (if (equal
+					  (car (slot-value (car plots)
+							   'data-format))
+					  'date)
+					 ;; A date needs more room.
+					 10 2))))))))))
 
 (defun eplot--stride (chart values)
   (with-slots (xs x-type format) chart
