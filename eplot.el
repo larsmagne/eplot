@@ -342,7 +342,7 @@ DATA should be pairs of headers, then followed by the plot data."
 	(dolist (elem line)
 	  (insert (format "%s" elem) " "))
 	(insert "\n")))
-    ;;(setq a (buffer-string)) (debug)
+    ;;(setq a (buffer-string)) (debug a)
     (eplot--render (eplot--parse-buffer) t)))
 
 (defun eplot-switch-view-buffer ()
@@ -829,6 +829,7 @@ and `frame' (the surrounding area).")
   (
    (plots :initarg :plots)
    (data :initarg :data)
+   (all-values :initform nil)
    (xs)
    (ys)
    (x-values :initform nil)
@@ -1432,7 +1433,8 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 		xs
 		inhibit-compute-x-step x-type x-step-map format
 		x-tick-step x-label-step
-		label-font label-font-size x-label-format)
+		label-font label-font-size x-label-format
+		all-values)
       chart
     (let ((set-min min)
 	  (set-max max))
@@ -1443,6 +1445,9 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 				   (seq-map
 				    (lambda (v) (plist-get v :extra-value))
 				    values)))))
+	    ;; We compute `all-values' here so that we can use them
+	    ;; later when computing `y-ticks' and stuff.
+	    (setq all-values (append all-values vals))
 	    ;; Set the x-values based on the first plot.
 	    (unless x-values
 	      (setq print-format (cond
@@ -1528,7 +1533,7 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 		min max ys format inhibit-compute-x-step
 		y-ticks xs x-values print-format
 		x-label-format label-font label-font-size data
-		x-ticks format)
+		x-ticks format all-values)
       chart
     (setq y-ticks (and max
 		       (eplot--get-ticks
@@ -1554,7 +1559,8 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
     (when max
       (let ((yt (eplot--compute-y-ticks
 		 ys y-ticks
-		 (eplot--text-height "100" label-font label-font-size))))
+		 (eplot--text-height "100" label-font label-font-size)
+		 all-values)))
 	(setq y-tick-step (car yt)
 	      y-label-step (cadr yt))))
     ;; If max is less than 2% off from a pleasant number, then
@@ -2075,7 +2081,7 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 		    (setq label-step (eplot--next-weed label-step))))
 		label-step)))))))
 
-(defun eplot--compute-y-ticks (ys y-values text-height)
+(defun eplot--compute-y-ticks (ys y-values text-height all-values)
   (let* ((min (car y-values))
 	 (max (car (last y-values)))
 	 (count (length y-values))
@@ -2083,7 +2089,8 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 	 ;; the height of the label.
 	 (min-spacing (+ text-height 8))
 	 (digits (eplot--decimal-digits (- (cadr y-values) (car y-values))))
-	 (every (e/ 1 (expt 10 digits))))
+	 (every (e/ 1 (expt 10 digits)))
+	 (all-integers (cl-every #'integerp all-values)))
     (cond
      ;; We have room for every X value.
      ((< (* count min-spacing) ys)
@@ -2092,7 +2099,12 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
      ;; have a grid line more than every 10 pixels.)
      ((< (* count 8) ys)
       (list every
-	    (let ((label-step every))
+	    (let ((label-step (if all-integers
+				  ;; If all the values are integers,
+				  ;; we don't want to have any sub-1
+				  ;; labels, because that looks silly.
+				  (max 1 every)
+				every)))
 	      (while (> (/ (- max min) label-step) (/ ys min-spacing))
 		(setq label-step (eplot--next-weed label-step)))
 	      label-step)))
