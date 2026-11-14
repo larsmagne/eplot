@@ -1631,7 +1631,8 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 (defun eplot--compute-x-labels (chart)
   (with-slots ( x-step-map x-ticks
 		format plots print-format x-label-format x-labels
-		x-tick-step x-label-step margin-bottom)
+		x-tick-step x-label-step margin-bottom
+		all-values y-label-step)
       chart
     ;; Make X ticks.
     (setf x-labels
@@ -1812,18 +1813,25 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 		margin-top margin-bottom margin-left margin-right
 		y-tick-step y-label-step y-label-format)
       chart
-    ;; First collect all the labels we're thinking about outputting.
-    (setq y-labels
-	  (cl-loop for y in y-ticks
-		   for py = (- (- height margin-bottom)
-			       (* (/ (- (* 1.0 y) min) (- max min))
-				  ys))
-		   when (and (<= margin-top py (- height margin-bottom))
-			     (zerop (e% y y-tick-step))
-			     (zerop (e% y y-label-step)))
-		   collect (eplot--format-y
-			    y (- (cadr y-ticks) (car y-ticks)) nil
-			    y-label-format)))
+    ;; First collect all the label data-points we're thinking about
+    ;; outputting.
+    (let ((data
+	   (cl-loop for y in y-ticks
+		    for py = (- (- height margin-bottom)
+				(* (/ (- (* 1.0 y) min) (- max min))
+				   ys))
+		    when (and (<= margin-top py (- height margin-bottom))
+			      (zerop (e% y y-tick-step))
+			      (zerop (e% y y-label-step)))
+		    collect y)))
+      ;; We may have weeded out some labels here, so set the label
+      ;; step to what it actually is.
+      (when (length> data 1)
+	(setq y-label-step (- (cadr data) (car data))))
+      (setq y-labels
+	    (cl-loop for y in data
+		     collect (eplot--format-y y y-label-step nil
+					      y-label-format))))
     ;; Check the labels to see whether we have too many digits for
     ;; what we're actually going to display.  Man, this is a lot of
     ;; back-and-forth and should be rewritten to be less insanely
