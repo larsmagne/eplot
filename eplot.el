@@ -1541,7 +1541,7 @@ If RETURN-IMAGE is non-nil, return it instead of displaying it."
 			;; We get 5% more ticks to check whether we
 			;; should extend max.
 			(if (eplot--default-p 'max data)
-			    (* max 1.05)
+			    (+ max (* (- max min) 0.05))
 			  max)
 			ys)))
     (when (eplot--default-p 'max data)
